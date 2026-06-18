@@ -1,0 +1,82 @@
+# Đây là phiên bản của ngôn ngữ Docker Compose.
+# Nó giống như việc bạn bảo: "Tôi dùng quy chuẩn xây dựng năm 2024"
+version: "3.9"
+
+# Dưới đây là danh sách các "căn hộ" (container) bạn muốn xây. 
+# Trong dự án của bạn có 4 căn: ai, db, backend, và frontend.
+services:
+  ai:
+    build:
+      context: ./ai
+      dockerfile: Dockerfile
+
+    # Kích hoạt GPU
+    # Đây là lệnh "mượn đồ". Bạn bảo Docker: "Này, hãy cho cái hộp này quyền sử dụng 1 cái Card đồ họa NVIDIA trên máy thật của tôi". Nếu thiếu dòng này, code AI sẽ chạy bằng CPU (rất chậm).
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+              
+    # Gắn code từ máy thật vào trong Docker
+    volumes:
+      # Đây là "cái gương". Dấu chấm . là thư mục hiện tại (Smart-Recipe) trên máy thật.
+      # /app là thư mục ảo bên trong Docker.
+      # Mọi thay đổi bạn gõ code ở máy thật sẽ ngay lập tức hiện ra bên trong Docker
+      - ./ai:/app
+    # Khi bạn chui vào Docker, nó tự động đưa bạn vào thư mục /app luôn, đỡ phải gõ cd /app
+    working_dir: /app
+    # Giữ cho cái hộp này luôn mở. Nếu không có nó, Docker thấy không có ai làm gì sẽ tự động đóng hộp lại.
+    tty: true
+    
+  db:
+    # Lấy một cái hộp có cài sẵn database MariaDB bản 11.
+    image: mariadb:11
+    container_name: mariadb_container
+    restart: always
+    # Đây là các biến môi trường. Thay vì vào database gõ lệnh tạo user/pass, bạn ghi sẵn ở đây, Docker sẽ tự tạo cho bạn lúc khởi động.
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: SmartRecipe
+      MYSQL_USER: ai_user
+      MYSQL_PASSWORD: ai123
+    # Cổng bên trái là máy thật, bên phải là trong Docker. Bạn mở cổng này để các phần mềm quản lý database (như DBeaver) có thể kết nối vào.
+    ports:
+      - "3306:3306"
+    # Đây là "két sắt". Database rất quan trọng, nếu bạn xóa container mà không có dòng này, dữ liệu sẽ mất sạch. Dòng này giúp giữ dữ liệu lại kể cả khi bạn đập đi xây lại container.
+    volumes:
+      - db_data:/var/lib/mysql
+
+  backend:
+    # Khác với image (lấy đồ có sẵn), build nghĩa là: "Hãy nhìn vào thư mục ./backend, trong đó có file Dockerfile, hãy tự xây cái hộp theo hướng dẫn trong đó cho tôi".
+    build: ./backend
+    container_name: backend_container
+    restart: always
+    # Bảo Backend đọc các cấu hình bí mật (như mật khẩu DB) từ file .env mà bạn đã biết cách dùng.
+    env_file:
+      - ./backend/.env
+    ports:
+      - "3651:3651"
+    # Thứ tự ưu tiên. "Đừng xây Backend nếu Database chưa xây xong".
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app # sửa code backend, docker nhận luôn 
+
+  frontend:
+    build: ./frontend
+    container_name: frontend_container
+    restart: always
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app # sửa giao diện, trình duyệt tự load lại (hot reload)
+      - /app/node_modules # Dòng "ma thuật" này giúp node_modules trong Docker không bị máy thật đè lên
+
+# Đây là nơi khai báo cái "két sắt" db_data mà bạn đã dùng ở trên. Docker sẽ tự quản lý một vùng nhớ riêng cho nó.
+volumes:
+  db_data:

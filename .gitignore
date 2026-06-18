@@ -1,0 +1,25 @@
+# 
+**/__pycache__/
+sr/
+.env
+.env.*
+.vscode/
+.idea/
+*.log
+logs/
+
+# backend
+backend/data/
+backend/database-dataset/*.csv
+backend/modules/ai/*.txt
+*.pyc
+*.pyo
+backend/config/
+
+# frontend
+frontend/dist/
+frontend/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
