@@ -1,6 +1,8 @@
 from datetime import date, timedelta, datetime
 from backend.modules.meals.reponsitories import MealRepository
-from backend.modules.meals.schemas import InputPostMenuSchema, InputRemoveMealSchema
+from backend.modules.meals.schemas import (
+    InputPostMenuSchema, InputRemoveMealSchema, InputInsertFoodFromLibrary
+)
 from sqlalchemy.orm import Session
 
 class MealService:
@@ -29,29 +31,30 @@ class MealService:
         monday = date - timedelta(days=date.weekday())
         return monday.strftime("%Y-%m-%d")
 
-    # lấy thực đơn món ăn trong 1 ngày
-    def get_meals_service(self, db, user_id, plan_date):
-        rows = self.meal_repo.get_menu_repo(db, user_id, plan_date) 
+    # lấy thực đơn món ăn trong 1 ngày bằng plan_date và mean_type
+    def get_food_by_plan_date_and_meal_type_service(self, db: Session, user_id: int, plan_date, meal_type):
+        rows = self.meal_repo.get_food_by_plan_date_and_meal_type_repo(db, user_id, plan_date, meal_type) 
         
         result = []
-
         for row in rows:
             base = dict(row)
-            meal_name = base.pop('food_name')
+            food_name = base.pop('food_name')
             user_meal_name = base.pop('user_meal_name')
 
+            item = base.copy()
             # nếu có meal
-            if meal_name:
-                item = base.copy()
-                item['name'] = meal_name
-                result.append(item)
-
+            if food_name:
+                item['name'] = food_name
             # nếu có user_meal
-            if user_meal_name:
-                item = base.copy()
+            if user_meal_name:  
                 item['name'] = user_meal_name
-                result.append(item)
+            food_cal = base.get("food_calories_per_100") or 0
+            user_meal_cal = base.get("user_meal_calories_per_100") or 0
 
+            item["calories_per_100"] = max(food_cal, user_meal_cal)
+            
+            result.append(item)
+            
         return result
     
     def create_meal_plan_items(
@@ -77,6 +80,14 @@ class MealService:
     def get_list_food_library_by_category_name_service(self, db: Session, category_name: str):
         return self.meal_repo.get_list_food_library_by_category_name_repo(db, category_name)
     
+    # lấy nguyên liệu của 1 món ăn bằng id
+    def get_ingredients_json_by_id_service(self, db: Session, food_id: int):
+        return self.meal_repo.get_ingredients_json_by_id_repo(db, food_id)
+
+    # lấy hướng dẫn của 1 món ăn bằng id
+    def get_instructions_json_by_id_service(self, db: Session, food_id: int):
+        return self.meal_repo.get_instructions_json_by_id_repo(db, food_id)
+
     # === lấy tổng lượng calo tuần của user bằng week_start ===
     def get_total_calories_week_service(self, db, user_id, week_start):
         return self.meal_repo.get_total_week_calories_repo(db, user_id, week_start)
@@ -114,12 +125,14 @@ class MealService:
         except Exception as e:
             print("LỖI XÓA MÓN: ", e)
             raise
-    
+
+    # ====================
     # ====== INSERT ======
-    # chèn 1 món từ thư viện vào
-    def insert_meal_from_library_service(self, db: Session, user_id, payload):
+    # ====================
+    # chèn 1 món từ thư viện vào kế hoạch của user
+    def insert_food_from_library_service(self, db: Session, user_id, payload: InputInsertFoodFromLibrary):
         try:
-            self.meal_repo.insert_meal_from_library_repo(db, user_id, payload)
+            self.meal_repo.insert_food_from_library_repo(db, user_id, payload)
 
             db.commit()
         except Exception as e:

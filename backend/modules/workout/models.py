@@ -134,6 +134,22 @@ class Exercise(Base):
     workout_items = relationship("WorkoutPlanItem", back_populates="exercise")
     items = relationship("WorkoutPlanItem", back_populates="exercise")
 
+class ExerciseCategory(Base):
+    __tablename__ = "exercises_categories"
+
+    exercise_id = Column(Integer,
+        ForeignKey("exercises.id", ondelete="CASCADE"),
+        primary_key=True, 
+        nullable=False      
+    )
+    category_id = Column(
+        Integer, 
+        ForeignKey("categories.id", ondelete="CASCADE"),
+        primary_key=True, 
+        nullable=False
+    )
+    
+
 class WorkoutPlan(Base):
     __tablename__ = "workout_plans"
 

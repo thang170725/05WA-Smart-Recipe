@@ -1,17 +1,12 @@
-import Header from "../features/platform/components/Header"
-import Content from "../features/platform/components/Content"
+import { Content } from "../features/platform/components/Content"
 
-export default function ForumPlatform() {
+export default function ForumPlatformPage() {
   const devMode = "production"
 
   return (
-    <div className="page-shell relative">
-      {/* HEADER */}
-      <Header 
-        devMode={devMode}
-      />
-
-      <Content devMode={devMode}/>
+    <div className="w-[90%] ml-20 my-20">
+      <Content devMode={devMode}/>   
     </div>
+     
   );
 }

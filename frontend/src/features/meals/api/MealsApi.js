@@ -15,16 +15,23 @@ export async function PostMealsApi(devMode, payload) {
     })
 }
 
-// ======= 
-export async function GetMealsApi(devMode, plan_date) {
+// =========================
+// ======= API GET =========
+// =========================
+// 
+export async function GetFoodByPlanDateAndMealTypeApi(devMode, planDate, mealType) {
     if (devMode === "dev") {
-        const list = MockDataMenuDay(plan_date)
+        const list = MockDataMenuDay(planDate)
         console.log("MOCK DATA MENU DAY: ", list)
         return list
     }
 
-    return JsonApi(`/user/get-meals?plan_date=${plan_date}`, {
+    return JsonApi("/user/get-food-by-plan_date-and-meal_type", {
         method: "GET",
+        params: {
+            plan_date: planDate,
+            meal_type: mealType
+        }
     })
 }
 

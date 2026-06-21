@@ -1,7 +1,12 @@
 import Meals from "../../../pages/MealsPage"
 import { BASE_URL } from "../../../services/JsonApi"
 import { useState, useEffect } from "react"
-import { InsertMealFromLibraryApi, GetListFoodLibraryByCategoryNameApi } from "../api/FoodLibraryApi"
+import { 
+  InsertFoodFromLibraryApi, 
+  GetListFoodLibraryByCategoryNameApi,
+  GetIngredientsByIdApi,
+  GetInstructionsByIdApi,
+} from "../api/FoodLibraryApi"
 
 export default function Libraries({
   devMode, // quản lý chế độ xem
@@ -9,11 +14,12 @@ export default function Libraries({
   showLibrary, setShowLibrary, // biến cho phép mở đóng UI thư viện món ăn
   search, setSearch, // biến để giữ giá trị người dùng khi nhập vào ô tìm kiếm món ăn
   setMenuDay,
-  selectedMeal, setSelectedMeal
+  selectedMeal, setSelectedMeal //// state chọn meal (UI tab), lựa chọn breakfast, lunch, dinner
 }) {
   // ======================================================================================================
   // ==================== hiển thị danh sách món ăn trong thư viện theo category_name ====================
   // ======================================================================================================
+  const [foodId, setFoodId] = useState(0) // lưu id món ăn khi người dùng bấm nút xem hướng dẫn hoặc xem nguyên liệu
   const [categoryName, setCategoryName] = useState("breakfast"); // dùng để lọc theo category_name
   const [listFoodLibraryByCategoryName, setListFoodLibraryByCategoryName] = useState([]); // chứa danh sách món ăn lọc bởi categoryName
   // API lấy thư viện món ăn 
@@ -32,30 +38,61 @@ export default function Libraries({
     loadApi();
   }, [showLibrary, categoryName])
 
-  const [open, setOpen] = useState(false)
-  const [mode, setMode] = useState("unknown")
-  const [selectedMealLibrary, setSelectedMealLibrary] = useState(null)
+  // ======================================================================================================
+  // ==================== hiển thị hướng dẫn nấu 1 món ăn ==============================================
+  // ======================================================================================================
+  const [instructions, setInstructions] = useState([]) // lưu hướng dẫn
+  const [ingredients, setIngredients] = useState([]) // lưu nguyên liệu
+  const [mode, setMode] = useState("unknown") // quyết định mở hướng dẫn hay nguyên liệu
+  const [open, setOpen] = useState(false) 
+  useEffect(() => {
+    if (foodId != 0) {
+      const loadApi = async () => {
+        const ins = await GetInstructionsByIdApi(foodId)
+        const ing = await GetIngredientsByIdApi(foodId)
 
+        setInstructions(ins)
+        setIngredients(ing)
+      }
+
+      loadApi()
+    }
+  }, [foodId])
+
+  // =======================================================================================================================
+  // ==================== chức năng ghi món ăn vào menu của user từ thư viện ==============================================
+  // =======================================================================================================================
+  const [openQuantityPopup, setOpenQuantityPopup] = useState(false)
+  const [selectedFood, setSelectedFood] = useState(null)
+  const [quantity, setQuantity] = useState("")
+  const [unit, setUnit] = useState("g")
   // ==== API thêm món ăn vào menu khi bấm "chón món" ====
-  const handleSelectMeal = async (meal) => {
+  const handleSelectMeal = async () => {
+    if (!selectedFood) return
+
     try {
       setMenuDay((prev) => {
         return ([
           ...prev,
           {
-            name: meal.name,
-            meal_type: selectedMeal
+            name: selectedFood.food_name,
+            meal_type: selectedMeal,
+            quantity,
+            unit
           }
         ])
       })
       
-      await InsertMealFromLibraryApi(devMode, {
-          meal_id: meal.id,
+      await InsertFoodFromLibraryApi(devMode, {
+          food_id: selectedFood.food_id,
           meal_type: selectedMeal,
           plan_date: dateDetail.currentDate,
-          week_start: dateDetail.dateStartInWeek
+          week_start: dateDetail.dateStartInWeek,
+          quantity: Number(quantity),
+          unit: unit
       })
 
+      setOpenQuantityPopup(false)
       setShowLibrary(false);
     } catch (err) {
       console.error("LỖI THÊM MÓN TRỪ LIBRARY VÀ MENU: ", err)
@@ -140,7 +177,7 @@ export default function Libraries({
                     <div className="flex flex-wrap gap-2 pt-3">
                       <button
                         onClick={() => {
-                          setSelectedMealLibrary(meal)
+                          setFoodId(food.food_id)
                           setMode("ingredients")
                           setOpen(true)
                         }}
@@ -151,8 +188,8 @@ export default function Libraries({
 
                       <button
                         onClick={() => {
-                          setSelectedMealLibrary(meal)
-                          setMode("howToCook")
+                          setFoodId(food.food_id)
+                          setMode("instructions")
                           setOpen(true)
                         }}
                         className="text-xs px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition"
@@ -161,7 +198,12 @@ export default function Libraries({
                       </button>
 
                       <button
-                        onClick={() => handleSelectMeal(meal)}
+                        onClick={() => {
+                          setSelectedFood(food)
+                          setQuantity("")
+                          setUnit("g")
+                          setOpenQuantityPopup(true)
+                        }}
                         className="text-xs px-3 py-1.5 rounded-full bg-linear-to-r from-indigo-500 to-purple-500 text-white hover:opacity-90 transition shadow"
                       >
                         Chọn món
@@ -172,20 +214,70 @@ export default function Libraries({
               ))}
             </div>
 
-            <LibrariesPopup
+            
+          </div>
+
+        </div>
+      )}
+      <LibrariesPopup
               open={open}
               setOpen={setOpen}
               mode={mode}
-              meal={selectedMealLibrary}
+              ingredients={ingredients}
+              instructions={instructions}
             />
-          </div>
-        </div>
-      )}
+
+            <Popup
+              open={openQuantityPopup}
+              onClose={() => setOpenQuantityPopup(false)}
+              title="Nhập định lượng"
+            >
+              <div className="space-y-4">
+                        
+                <div>
+                  <label className="block mb-1">
+                    Số lượng
+                  </label>
+                        
+                  <input
+                    type="number"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-black"
+                  />
+                </div>
+                        
+                <div>
+                  <label className="block mb-1">
+                    Đơn vị
+                  </label>
+                        
+                  <select
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-black"
+                  >
+                    <option value="g">Gram (g)</option>
+                    <option value="kg">Kilogram (kg)</option>
+                    <option value="ml">ml</option>
+                    <option value="l">Lít</option>
+                  </select>
+                </div>
+                        
+                <button
+                  onClick={handleSelectMeal}
+                  className="w-full bg-indigo-500 text-white py-2 rounded-lg"
+                >
+                  Xác nhận
+                </button>
+                        
+              </div>
+            </Popup>
     </>
   )
 }
 
-function LibrariesPopup({ open, setOpen, mode, meal }) {
+function LibrariesPopup({ open, setOpen, mode, ingredients, instructions }) {
   return (
     <Popup
       open={open}
@@ -193,14 +285,14 @@ function LibrariesPopup({ open, setOpen, mode, meal }) {
       title={
         mode === "ingredients"
           ? "Nguyên liệu"
-          : mode === "howToCook"
+          : mode === "instructions"
           ? "Cách nấu"
           : "Thông tin"
       }
     >
-      {mode === "ingredients" && meal && (
+      {mode === "ingredients" && ingredients && (
         <div className="space-y-2 text-sm text-slate-700">
-          {meal.ingredients_json?.map((i, idx) => (
+          {ingredients.map((i, idx) => (
             <div
               key={idx}
               className="bg-slate-50 px-3 py-2 rounded-lg shadow-sm"
@@ -212,9 +304,9 @@ function LibrariesPopup({ open, setOpen, mode, meal }) {
         </div>
       )}
 
-      {mode === "howToCook" && meal && (
+      {mode === "instructions" && instructions && (
         <div className="space-y-3 text-sm text-slate-700">
-          {meal.instructions_json?.map((s) => (
+          {instructions.map((s) => (
             <div
               key={s.step}
               className="bg-slate-50 px-4 py-3 rounded-lg shadow-sm"

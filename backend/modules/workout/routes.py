@@ -5,23 +5,29 @@ from backend.modules.workout.schemas import (
     OutputGetWorkoutProgramTemplatesSchema,
     OutputGetWorkoutProgramTemplateDetailSchema,
     InputPostWorkoutProgramTemplateDetailToWeekSchema,
-    OutputGetWeekProgram
+    OutputGetWeekProgram,
+    InsertExercisesRequest
 )
 from backend.modules.user.dependencies import get_current_user
 from backend.core.database import get_db
 from backend.modules.workout.services import WorkoutService
 from backend.modules.user.models import User
 
+from datetime import date
+
 router = APIRouter(prefix="/workout", tags=["Workout"])
 service = WorkoutService()
 
-# ======= GET =======
-# API lấy thư viện bài tập
+# =====================
+# ======= GET =========
+# =====================
+# lấy thư viện bài tập dựa vào category_name
 @router.get("/get-exercises-library", response_model=list[OutputExercisesShema])
 def get_exercises_library(
+    category_name: str,
     db: Session = Depends(get_db)
 ):
-    return service.get_exercises_lib_service(db)
+    return service.get_exercises_lib_service(db, category_name)
 
 # API lấy thư viện chương trình tập mẫu
 @router.get("/get-workout-program-templates", response_model=list[OutputGetWorkoutProgramTemplatesSchema])
@@ -38,14 +44,14 @@ def get_workout_program_templates(
 ):
     return service.get_workout_program_template_detail_service(db, program_id)
 
-# API lấy lịch bài tập trong 1 tuần
-@router.get("/get-week-programs", response_model=OutputGetWeekProgram)
-def get_week_programs(
-    week_start: str,
+# API lấy lịch bài tập trong 1 ngày bằng plan_date
+@router.get("/get-exercises-list")
+def get_exercises_list(
+    plan_date: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return service.get_week_programs_service(db, current_user.id, week_start)
+    return service.get_exercises_list_service(db, current_user.id, plan_date)
 
 # ========= POST ===========
 @router.post("/post-workout-program-template-detail-to-week")
@@ -64,3 +70,16 @@ def post_workout_program_template_detail_to_week(
     )
 
     return "success"
+
+# =============================
+# ======= INSERT/POST =========
+# =============================
+# thêm bài tập vào schedule của user bằng plan_date
+@router.post("/insert-exercises-by-id")
+def insert_exercises_by_id(
+    payload: InsertExercisesRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    res = service.insert_exercises_by_id_service(db, current_user.id, payload.selected_exercises, payload.plan_date, payload.week_start)
+    return res

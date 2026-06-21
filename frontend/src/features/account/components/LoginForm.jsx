@@ -111,7 +111,7 @@ export function LoginForm({ onCancel, onLoginSuccess, onSwitchToRegister, onSwit
         <div className="flex justify-between text-sm">
           <button
             type="button"
-            className="text-brand hover:text-brand-light transition-colors"
+            className="text-brand hover:text-brand-light transition-colors cursor-pointer"
             onClick={onSwitchToForgotPassword}
           >
             Quên mật khẩu

@@ -9,21 +9,17 @@ class InputProgramWorkout(BaseModel):
 class InputApplyProgram(BaseModel):
     slug: str
 
-# OUTPUT
-# output của thư viện bài tập
+# ===================
+# === chức năng lấy các bài tập trong thư viện bằng category_name ===
+# ===================
 class OutputExercisesShema(BaseModel):
+    id: int
     name: str
-    description: str
+    description: Optional[str] = None
     muscle_group: str
     calories_per_minute: float
     difficulty: str
     image_url: str
-    video_url: str
-    category_name: str
-    # sets: int
-    # reps: int
-    # duration_minutes: int
-    # order_index: int
 
 # output lấy tên thư viện chương trình bài tập mẫu (name + id)
 class OutputGetWorkoutProgramTemplatesSchema(BaseModel):
@@ -76,4 +72,15 @@ class InputPostWorkoutProgramTemplateDetailToWeekSchema(BaseModel):
     current_date: str
     week_start: str
     workout_program_template_detail: OutputGetWorkoutProgramTemplateDetailSchema
-    
+
+class ExerciseInput(BaseModel):
+    exercise_id: int
+    sets: int
+    reps: int
+    duration_minutes: int
+    order_index: int
+
+class InsertExercisesRequest(BaseModel):
+    plan_date: date
+    week_start: date
+    selected_exercises: list[ExerciseInput]

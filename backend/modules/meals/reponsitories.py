@@ -8,33 +8,32 @@ from sqlalchemy import (
     func
 )
 from datetime import timedelta, date
-from backend.modules.meals.schemas import InputPostMenuSchema, InputRemoveMealSchema, InputInsertMealFromLibrary
+from backend.modules.meals.schemas import (
+    InputPostMenuSchema, InputRemoveMealSchema, InputInsertFoodFromLibrary
+)
 
 class MealRepository:
     # ======================
     # ======== GET =========
     # ======================
-    # lấy thực đơn 1 ngày
-    def get_menu_repo(self, db: Session, user_id, plan_date):
+    # lấy thực đơn 1 ngày của user bằng plan date và meal_type
+    def get_food_by_plan_date_and_meal_type_repo(self, db: Session, user_id: int, plan_date, meal_type: str):
         # plan_date: YY-MM-DD
         stmt = (
             select(
-                MealPlan.plan_date,
-                MealPlan.week_start,
-
-                MealPlanItem.meal_type,
-                MealPlanItem.id,
-                MealPlanItem.meal_plan_id,
-                MealPlanItem.meal_id,
+                FoodLibrary.name.label("food_name"),
+                FoodLibrary.image_url,
+                FoodLibrary.calories_per_100.label("food_calories_per_100"),
+                FoodLibrary.description,
+                
+                UserMeal.name.label("user_meal_name"),
+                UserMeal.calories_per_100.label("user_meal_calories_per_100"),
 
                 Meal.quantity,
-                Meal.unit,
-
-                UserMeal.name.label("user_meal_name"),
-                UserMeal.calories_per_100,
-
-                FoodLibrary.name.label("food_name")
+                Meal.unit
+                
             )
+            .select_from(MealPlan) # chỉ định bảng gốc
             .join(
                 MealPlanItem,
                 MealPlan.id == MealPlanItem.meal_plan_id
@@ -53,7 +52,8 @@ class MealRepository:
             )
             .where(
                 MealPlan.user_id == user_id,
-                MealPlan.plan_date == plan_date
+                MealPlan.plan_date == plan_date,
+                MealPlanItem.meal_type == meal_type,
             )
             .order_by(
                 MealPlan.plan_date,
@@ -92,6 +92,18 @@ class MealRepository:
         )
 
         return db.execute(stmt).mappings().all()
+
+    # lấy nguyên liệu của 1 món ăn bằng id
+    def get_ingredients_json_by_id_repo(self, db: Session, food_id: int):
+        stmt = select(FoodLibrary.ingredients_json).where(FoodLibrary.id == food_id)
+
+        return db.execute(stmt).scalars().first()
+
+    # lấy hướng dẫn của 1 món ăn bằng id
+    def get_instructions_json_by_id_repo(self, db: Session, food_id: int):
+        stmt = select(FoodLibrary.instructions_json).where(FoodLibrary.id == food_id)
+
+        return db.execute(stmt).scalars().first()
 
     def get_id_and_name_from_food_library_table_repo(self, db: Session):
         stmt = (
@@ -256,9 +268,11 @@ class MealRepository:
         db.add(meal_plan_item)
         db.flush()
 
-    # ======= INSERT =====
-    # chèn 1 món từ thư viện vào menu
-    def insert_meal_from_library_repo(self, db: Session, user_id, payload: InputInsertMealFromLibrary):
+    # =======================
+    # ======= INSERT ========
+    # =======================
+    # chèn 1 món từ thư viện vào menu của user
+    def insert_food_from_library_repo(self, db: Session, user_id: int, payload: InputInsertFoodFromLibrary):
         # 1. tạo row trong table meal_plans
         existing_plan = db.query(MealPlan).filter_by(
             user_id=user_id,
@@ -277,14 +291,36 @@ class MealRepository:
             db.add(meal_plan)
             db.flush()
         
-        # 2. tạo row trong table meal_plan_items
+        # 2. tạo row trong table meals
+        existing_meals = db.query(Meal).filter_by(
+            user_id=user_id,
+            food_id=payload.food_id,
+            quantity=payload.quantity,
+            unit=payload.unit
+        ).first()
+
+        meal = None
+        if existing_meals:
+            meal = existing_meals
+        else:
+            meal = Meal(
+                user_id=user_id,
+                food_id=payload.food_id,
+                quantity=payload.quantity,
+                unit=payload.unit
+            )
+            db.add(meal)
+            db.flush()
+
+        # 3. tạo row trong table meal_plan_items
         meal_plan_item = MealPlanItem(
             meal_plan_id=meal_plan.id,
-            meal_id=payload.meal_id,
+            meal_id=meal.id,
             meal_type=payload.meal_type
         )
         db.add(meal_plan_item)
         db.flush()
+
 
     # ======= REMOVE =======
     # xóa 1 món

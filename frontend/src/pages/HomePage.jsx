@@ -12,9 +12,14 @@ import {
   PlayCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Dock } from "lucide-react"
 
 export default function Home() {
+  // =================================================================================
+  // ========================= chức năng điều hướng  ================================
+  // =================================================================================
   const navigate = useNavigate()
+  
   const [centerIndex, setCenterIndex] = useState(0)
   const [paused, setPaused] = useState(false)
   
@@ -92,8 +97,9 @@ export default function Home() {
     <div className="page-shell space-y-16 sm:space-y-20">
       {/* Hero */}
       <section className="hero-banner">
-        <div className="max-w-3xl mx-auto space-y-6">
-          <span className="badge-brand">Smart Recipe V1</span>
+        <div className="mx-auto space-y-6 ">       
+          <span className="badge-brand">Smart Recipe Version 1</span>
+          
           <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-gradient-brand leading-tight">
             Ăn thông minh
             <br />
@@ -105,14 +111,26 @@ export default function Home() {
             từ căn bếp đến phòng gym.
           </p>
 
-          <button
-            type="button"
-            onClick={() => navigate("/health-center")}
-            className="btn-primary text-base mt-2"
-          >
-            Bắt đầu ngay
-            <ArrowRight className="w-5 h-5" />
-          </button>
+          <div className="flex gap-5 justify-center">
+            <button
+              type="button"
+              onClick={() => navigate("/health-center")}
+              className="btn-primary text-base mt-2"
+            >
+              Bắt đầu ngay
+              <ArrowRight className="w-5 h-5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/docs")}
+              className="text-base mt-2 border px-5 py-3 rounded-2xl cursor-pointer hover:bg-gray-600 duration-150 hover:-translate-y-0.5"
+            >
+              Tài liệu dinh dưỡng
+              <Dock className="w-5 h-5 inline-block ml-2"/>
+            </button>
+          </div>
+
         </div>
       </section>
 

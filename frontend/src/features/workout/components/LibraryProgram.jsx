@@ -1,94 +1,105 @@
 import { BASE_URL } from "../../../services/JsonApi"
 import { useState, useEffect } from "react"
 import { GetExcercisesLibraryApi } from "../api/LibraryProgramApi"
+import { InsertWorkoutExercisesApi } from "../api/WorkoutProgramsApi"
 
 export default function LibraryProgram({
   devMode,
   showLibrary, setShowLibrary, // biến cho phép mở đóng UI thư viện món ăn
-  setWeekPrograms,
+  setExercisesList,
   selectedDay, // dùng để thêm một bài tập nào đó vào đúng ngày
+  planDate, weekStart
 }) {
   const [open, setOpen] = useState(false)
-  const [categoryFilter, setCategoryFilter] = useState("gain_muscle"); // dùng để lọc theo category_name
 
-  // xử lý bài tập
-  const [libraryExcercisesContainer, setLibraryExercisesContainer] = useState([]); // biến chứa toàn bộ thư viện bài tập tải lên  
-  const [selectedExcercises, setSelectedExcercises] = useState([]) // biến lưu một hoặc nhiều nhiều bài tập khi bấm chọn 
-  const [previewExercise, setPreviewExercise] = useState(null) // biến lưu một bài tập để preview
-  const [search, setSearch] = useState(""); // biến để  tìm kiếm bài tập
-
-  // biến dùng để  lấy bài tập theo bộ lọc
-  const filteredExcercises = libraryExcercisesContainer.filter((m) => {
-      const matchSearch = m.name
-          .toLowerCase()
-          .includes((search || "").toLowerCase());
-  
-      const matchCategory = !categoryFilter || m.category_name === categoryFilter;
-  
-      return matchSearch && matchCategory;
-  });
-
-  // load thư viện bài tập
+  // =======================================================================================================================================
+  // ========================= chức năng lấy các bài tập trong thư viện bằng categoryName  ================================================
+  // =======================================================================================================================================
+  const [categoryName, setCategoryName] = useState("chest"); // dùng để lọc theo category_name
+  const [exercisesLibrary, setExercisesLibrary] = useState([]); // biến chứa toàn bộ thư viện bài tập tải lên  
+  // API load thư viện bài tập
   useEffect(() => {
     const loadApi = async () => {
       try {
-        const response = await GetExcercisesLibraryApi(devMode)
-        setLibraryExercisesContainer(response)
+        const response = await GetExcercisesLibraryApi(devMode, categoryName)
+
+        setExercisesLibrary(response)
       } catch (err) {
         console.error("Lỗi API thư viện bài tập: ", err)
       }
     }
 
     loadApi()
-  }, [])
+  }, [categoryName])
 
-  // chọn bài tập, kho chưa có trong list -> thêm, nó đã có -> bỏ chọn
-  const toggleSelectExercise = (exercise) => {
-    setSelectedExcercises((prev) => {
-      const exists = prev.find((e) => e.name === exercise.name)
-
-      if (exists) {
-        return prev.filter((e) => e.name !== exercise.name)
-      }
-
-      return [...prev, exercise]
+  // =======================================================================================================================================
+  // ========================= chức năng thêm bài tập trong tư viện vào schedule của user  ================================================
+  // =======================================================================================================================================
+  const [selectedExcercises, setSelectedExcercises] = useState([]) // biến lưu một hoặc nhiều nhiều bài tập khi bấm chọn 
+  // State cho popup nhập thông tin
+  const [exerciseConfigPopup, setExerciseConfigPopup] = useState(false)
+  const [exerciseForm, setExerciseForm] = useState({
+    exercise_id: null,
+    sets: "",
+    reps: "",
+    duration_minutes: "",
+    order_index: ""
+  })
+  const [previewExercise, setPreviewExercise] = useState(null) // biến lưu một bài tập để preview
+  const [search, setSearch] = useState(""); // biến để  tìm kiếm bài tập
+  const handleSelectExercise = (exercise) => {
+    setExerciseForm({
+      exercise_id: exercise.id,
+      sets: exercise.sets || "",
+      reps: exercise.reps || "",
+      duration_minutes: exercise.duration_minutes || "",
+      order_index: selectedExcercises.length + 1
     })
+  
+    setExerciseConfigPopup(true)
   }
-
-  // thêm bài tập vào ngày tương ứng
+  // Hàm lưu từ popup
+  const saveExerciseConfig = () => {
+    const exists = selectedExcercises.find(
+      (e) => e.exercise_id === exerciseForm.exercise_id
+    )
+  
+    if (exists) {
+      alert("Bài tập này đã được chọn")
+      return
+    }
+  
+    setSelectedExcercises((prev) => [
+      ...prev,
+      {
+        exercise_id: exerciseForm.exercise_id,
+        sets: Number(exerciseForm.sets),
+        reps: Number(exerciseForm.reps),
+        duration_minutes: Number(exerciseForm.duration_minutes),
+        order_index: Number(exerciseForm.order_index)
+      }
+    ])
+  
+    setExerciseConfigPopup(false)
+  }
+  // thêm bài tập vào schedule của user bằng exercise_id
   const handleAddExercises = () => {
     if (selectedExcercises.length === 0) return
 
-    setWeekPrograms((prev) => ({
-      ...prev,
-      week_menu: {
-        ...prev.week_menu,
-        [selectedDay]: [
-          ...prev.week_menu[selectedDay],
-          ...selectedExcercises.map((e, index) => ({
-            name: e.name,
-            difficulty: e.difficulty,
-            calories_per_minute: e.calories_per_minute,
-            sets: e.sets,
-            reps: e.reps,
-            duration_minutes: e.duration_minutes ?? e.durarion_minutes,
-            order_index: prev.week_menu[selectedDay].length + index + 1
-          }))
-        ]
+    const loadApi = async () => {
+      const res = await InsertWorkoutExercisesApi(
+        planDate.toISOString().split("T")[0],
+        weekStart, 
+        selectedExcercises
+      )
+
+      if (res){
+        alert("thêm thành công!")
       }
-    }))
+    }
 
-    setSelectedExcercises([])
+    loadApi(); 
   }
-
-  // test
-  useEffect(() => {
-    console.log(filteredExcercises)
-  }, [filteredExcercises])
-
-  useEffect(() => {
-    console.log("excercises library", libraryExcercisesContainer)
-  }, [libraryExcercisesContainer])
 
   return (
     <>
@@ -96,7 +107,6 @@ export default function LibraryProgram({
         <div className="fixed inset-0 bg-black/50 flex justify-end z-50 top-18">
           {/* SIDE PANEL */}
           <div className="w-[55%] bg-white/90 backdrop-blur-xl shadow-2xl overflow-y-auto p-8 animate-slideLeft rounded-l-sm">
-
             {/* HEADER */}
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-bold text-sky-900 tracking-wide">
@@ -138,10 +148,11 @@ export default function LibraryProgram({
               />
 
               <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
+                value={categoryName}
+                onChange={(e) => setCategoryName(e.target.value)}
                 className="text-sky-950 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-none transition shadow-sm"
               >
+                <option value="chest">Bài tập ngực</option>
                 <option value="gain_muscle">Tăng cơ</option>
                 <option value="strength_training">Tăng sức mạnh</option>
                 <option value="fat_loss_cardio">Giảm mỡ đốt calo</option>
@@ -153,8 +164,7 @@ export default function LibraryProgram({
 
             {/* GRID */}
             <div className="grid grid-cols-3 gap-6">
-              {filteredExcercises.map((excercise) => {
-
+              {exercisesLibrary.map((excercise) => {
                 const isSelected = selectedExcercises.some(
                   (e) => e.name === excercise.name
                 )
@@ -181,7 +191,7 @@ export default function LibraryProgram({
                         {excercise.name}
                       </h3>
                       <p className="text-xs text-slate-400">
-                        {excercise.category_name} ({excercise.muscle_group})
+                        {excercise.muscle_group} {excercise.calories_per_minute}Kcal/Min
                       </p>
                       <p className="text-sm text-slate-600 line-clamp-2">
                         {excercise.description}
@@ -199,7 +209,7 @@ export default function LibraryProgram({
                         </button>
 
                         <button
-                          onClick={() => toggleSelectExercise(excercise)}
+                          onClick={() => handleSelectExercise(excercise)}
                           className="text-xs px-3 py-1.5 rounded-full bg-linear-to-r from-indigo-500 to-purple-500 text-white hover:opacity-90 transition shadow"
                         >
                           Chọn bài tập này
@@ -222,6 +232,86 @@ export default function LibraryProgram({
         setOpen={setOpen}
         excercise={previewExercise}
       />
+        {/* Popup nhập sets/reps */}
+        {exerciseConfigPopup && (
+          <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-xl w-[450px] p-6 text-black">
+              <h3 className="text-xl font-bold mb-5">
+                Cấu hình bài tập
+              </h3>
+
+              <div className="space-y-4">
+                <input
+                  type="number"
+                  placeholder="Sets"
+                  value={exerciseForm.sets}
+                  onChange={(e) =>
+                    setExerciseForm({
+                      ...exerciseForm,
+                      sets: e.target.value
+                    })
+                  }
+                  className="w-full border rounded p-2"
+                />
+
+                <input
+                  type="number"
+                  placeholder="Reps"
+                  value={exerciseForm.reps}
+                  onChange={(e) =>
+                    setExerciseForm({
+                      ...exerciseForm,
+                      reps: e.target.value
+                    })
+                  }
+                  className="w-full border rounded p-2"
+                />
+
+                <input
+                  type="number"
+                  placeholder="Duration (minutes)"
+                  value={exerciseForm.duration_minutes}
+                  onChange={(e) =>
+                    setExerciseForm({
+                      ...exerciseForm,
+                      duration_minutes: e.target.value
+                    })
+                  }
+                  className="w-full border rounded p-2"
+                />
+
+                <input
+                  type="number"
+                  placeholder="Order"
+                  value={exerciseForm.order_index}
+                  onChange={(e) =>
+                    setExerciseForm({
+                      ...exerciseForm,
+                      order_index: e.target.value
+                    })
+                  }
+                  className="w-full border rounded p-2"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setExerciseConfigPopup(false)}
+                  className="px-4 py-2 border rounded"
+                >
+                  Hủy
+                </button>
+
+                <button
+                  onClick={saveExerciseConfig}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded"
+                >
+                  Lưu
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </>
   )
 }

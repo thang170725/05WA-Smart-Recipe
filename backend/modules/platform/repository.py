@@ -1,28 +1,106 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func, select
+from sqlalchemy.sql.elements import CompilerElement
+
 from backend.modules.platform.models import Platform, Comment, Rating
+from backend.modules.platform.schemas import InputCreatePostSchema
 from backend.modules.user.models import User
 
 class PlatformRepository:
+    # =============================
     # ====== GET ======
-    # lấy danh sách các bài post
+    # =============================
+    # lấy danh sách 50 bài post gần nhất
     def get_posts_repo(self, db: Session):
-        stmt = (
-            select(
+        # Subquery lấy comment mới nhất của từng bài viết
+        latest_comment_subquery = (
+            db.query(
+                Comment.id,
+                Comment.platform_id,
+                Comment.user_id,
+                Comment.content,
+                Comment.created_at,
+
+                func.row_number()
+                .over(
+                    partition_by=Comment.platform_id,
+                    order_by=Comment.created_at.desc()
+                )
+                .label("rn")
+            )
+        ).subquery()
+
+        # Alias cho user comment
+        CommentUser = aliased(User)
+
+        posts = (
+            db.query(
+                # người đăng bài
+                User.email.label("user_post_name"),
+
+                # thông tin bài viết
                 Platform.id.label("platform_id"),
                 Platform.title,
                 Platform.content,
                 Platform.number_comment,
                 Platform.rating_count,
                 Platform.rating_avg,
-                Platform.created_at,
-                User.username
+                Platform.created_at.label("post_created_at"),
+
+                # comment mới nhất
+                latest_comment_subquery.c.content.label("user_comment"),
+                latest_comment_subquery.c.created_at.label("comment_created_at"),
+
+                # người comment
+                CommentUser.email.label("user_comment_name")
             )
-            .join(User, User.id == Platform.user_id)
-            .order_by(Platform.created_at)
+
+            # user đăng bài
+            .join(
+                User,
+                User.id == Platform.user_id
+            )
+
+            # comment mới nhất
+            .outerjoin(
+                latest_comment_subquery,
+                (latest_comment_subquery.c.platform_id == Platform.id)
+                &
+                (latest_comment_subquery.c.rn == 1)
+            )
+
+            # user của comment
+            .outerjoin(
+                CommentUser,
+                CommentUser.id == latest_comment_subquery.c.user_id
+            )
+
+            .order_by(Platform.created_at.desc())
+            .limit(50)
+            .all()
         )
 
-        return db.execute(stmt).mappings().all()
+        return [
+            {
+                "platform_id": row.platform_id,
+
+                "user_post_name": row.user_post_name,
+
+                "title": row.title,
+                "content": row.content,
+
+                "number_comment": row.number_comment,
+                "rating_count": row.rating_count,
+                "rating_avg": row.rating_avg,
+
+                "post_created_at": row.post_created_at,
+
+                "user_comment_name": row.user_comment_name,
+                "user_comment": row.user_comment,
+                "comment_created_at": row.comment_created_at,
+            }
+            for row in posts
+        ]
 
     # lất danh sách comment của một bài post
     def get_comments_repo(self, db: Session, platform_id: int):
@@ -39,14 +117,19 @@ class PlatformRepository:
 
         return db.execute(stmt).mappings().all()
 
-    # ======== INSERT ========
+    # =============================
+    # ======= POST / INSERT =======
+    # =============================
     # tạo bài viết mới
-    def create_post_repo(self, user_id, data: dict):
-        return Platform(
+    def create_post_repo(self, db: Session, user_id: int, payload: InputCreatePostSchema):
+        post = Platform(
             user_id=user_id,
-            title=data.title,
-            content=data.content
+            title=payload.title,
+            content=payload.content
         )
+        db.add(post)
+
+        return post
 
     # ghi bình luận vào db
     def insert_comment_repo(self, user_id, payload):

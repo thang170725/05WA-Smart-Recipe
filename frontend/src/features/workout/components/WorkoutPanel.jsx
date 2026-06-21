@@ -1,10 +1,9 @@
-import React, { useState } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 
 import {
   Dumbbell,
   Flame,
-  Calendar,
   CheckCircle2,
   PlayCircle,
 } from "lucide-react";
@@ -13,81 +12,35 @@ import LibraryProgram from "./LibraryProgram";
 
 export default function WorkoutPanel({
   devMode,
-  weekPrograms,
-  setWeekPrograms,
+  exercisesList,
+  setExercisesList,
   selectedDay,
   showLibrary,
   setShowLibrary,
+  planDate,
+  weekStart,
 }) {
 
-  // lấy ra danh sách bài tập 1 ngày đang hiện trên website
-  const todayExercises = weekPrograms?.week_menu?.[selectedDay] || [];
+  // hoàn thành 1 set
+  const completeSet = (exerciseIndex) => {
+    setExercisesList((prev) =>
+      prev.map((item, idx) => {
+        if (idx !== exerciseIndex) return item;
 
-  /* -------------------------------- */
-  /* COMPLETED STATE                  */
-  /* -------------------------------- */
-
-  const [completed, setCompleted] = useState({});
-
-  const toggleComplete = (orderIndex) => {
-    const key = `${selectedDay}-${orderIndex}`;
-
-    setCompleted((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+        return {
+          ...item,
+          completed_sets: Math.min(
+            (item.completed_sets || 0) + 1,
+            item.sets
+          ),
+        };
+      })
+    );
   };
-
-  /* -------------------------------- */
-  /* PROGRESS CALCULATION             */
-  /* -------------------------------- */
-
-  const completedCount = todayExercises.filter(
-    (ex) => completed[`${selectedDay}-${ex.order_index}`]
-  ).length;
-
-  const progress =
-    todayExercises.length === 0
-      ? 0
-      : (completedCount / todayExercises.length) * 100;
-
-  /* -------------------------------- */
-  /* WORKOUT SUMMARY                  */
-  /* -------------------------------- */
-
-  const totalCalories = todayExercises.reduce(
-    (sum, ex) =>
-      sum + ex.calories_per_minute * ex.duration_minutes,
-    0
-  );
-
-  const totalDuration = todayExercises.reduce(
-    (sum, ex) => sum + ex.duration_minutes,
-    0
-  );
-
-  /* -------------------------------- */
-  /* DIFFICULTY COLOR                 */
-  /* -------------------------------- */
-
-  const difficultyStyle = (difficulty) => {
-    if (difficulty === "hard")
-      return "bg-red-500/20 text-red-300";
-
-    if (difficulty === "medium")
-      return "bg-yellow-500/20 text-yellow-300";
-
-    return "bg-green-500/20 text-green-300";
-  };
-
-  /* -------------------------------- */
-  /* RENDER                           */
-  /* -------------------------------- */
 
   return (
     <>
       <div className="w-full">
-
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -100,11 +53,8 @@ export default function WorkoutPanel({
           shadow-2xl
           "
         >
-
           {/* HEADER ACTIONS */}
-
           <div className="flex justify-between items-center mb-6">
-
             <button
               className="
               flex items-center gap-2
@@ -112,7 +62,7 @@ export default function WorkoutPanel({
               rounded-xl
               font-semibold
               text-black
-              bg-gradient-to-r
+              bg-linear-to-r
               from-emerald-400
               to-cyan-400
               hover:scale-105
@@ -135,249 +85,201 @@ export default function WorkoutPanel({
             >
               + Thêm bài tập
             </button>
-
           </div>
 
-          {/* WORKOUT SUMMARY */}
+          {/* LIST EXERCISES*/}
+          {exercisesList.length > 0 ? (
+            <div className="space-y-4">
+              {exercisesList.map((exercise, index) => {
+                const completedSets = exercise.completed_sets || 0;
 
-          {todayExercises.length > 0 && (
+                const progress = Math.round(
+                  (completedSets / exercise.sets) * 100
+                );
 
-            <div className="flex gap-6 text-sm text-gray-400 mb-6">
+                const totalCalories =
+                  exercise.calories_per_minute *
+                  exercise.duration_minutes;
 
-              <span>💪 {todayExercises.length} bài</span>
+                const burnedCalories = Math.round(
+                  totalCalories *
+                    (completedSets / exercise.sets)
+                );
 
-              <span>🔥 {totalCalories} kcal</span>
+                const isCompleted =
+                  completedSets >= exercise.sets;
 
-              <span>⏱ {totalDuration} phút</span>
-
-            </div>
-
-          )}
-
-          {/* PROGRESS BAR */}
-
-          {todayExercises.length > 0 && (
-
-            <div className="mb-8">
-
-              <div className="flex justify-between text-sm text-gray-300 mb-2">
-
-                <span>
-                  {completedCount} / {todayExercises.length} bài tập hoàn thành
-                </span>
-
-                <span>{Math.round(progress)}%</span>
-
-              </div>
-
-              <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden shadow-inner">
-
-                <div
-                  className="
-                  h-full
-                  bg-gradient-to-r
-                  from-emerald-400
-                  via-cyan-400
-                  to-sky-400
-                  transition-all
-                  duration-700
-                  shadow-[0_0_12px_rgba(34,211,238,0.5)]
-                  "
-                  style={{ width: `${progress}%` }}
-                />
-
-              </div>
-
-            </div>
-
-          )}
-
-          {/* EMPTY STATE */}
-
-          {todayExercises.length === 0 ? (
-
-            <div className="text-center py-20 text-gray-400">
-
-              <Calendar
-                size={50}
-                className="mx-auto mb-4 opacity-30"
-              />
-
-              <p className="text-lg">
-                Hôm nay là ngày nghỉ 🧘
-              </p>
-
-              <p className="text-sm mt-1">
-                Cơ bắp cần thời gian phục hồi để phát triển.
-              </p>
-
-            </div>
-
-          ) : (
-
-            /* EXERCISE LIST */
-
-            <div className="space-y-5">
-
-              {todayExercises
-                .sort((a, b) => a.order_index - b.order_index)
-                .map((ex) => {
-
-                  const key = `${selectedDay}-${ex.order_index}`;
-
-                  const isDone = completed[key];
-
-                  const calories =
-                    ex.calories_per_minute *
-                    ex.duration_minutes;
-
-                  return (
-
-                    <motion.div
-                      key={ex.order_index}
-                      layout
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-
-                      className={`
-                      p-6
+                return (
+                  <motion.div
+                    key={index}
+                    whileHover={{ scale: 1.01 }}
+                    className={`
                       rounded-2xl
-                      flex
-                      flex-col
-                      md:flex-row
-                      md:items-center
-                      justify-between
-                      gap-6
+                      border
+                      p-5
                       transition-all
-                      duration-300
-                      hover:scale-[1.02]
-                      hover:bg-white/10
                       ${
-                        isDone
-                          ? "bg-green-600/10 border border-green-500/30 opacity-70"
-                          : "bg-white/5 border border-white/10"
+                        isCompleted
+                          ? "bg-emerald-500/15 border-emerald-400/30"
+                          : "bg-white/5 border-white/10"
                       }
-                      `}
-                    >
-
-                      {/* LEFT SIDE */}
-
-                      <div className="flex items-start gap-4">
-
-                        <div
-                          className="
-                          w-14 h-14
-                          bg-gradient-to-br
-                          from-sky-500/20
-                          to-cyan-400/20
-                          rounded-xl
-                          flex
-                          items-center
-                          justify-center
-                          "
-                        >
-                          <Dumbbell size={20} />
+                    `}
+                  >
+                    {/* HEADER CARD */}
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Dumbbell size={18} />
+                          <h3 className="text-xl font-bold">
+                            {exercise.exercise_name}
+                          </h3>
                         </div>
 
-                        <div>
-
-                          <h4 className="text-lg font-semibold">
-                            {ex.name}
-                          </h4>
-
-                          <div className="flex gap-4 text-sm text-gray-400 mt-2">
-
-                            {/* DIFFICULTY */}
-
-                            <span
-                              className={`
-                              px-2 py-0.5
-                              rounded-md
+                        <div className="mt-2">
+                          <span
+                            className={`
+                              px-3 py-1
+                              rounded-full
                               text-xs
-                              font-medium
-                              ${difficultyStyle(ex.difficulty)}
-                              `}
-                            >
-                              {ex.difficulty}
-                            </span>
-
-                            {/* CALORIES */}
-
-                            <span className="flex items-center gap-1">
-
-                              <Flame size={14} />
-
-                              ~{calories} kcal
-
-                            </span>
-
-                            {/* SETS */}
-
-                            <span className="text-gray-500">
-
-                              {ex.sets} sets × {ex.reps} reps
-
-                            </span>
-
-                          </div>
-
+                              font-semibold
+                              ${
+                                exercise.difficulty === "easy"
+                                  ? "bg-green-500/20 text-green-300"
+                                  : exercise.difficulty === "medium"
+                                  ? "bg-yellow-500/20 text-yellow-300"
+                                  : "bg-red-500/20 text-red-300"
+                              }
+                            `}
+                          >
+                            {exercise.difficulty}
+                          </span>
                         </div>
-
                       </div>
 
-                      {/* COMPLETE BUTTON */}
+                      {isCompleted && (
+                        <CheckCircle2
+                          size={28}
+                          className="text-emerald-400"
+                        />
+                      )}
+                    </div>
 
+                    {/* INFO */}
+                    <div className="grid grid-cols-4 gap-3 mt-5">
+                      <div className="bg-white/5 rounded-xl p-3">
+                        <p className="text-xs text-gray-400">
+                          Sets
+                        </p>
+                        <p className="font-bold">
+                          {exercise.sets}
+                        </p>
+                      </div>
+
+                      <div className="bg-white/5 rounded-xl p-3">
+                        <p className="text-xs text-gray-400">
+                          Reps
+                        </p>
+                        <p className="font-bold">
+                          {exercise.reps}
+                        </p>
+                      </div>
+
+                      <div className="bg-white/5 rounded-xl p-3">
+                        <p className="text-xs text-gray-400">
+                          Duration
+                        </p>
+                        <p className="font-bold">
+                          {exercise.duration_minutes} phút
+                        </p>
+                      </div>
+
+                      <div className="bg-white/5 rounded-xl p-3">
+                        <p className="text-xs text-gray-400">
+                          Calories
+                        </p>
+                        <p className="font-bold">
+                          {burnedCalories}/
+                          {totalCalories} kcal
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* PROGRESS */}
+                    <div className="mt-5">
+                      <div className="flex justify-between text-sm mb-2">
+                        <span>
+                          Set {completedSets}/
+                          {exercise.sets}
+                        </span>
+
+                        <span>{progress}%</span>
+                      </div>
+
+                      <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{
+                            width: `${progress}%`,
+                          }}
+                          transition={{
+                            duration: 0.3,
+                          }}
+                          className="
+                            h-full
+                            bg-gradient-to-r
+                            from-emerald-400
+                            to-cyan-400
+                          "
+                        />
+                      </div>
+                    </div>
+
+                    {/* ACTION */}
+                    <div className="mt-5 flex justify-end">
                       <button
                         onClick={() =>
-                          toggleComplete(ex.order_index)
+                          completeSet(index)
                         }
+                        disabled={isCompleted}
                         className={`
-                        w-12 h-12
-                        rounded-full
-                        flex
-                        items-center
-                        justify-center
-                        transition-all
-                        ${
-                          isDone
-                            ? "bg-green-600 shadow-[0_0_20px_rgba(34,197,94,0.5)]"
-                            : "bg-white/10 hover:bg-white hover:text-black"
-                        }
+                          px-4 py-2
+                          rounded-xl
+                          font-semibold
+                          transition
+                          ${
+                            isCompleted
+                              ? "bg-emerald-500 text-white cursor-not-allowed"
+                              : "bg-cyan-500 hover:bg-cyan-400 text-white"
+                          }
                         `}
                       >
-
-                        {isDone ? (
-                          <CheckCircle2 size={22} />
-                        ) : (
-                          <PlayCircle size={22} />
-                        )}
-
+                        {isCompleted
+                          ? "Đã hoàn thành"
+                          : "+1 Set"}
                       </button>
-
-                    </motion.div>
-
-                  );
-
-                })}
-
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
-
+          ) : (
+            <div className="text-center py-10 text-gray-400">
+              Chưa có bài tập nào
+            </div>
           )}
-
         </motion.div>
-
       </div>
 
       {/* LIBRARY MODAL */}
-
       <LibraryProgram
         devMode={devMode}
         showLibrary={showLibrary}
         setShowLibrary={setShowLibrary}
-        setWeekPrograms={setWeekPrograms}
+        setExercisesList={setExercisesList}
         selectedDay={selectedDay}
+        planDate={planDate}
+        weekStart={weekStart}
       />
-
     </>
   );
 }

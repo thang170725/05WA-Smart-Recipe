@@ -8,13 +8,15 @@ class WorkoutService:
     def __init__(self):
         self.repo = WorkoutRepo()
     
-    # READ
+    # =====================
+    # ======= GET =========
+    # =====================
     def get_program_workout(self, db, slug):
         return self.repo.get_pw(db, slug)
     
-    # lấy ra thư viện bài tập
-    def get_exercises_lib_service(self, db):
-        return self.repo.get_exercises_lib_repo(db)
+    # lấy ra thư viện bài tập dựa vào category_name
+    def get_exercises_lib_service(self, db: Session, category_name: str):
+        return self.repo.get_exercises_lib_repo(db, category_name)
     
     # lấy tên + id của các chương trình mẫu
     def get_workout_program_templates_service(self, db):
@@ -58,46 +60,11 @@ class WorkoutService:
             "days": days
         }
     
-    # lấy ra lịch tập 1 tuần của user và format dạng mà UI có thể hiển thị
-    def get_week_programs_service(self, db, user_id, week_start):
-        rows = self.repo.get_week_program_repo(db, user_id, week_start)
+    # lấy ra lịch tập 1 ngày của user bằng plan_date
+    def get_exercises_list_service(self, db, user_id, plan_date):
+        rows = self.repo.get_exercises_list_repo(db, user_id, plan_date)
 
-        def format_data(rows, week_start):
-            week_menu = {
-                "Mon": [],
-                "Tue": [],
-                "Wed": [],
-                "Thu": [],
-                "Fri": [],
-                "Sat": [],
-                "Sun": []
-            }
-
-            for row in rows:
-                plan_date = row["plan_date"]
-
-                # convert date -> weekday string
-                weekday = datetime.strptime(str(plan_date), "%Y-%m-%d").strftime("%a")
-
-                exercise = {
-                    "name": row["exercise_name"],
-                    "difficulty": row["difficulty"],
-                    "calories_per_minute": row["calories_per_minute"],
-                    "sets": row["sets"],
-                    "reps": row["reps"],
-                    "duration_minutes": row["duration_minutes"],
-                    "order_index": row["order_index"]
-                }
-
-                if weekday in week_menu:
-                    week_menu[weekday].append(exercise)
-
-            return {
-                "week_start": str(week_start),
-                "week_menu": week_menu
-            }
-
-        return format_data(rows, week_start)
+        return rows
     
     def apply_program(self, db: Session, user, slug: str):
 
@@ -221,3 +188,16 @@ class WorkoutService:
             self.repo.create_workout_plan_items_repo(db, items)
 
         db.commit()
+    
+    # ==============================
+    # ======= INSERT / POST ========
+    # ==============================
+    def insert_exercises_by_id_service(self, db: Session, user_id: int, selected_exercises: list, plan_date, week_start):
+        try:
+            for selected_exercise in selected_exercises:
+                row = self.repo.insert_exercises_by_id_repo(db, user_id, selected_exercise, plan_date, week_start)
+
+                db.commit()
+        except Exception as e:
+            db.rollback()
+            raise e

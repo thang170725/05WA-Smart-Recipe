@@ -9,7 +9,8 @@ from backend.modules.workout.models import (
     WorkoutProgramDayItem,
     WorkoutProgramDay,
     WorkoutPlan,
-    WorkoutPlanItem
+    WorkoutPlanItem,
+    ExerciseCategory
 )
 from backend.modules.meals.models import Category
 
@@ -17,25 +18,21 @@ class WorkoutRepo:
     # ===================
     # ====== GET ========
     # ===================
-    # lấy ra thư viện bài tập
-    def get_exercises_lib_repo(self, db):
+    # lấy ra thư viện bài tập dựa vào category_name
+    def get_exercises_lib_repo(self, db: Session, category_name: str):
         stmt = (
             select(
-            Exercise.name,
-            Exercise.description,
-            Exercise.muscle_group,
-            Exercise.calories_per_minute,
-            Exercise.difficulty,
-            Exercise.image_url,
-            Exercise.video_url,
-            Category.name.label("category_name"),
-            # WorkoutProgramDayItem.sets,
-            # WorkoutProgramDayItem.reps,
-            # WorkoutProgramDayItem.duration_minutes,
-            # WorkoutProgramDayItem.order_index
+                Exercise.id,
+                Exercise.name,
+                Exercise.description,
+                Exercise.muscle_group,
+                Exercise.calories_per_minute,
+                Exercise.difficulty,
+                Exercise.image_url,
             )
-            .join(Category, Category.id == Exercise.category_id)
-            # .join(WorkoutProgramDayItem, WorkoutProgramDayItem.exercise_id == Exercise.id)
+            .join(ExerciseCategory, ExerciseCategory.exercise_id == Exercise.id)
+            .join(Category, Category.id == ExerciseCategory.category_id)
+            .where(Category.name == category_name)
         )
         
         return db.execute(stmt).mappings().all()
@@ -86,13 +83,10 @@ class WorkoutRepo:
 
         return db.execute(stmt).mappings().all()
     
-    # lấy lịch tập 1 tuần của user
-    def get_week_program_repo(self, db, user_id, week_start):
+    # lấy lịch tập 1 ngày của user bằng plan_date
+    def get_exercises_list_repo(self, db: Session, user_id: int, plan_date):
         stmt = (
             select(
-                WorkoutPlan.week_start,
-                WorkoutPlan.plan_date,
-
                 Exercise.name.label("exercise_name"),
                 Exercise.difficulty,
                 Exercise.calories_per_minute,
@@ -102,13 +96,13 @@ class WorkoutRepo:
                 WorkoutPlanItem.duration_minutes,
                 WorkoutPlanItem.order_index
             )
-            .join(WorkoutPlanItem, WorkoutPlanItem.workout_plan_id == WorkoutPlan.id)
-            .join(Exercise, Exercise.id == WorkoutPlanItem.exercise_id)
+            .join(WorkoutPlanItem, WorkoutPlanItem.exercise_id == Exercise.id)
+            .join(WorkoutPlan, WorkoutPlan.id == WorkoutPlanItem.workout_plan_id)
             .where(
                 WorkoutPlan.user_id == user_id, 
-                WorkoutPlan.week_start == week_start
+                WorkoutPlan.plan_date == plan_date
             )
-            .order_by(WorkoutPlan.plan_date, WorkoutPlanItem.order_index)
+            .order_by(WorkoutPlanItem.order_index)
         )
 
         return db.execute(stmt).mappings().all()
@@ -250,3 +244,43 @@ class WorkoutRepo:
         stmt = insert(WorkoutPlanItem)
 
         db.execute(stmt, items)
+    
+    # ==============================
+    # ======= INSERT / POST ========
+    # ==============================
+    def insert_exercises_by_id_repo(self, db: Session, user_id: int, selected_exercise: list, plan_date, week_start):
+        exist_workout_plans = db.query(WorkoutPlan).filter(
+            WorkoutPlan.user_id==user_id,
+            WorkoutPlan.plan_date==plan_date
+        ).first()
+
+        workout_plans = None
+        if exist_workout_plans:
+            workout_plans = exist_workout_plans
+        else:
+            workout_plans = WorkoutPlan(
+                user_id=user_id,
+                plan_date=plan_date,
+                week_start=week_start
+            )
+            db.add(workout_plans)
+            db.flush()
+        
+        exist_workout_plan_items = db.query(WorkoutPlanItem).filter(
+            WorkoutPlanItem.workout_plan_id==workout_plans.id
+        ).first()
+
+        workout_plan_items = None
+        if exist_workout_plan_items:
+            workout_plan_items = exist_workout_plan_items
+        else:
+            workout_plan_items = WorkoutPlanItem(
+                workout_plan_id=workout_plans.id,
+                exercise_id=selected_exercise.exercise_id,
+                sets=selected_exercise.sets,
+                reps=selected_exercise.reps,
+                duration_minutes=selected_exercise.duration_minutes,
+                order_index=selected_exercise.order_index
+            )
+            db.add(workout_plan_items)
+            db.flush()

@@ -5,23 +5,13 @@ export default function WeekNavigator({
   currentDate, setCurrentDate,
   selectedDay, setSelectedDay,
   weekPrograms,
+  weekStart,
 }) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
 
   const dayIndexMap = {
     Mon:0, Tue:1, Wed:2, Thu:3, Fri:4, Sat:5, Sun:6
-  }
-
-  const weekStart = new Date(weekPrograms.week_start)
-  const weekEnd = new Date(weekStart)
-  weekEnd.setDate(weekStart.getDate() + 6)
-
-  const formatDisplay = (date)=>{
-    return date.toLocaleDateString("en-US",{
-      month:"short",
-      day:"numeric"
-    })
   }
 
   const handleSelectDay = (day) => {
@@ -63,7 +53,7 @@ export default function WeekNavigator({
         </button>
 
         <div className="text-sm text-gray-300 font-medium tracking-wide">
-          {formatDisplay(weekStart)} – {formatDisplay(weekEnd)}
+          {FormatDate(currentDate)}
         </div>
 
         <button

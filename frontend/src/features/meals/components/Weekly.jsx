@@ -1,4 +1,7 @@
-import { PostMealsApi, GetMealsApi, RemoveMealApi } from "../api/MealsApi"
+import { BASE_URL } from "../../../services/JsonApi"
+import { PostMealsApi, 
+  GetFoodByPlanDateAndMealTypeApi, 
+  RemoveMealApi } from "../api/MealsApi"
 import { GetIdAndNameFromFoodLibrary } from "../api/FoodLibraryApi";
 import { useState, useRef, useEffect } from "react";
 
@@ -73,7 +76,9 @@ export default function Weekly ({
       console.log("🔥 selectedDay:", selectedDay)
     }, [selectedDay])
 
-    // xử lý thực đơn trong menu
+    // =======================================================================================================================================
+    // ========================= chức năng select và ghi lại xem người dùng đang ở breakfast, lunch, dinner  ================================
+    // =======================================================================================================================================
     const meals = [
         { key: "breakfast", label: "Sáng", icon: "🌅" },
         { key: "lunch", label: "Trưa", icon: "☀️" },
@@ -83,16 +88,20 @@ export default function Weekly ({
     const [activeMeal, setActiveMeal] = useState(null); // xác định meal card nào đang mở input thêm món
     const [chooseMode, setChooseMode] = useState("") // xác định xem người dùng đang chọn món bằng nhập tay hay dùng library (hand, library) 
     
+    // =======================================================================================================================================
+    // ========================= chức năng lấy menu trong 1 ngày dựa vào plan_date và meal_type ================================
+    // =======================================================================================================================================
     // ==== API lấy Menu thực đơn trong 1 ngày ======
     const [isLoaded, setIsLoaded] = useState(false)
-    
     useEffect(() => {
         try {
           const loadApi = async () => {
-            const data = await GetMealsApi(
+            const data = await GetFoodByPlanDateAndMealTypeApi(
               devMode,
-              dateDetail.currentDate
+              dateDetail.currentDate,
+              selectedMeal
             )
+
             console.log(data)
             setMenuDay(data) // set vào biến lưu thực đơn 1 ngày
             setIsLoaded(true) // ✅ đánh dấu đã load xong
@@ -103,12 +112,8 @@ export default function Weekly ({
         } catch (err) {
           console.error("LỖI LẤY MENU MÓN ĂN: ", err)
         }
-      }, [currentDate])
+      }, [currentDate, selectedMeal])
 
-    // lọc món ăn theo bữa sáng trưa tối
-    const filters = menuDay.filter(
-        (item) => item.meal_type === selectedMeal
-    );
     // ====== USESTAE FOR USER ENTER MEAL AS HAND =======
     // ====== thêm món vào thực đơn =======
     const [newMealName, setNewMealName] = useState(""); // dùng để giữ giá trị người dùng đang nhập trong input
@@ -303,83 +308,83 @@ export default function Weekly ({
 
         <div className="space-y-4">
           {/* LIST */}
-<div className="min-h-30 p-3 rounded-2xl">
-  {filters.length === 0 ? (
-    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-      <div className="text-4xl mb-2">🍜</div>
-      <div className="text-sm">Chưa có món nào</div>
-      <div className="text-xs mt-1">Hãy thêm món để bắt đầu</div>
-    </div>
-  ) : (
-    <div className="space-y-4">
-      {filters.map((meal, idx) => (
-        <div
-          key={meal.id ?? idx}
-          className="
-            group
-            flex
-            gap-4
-            p-4
-            rounded-3xl
-            bg-white/5
-            border border-white/10
-            hover:bg-white/10
-            transition-all duration-300
-          "
-        >
-          {/* Ảnh */}
-          <img
-            src={meal.image}
-            alt={meal.name}
-            className="
-              w-28 h-28
-              rounded-2xl
-              object-cover
-              shrink-0
-            "
-          />
-
-          {/* Nội dung */}
-          <div className="flex-1 flex flex-col justify-between">
-            <div className="flex justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold text-white">
-                  {meal.name}
-                </h3>
-
-                <p className="text-sm text-gray-400 mt-1 line-clamp-2">
-                  {meal.description}
-                </p>
-
-                <div className="mt-3 text-sm text-amber-300 font-medium">
-                  🔥 {meal.calories} kcal / {meal.calories_unit}
-                </div>
-
-                {(meal.quantity_value || meal.quantity_unit) && (
-                  <div className="mt-1 text-xs text-sky-300">
-                    Khẩu phần:
-                    {" "}
-                    {meal.quantity_value}
-                    {" "}
-                    {meal.quantity_unit}
-                  </div>
-                )}
+          <div className="min-h-30 p-3 rounded-2xl">
+            {menuDay.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                <div className="text-4xl mb-2">🍜</div>
+                <div className="text-sm">Chưa có món nào</div>
+                <div className="text-xs mt-1">Hãy thêm món để bắt đầu</div>
               </div>
+            ) : (
+              <div className="space-y-4">
+                {menuDay.map((meal, idx) => (
+                  <div
+                    key={meal.name}
+                    className="
+                      group
+                      flex
+                      gap-4
+                      p-4
+                      rounded-3xl
+                      bg-white/5
+                      border border-white/10
+                      hover:bg-white/10
+                      transition-all duration-300
+                    "
+                  >
+                    {/* Ảnh */}
+                    <img
+                      src={`${BASE_URL}${meal.image_url}`}
+                      alt={meal.name}
+                      className="
+                        w-28 h-28
+                        rounded-2xl
+                        object-cover
+                        shrink-0
+                      "
+                    />
 
-              <button
-                onClick={() => removeDish(meal)}
-                className="
-                  self-start
-                  text-gray-400
-                  hover:text-red-500
-                  transition
-                "
-              >
-                ✕
-              </button>
-            </div>
+                    {/* Nội dung */}
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div className="flex justify-between gap-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-white">
+                            {meal.name}
+                          </h3>
 
-            <div className="flex gap-2 mt-4 flex-wrap">
+                          <p className="text-sm text-gray-400 mt-1 line-clamp-2">
+                            {meal.description}
+                          </p>
+
+                          <div className="mt-3 text-sm text-amber-300 font-medium">
+                            🔥 {meal.calories_per_100 * meal.quantity / 100} kcal
+                          </div>
+
+                          {(meal.quantity || meal.unit) && (
+                            <div className="mt-1 text-xs text-sky-300">
+                              Khẩu phần:
+                              {" "}
+                              {meal.quantity}
+                              {" "}
+                              {meal.unit}
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => removeDish(meal)}
+                          className="
+                            self-start
+                            text-gray-400
+                            hover:text-red-500
+                            transition
+                          "
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="flex gap-2 mt-4 flex-wrap">
               <button
                 onClick={() => setIngredientMeal(meal)}
                 className="
@@ -408,13 +413,13 @@ export default function Weekly ({
               >
                 👨‍🍳 Xem cách nấu
               </button>
-            </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
-    </div>
-  )}
-</div>
 
           {/* ====== INPUT FOR USER ENTER MEAL AS HAND*/}
           {activeMeal === selectedMeal && (

@@ -1,14 +1,21 @@
 from backend.modules.platform.repository import PlatformRepository
+from backend.modules.platform.schemas import InputCreatePostSchema
+
 from sqlalchemy.orm import Session
 
 class PlatformService:
     def __init__(self):
         self.repo = PlatformRepository()
 
-    # ======= GET =======
+    # =============================
+    # ====== GET ==================
+    # =============================
     # lấy danh sách các bài post
     def get_posts_service(self, db):
-        return self.repo.get_posts_repo(db)
+        try:
+            return self.repo.get_posts_repo(db)
+        except Exception as e:
+            raise ValueError(e)
     
     # lấy danh sách các comment trong 1 bài post
     def get_comments_service(self, db, platform_id):
@@ -32,12 +39,13 @@ class PlatformService:
 
         return format_data(comments)
 
-    # ====== POST =======
-    def create_post_service(self, db, user_id, payload):
+    # ====================
+    # ======= POST =======
+    # ====================
+    def create_post_service(self, db: Session, user_id: int, payload: InputCreatePostSchema):
         try:
-            post = self.repo.create_post_repo(user_id, payload)
+            post = self.repo.create_post_repo(db, user_id, payload)
 
-            db.add(post)
             db.commit()
             db.refresh(post)
 

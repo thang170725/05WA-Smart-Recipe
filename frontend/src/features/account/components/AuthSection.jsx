@@ -3,7 +3,7 @@ import { RegisterForm, RegisterPopup } from "./RegisterForm.jsx"
 import { useEffect, useState, useRef } from "react"
 import { Avatar } from "../../../components/Avatar.jsx"
 import { Bell } from "lucide-react";
-import { ForgotPasswordPopup } from "./ForgotPasswordPopup"
+import { ForgotPasswordForm ,ForgotPasswordPopup } from "./ForgotPasswordPopup"
 import { useAuth } from "../../../context/AuthContext.jsx"
 
 export function AuthSection() {
@@ -107,40 +107,16 @@ export function AuthSection() {
         />
       </RegisterPopup>}
       
-      {/* <Popup
+      {/* Mở Popup quên mật khẩu */}
+      {open && mode === "forgotPassword" && <ForgotPasswordPopup
         open={open}
         onClose={() => setOpen(false)}
-        title={mode === "login" 
-          ? "Đăng nhập" 
-          : mode === "register" 
-          ? "Đăng ký"
-          : "Quên mật khẩu"
-        }
-      >
-        {mode === "login" && (
-          <LoginForm
-            onCancel={() => setOpen(false)}
-            onSwitchToRegister={() => setMode("register")}
-            onSwitchToForgotPassword={() => setMode("forgotPassword")}
-            onLoginSuccess={() => {
-              setOpen(false)
-            }}
-          />
-        )}
-
-        {mode === "register" && (
-          <RegisterForm
-            onCancel={() => setOpen(false)}
-            onSwitchToLogin={() => setMode("login")}
-          />
-        )}
-
-        {mode === "forgotPassword" && (
-          <ForgotPasswordPopup 
-            onCancel={() => setMode("login")}
-          />
-        )}
-      </Popup> */}
+        title="Quên mật khẩu"
+      >    
+        <ForgotPasswordForm 
+          onCancel={() => setMode("login")}
+        />
+      </ForgotPasswordPopup>}
     </>
   )
 }

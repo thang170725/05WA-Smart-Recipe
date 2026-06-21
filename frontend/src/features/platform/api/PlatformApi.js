@@ -1,9 +1,12 @@
 import JsonApi from "../../../services/JsonApi"
 import { MockPosts, MockComments } from "../../../mockdata/Platform"
 
-// ====== CREATE =========
-export function CreatePostApi (payload) {
-    return JsonApi("/platform/create-post", {
+// ============================
+// ====== POST/INSERT =========
+// ============================
+// tạo bài đăng
+export async function CreatePostApi (payload) {
+    return await JsonApi("/platform/create-post", {
         method:"POST",
         body: payload
     })
@@ -27,14 +30,16 @@ export function WriteComment (devMode, content, platform_id) {
     })
 } 
 
-// ======== GET ==========
+// ==================================================
+// ====== GET (LẤY 50 BÀI VIẾT MỚI NHẤT) =========
+// ==================================================
 // lấy các bài post
-export function GetPostApi (devMode) {
+export async function GetPostApi (devMode) {
     if (devMode === "dev") {
         return MockPosts()
     }
 
-    return JsonApi("/platform/get-posts", {
+    return await JsonApi("/platform/get-posts", {
         method: "GET"
     })
 }

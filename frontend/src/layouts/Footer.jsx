@@ -3,7 +3,7 @@ import { Heart, Github, Facebook, Mail } from "lucide-react";
 export default function Footer() {
   return (
     <footer className="mt-auto border-t border-white/10 bg-slate-950/50 backdrop-blur-md text-slate-400">
-      <div className="page-shell !py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
+      <div className="page-shell py-10! grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
         {/* Brand */}
         <div>
           <h2 className="font-display text-lg font-bold text-white">

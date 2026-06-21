@@ -31,6 +31,7 @@ class GetBirthDateUserInput(BaseModel):
 class GetAddressUserInput(BaseModel):
     """chỉ lấy địa chỉ của người dùng hiện tại"""
     pass
+
 # ===================================
 # == CỤM CHỨC NĂNG CẬP NHẬT (UPDATE) ==
 # ===================================

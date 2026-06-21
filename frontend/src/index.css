@@ -51,7 +51,7 @@
 @layer components {
   /* Page shell */
   .page-shell {
-    @apply w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 min-h-[calc(100vh-5rem)];
+    @apply w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8;
   }
 
   .page-title {

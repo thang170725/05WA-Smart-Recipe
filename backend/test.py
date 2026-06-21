@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from backend.modules.user.models import User
 from backend.modules.user.services import UserService
 from backend.modules.meals.services import MealService
+from backend.modules.platform.service import PlatformService
 
 from backend.modules.meals.reponsitories import MealRepository
 from backend.modules.workout.repositories import WorkoutRepo
@@ -28,9 +29,7 @@ SessionLocal = sessionmaker(
 
 db = SessionLocal()
 
-meal_service = MealService()
-# meal_repo = MealRepository()
-# workout_repo = WorkoutRepo()
-print(meal_service.get_list_food_library_by_category_name_service(db, "breakfast"))
+platfrom = PlatformService()
+print(platfrom.get_posts_service(db))
 
 db.close()

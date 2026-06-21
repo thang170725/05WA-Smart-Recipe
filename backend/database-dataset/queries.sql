@@ -7,14 +7,16 @@ select * from meal_plans mp;
 select * from user_meals um;
 select * from food_library fl;
 select * from food_library_category flc;
-select * from categories c;
+
 
 select * from workout_plans;
 select * from workout_plan_items;
-
+select * from categories c;
+select * from exercises e ;
+select * from exercises_categories ec ;
 select * from ai_tool_registry atr;
 
-select * from 
+select * from platform p ;
 
 SELECT COALESCE(
   SUM(fl.calories_per_100 * m.quantity * 0.1),
@@ -351,11 +353,22 @@ CREATE TABLE exercises (
     difficulty ENUM('easy', 'medium', 'hard') NOT NULL,
     image_url VARCHAR(255),
     video_url VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    category_id int,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,    
+) engine=InnoDB;
+
+CREATE TABLE exercises_categories (
+    exercise_id INT,
+    category_id INT,
     
-    constraint fk_exercises_category_id foreign key (category_id) references categories(id)
-    on delete cascade
+    PRIMARY KEY (exercise_id, category_id),
+
+    FOREIGN KEY (exercise_id)
+        REFERENCES exercises(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (category_id)
+        REFERENCES categories(id)
+        ON DELETE CASCADE
 ) engine=InnoDB;
 
 CREATE TABLE workout_plans (

@@ -13,6 +13,26 @@ export function GetListFoodLibraryByCategoryNameApi (categoryName) {
     });
 }
 
+// hướng dẫn nấu
+export function GetInstructionsByIdApi (foodId) {
+    return JsonApi("/user/get-instructions-by-id", {
+        method: "GET",
+        params: {
+            food_id: foodId,
+        },
+    });
+}
+
+// hướng dẫn nấu
+export function GetIngredientsByIdApi (foodId) {
+    return JsonApi("/user/get-ingredients-by-id", {
+        method: "GET",
+        params: {
+            food_id: foodId,
+        },
+    });
+}
+
 // lấy id và name trong thư viện món ăn
 export function GetIdAndNameFromFoodLibrary(devMode) {
     if (devMode === "dev") {
@@ -27,8 +47,17 @@ export function GetIdAndNameFromFoodLibrary(devMode) {
 
 // ====== API INSERT ======
 // thêm món từ thư viện vào menu
-export function InsertMealFromLibraryApi (devMode, payload) {
-    return JsonApi("/user/insert-meal-from-library", {
+export function InsertFoodFromLibraryApi (devMode, payload) {
+    // payload = {
+    //       food_id: food.food_id,
+    //       meal_type: selectedMeal,
+    //       plan_date: dateDetail.currentDate,
+    //       week_start: dateDetail.dateStartInWeek,
+    //       quantity: Number(quantity),
+    //       unit: unit
+    //   }
+
+    return JsonApi("/user/insert-food-from-library", {
         method:"POST",
         body: payload
     })

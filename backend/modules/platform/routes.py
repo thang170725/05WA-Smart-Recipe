@@ -15,8 +15,9 @@ from backend.modules.platform.schemas import (
 router = APIRouter(prefix="/platform", tags=["Platform"])
 service = PlatformService()
 
-
-# ====== GET =======
+# ====================
+# ====== GET =========
+# ====================
 # lấy các bài post
 @router.get("/get-posts", response_model=list[OutputGetPostSchema])
 def get_posts(
@@ -32,8 +33,9 @@ def get_comments(
 ):
     return service.get_comments_service(db, platform_id)
 
-
+# ====================
 # ======= POST =======
+# ====================
 # tạo bài đăng mới
 @router.post("/create-post", response_model=OutputCreatePostSchema)
 def create_post(

@@ -77,10 +77,16 @@ class OutputGetListFoodLibraryByCategoryNameSchema(BaseModel):
 # ===== REMOVE MEAL =====
 class InputRemoveMealSchema(BaseModel):
     id: int
-
-# ===== INSERT MEAL =====
-class InputInsertMealFromLibrary(BaseModel):
-    meal_id: int
+# =======================
+# ===== INSERT  =========
+# =======================
+# =====================================================================
+# === chức năng thêm món ăn từ thư viện vào kếhoạch của user ========
+# =====================================================================
+class InputInsertFoodFromLibrary(BaseModel):
+    food_id: int
     meal_type: str
     plan_date: date
     week_start: date
+    quantity: float
+    unit: str

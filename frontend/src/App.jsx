@@ -54,6 +54,7 @@ export default function App() {
             >
               <AppRoutes user={user} />
             </Main>
+            
             <Footer />
           </div>
 

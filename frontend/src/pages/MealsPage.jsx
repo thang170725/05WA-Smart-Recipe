@@ -21,6 +21,9 @@ export default function Meals() {
   const [showLibrary, setShowLibrary] = useState(false); // cho phép đóng mở thư viện món ăn 
   const [selectedMealType, setSelectedMealType] = useState(null); // cho biết món được chọn sẽ nằm ở bữa nào. breakfast, lunch, v.v 
   const [search, setSearch] = useState(""); // biến để  tìm kiếm món ăn
+  // =======================================================================================================================================
+  // ========================= chức năng select và ghi lại xem người dùng đang ở breakfast, lunch, dinner  ================================
+  // =======================================================================================================================================
   const [selectedMeal, setSelectedMeal] = useState("breakfast"); // state chọn meal (UI tab), lựa chọn breakfast, lunch, dinner
 
   return (
