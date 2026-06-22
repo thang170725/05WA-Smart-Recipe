@@ -138,7 +138,6 @@ class UserRepository:
     def update_password(self, db: Session, user: User, new_password: str):
         user.password = new_password
         db.commit()
-
     
     def update_avatar(self, db, user_id: int, avatar_url: str):
         user = db.query(User).filter(User.id == user_id).first()
@@ -149,5 +148,20 @@ class UserRepository:
         user.avatar_url = avatar_url
         db.commit()
         db.refresh(user)
+
+        return user
+
+    # cập nhật ngày tháng năm sinh
+    def update_birth_date_repo(self, db, user_id, new_birth_date):
+        user = db.get(User, user_id)
+        if not user:
+            return None
+        
+        birth_date = datetime.strptime(
+            new_birth_date,
+            "%Y-%m-%d"
+        ).date()
+
+        user.birth_date = birth_date
 
         return user

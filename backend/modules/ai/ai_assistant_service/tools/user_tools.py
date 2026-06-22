@@ -1,7 +1,6 @@
-# backend/modules/ai/tools/user_tools.py
 from pydantic import BaseModel, Field
 from typing import Literal
-from backend.modules.user.services import UserService # Import Repo của bạn
+from backend.modules.user.services import UserService 
 from sqlalchemy.orm import Session
 
 # ==================================
@@ -35,17 +34,26 @@ class GetAddressUserInput(BaseModel):
 # ===================================
 # == CỤM CHỨC NĂNG CẬP NHẬT (UPDATE) ==
 # ===================================
-
+# cập nhật địa chỉ
 class UpdateAddressInput(BaseModel):
     """Cập nhật hoặc thay đổi địa chỉ nơi ở của người dùng sang địa chỉ mới."""
     new_address: str = Field(description="Địa chỉ mới cần cập nhật. Ví dụ: Đà Nẵng, Hà Nội")
 
+# cập nhật giới tính
 class UpdateGenderInput(BaseModel):
     """Cập nhật hoặc thay đổi giới tính của người dùng."""
     new_gender: Literal['male', 'female', 'other'] = Field(
         description="Giới tính mới của người dùng. Bắt buộc phải là một trong ba giá trị: 'male', 'female', hoặc 'other'."
     )
 
+# cập nhật ngày tháng năm sinh (YY-MM-DD)
+class UpdateBirthDateInput(BaseModel):
+    """Cập nhật hoặc thay đổi ngày tháng năm sinh của người dùng."""
+    new_birth_date: str =  Field(
+        description="ngày tháng năm sinh của người dùng. Bắt buộc covert về định dạnh YY-MM-DD (ví dụ: 2026-06-12), nếu người dùng nhập là ngày 12, tháng 3, năm 2025 thì vẫn phải covert kết quả về dạng 2025-03-12"
+    )
+
+# cập nhật chỉ số thể chất và mục tiêu
 class UpdateFitnessGoalInput(BaseModel):
     """Cập nhật các chỉ số thể chất và mục tiêu luyện tập của người dùng (Mức độ hoạt động hoặc Mục tiêu cân nặng)."""
     activity_level: Literal['sedentary', 'light', 'moderate', 'active', 'very_active'] = Field(
@@ -63,10 +71,10 @@ user_service = UserService()
 # === Thực thi Đọc thông tin ===
 # ==============================
 async def execute_get_info_user(db: Session, user_id: int):
-    # Dùng hàm có sẵn của bạn: get_info_user
     data = user_service.get_info_user_service(db, user_id)
     if not data:
         return {"status": "error", "message": "Không tìm thấy thông tin người dùng."}
+    
     return {"status": "success", "data": data}
 
 async def execute_get_email(db: Session, user_id: int):
@@ -100,31 +108,21 @@ async def execute_get_fullname(db: Session, user_id: int):
         return {"status": "error", "message": "Không tìm thấy email."}
     return {"status": "success", "data": data}
 
-
-# --- Thực thi Cập nhật địa chỉ ---
-# async def execute_update_address(db: Session, user_id: int, new_address: str):
-#     # 1. Gọi hàm update_address_repo của bạn để thay đổi trường address của đối tượng user
-#     user = user_repo.update_address_repo(db, user_id, new_address)
-#     if not user:
-#         return {"status": "error", "message": "User not found"}
+# ===================================
+# === Thực thi cập nhật thông tin ===
+# ===================================
+# Thực thi Cập nhật địa chỉ
+async def execute_update_address(db: Session, user_id: int, new_address: str):
+    user = user_service.update_address_service(db, user_id, new_address)
+    if not user:
+        return {"status": "error", "message": "User not found"}
     
-#     # 2. Bạn đã viết hàm update_user có lệnh commit/refresh sẵn, tận dụng nó luôn để lưu vào DB
-#     user_repo.update_user(db, user, {"address": new_address})
-#     return {"status": "success", "message": f"Đã cập nhật địa chỉ thành {new_address}"}
+    return {"status": "success", "message": f"Đã cập nhật địa chỉ thành {new_address}"}
 
-
-# # --- Thêm chức năng test: Thực thi Cập nhật các chỉ số sức khỏe khác ---
-# async def execute_update_fitness_goal(db: Session, user_id: int, activity_level: str = None, target_goal: str = None):
-#     user = user_repo.get_by_id(db, user_id)
-#     if not user:
-#         return {"status": "error", "message": "User not found"}
+# Thực thi Cập nhật ngày tháng năm sinh (YY-MM-DD)
+async def execute_update_birth_date(db: Session, user_id: int, new_birth_date: str):
+    user = user_service.update_birth_date_service(db, user_id, new_birth_date)
+    if (not user) or user == "failed" or user == "fail":
+        return {"status": "error", "message": "User not found"}
     
-#     update_data = {}
-#     if activity_level:
-#         update_data["activity_level"] = activity_level
-#     if target_goal:
-#         update_data["target_goal"] = target_goal
-        
-#     # Gọi hàm cập nhật tổng quát có commit của bạn
-#     user_repo.update_user(db, user, update_data)
-#     return {"status": "success", "message": "Đã cập nhật chỉ số thể chất thành công."}
+    return {"status": "success", "message": f"Đã cập nhật ngày-tháng-năm sinh thành {new_birth_date}"}

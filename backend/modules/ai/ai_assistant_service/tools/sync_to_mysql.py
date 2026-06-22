@@ -8,7 +8,7 @@ from google.genai import types
 from backend.core.database import SessionLocal
 from sqlalchemy.orm import Session
 
-from backend.modules.ai.ai_assistant_service.tools import ALL_SYSTEMS_TOOLS
+from backend.modules.ai.ai_assistant_service.tools import ALL_READ_TOOLS, ALL_WRITE_TOOLS
 from backend.modules.ai.ai_assistant_service.app.models import AIToolRegistryModel
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", default=None)
@@ -34,6 +34,8 @@ def sync_tools_to_mysql():
     """Quy trình nạp dữ liệu nền móng của Developer xuống MySQL"""
     db: Session = SessionLocal()
     print("[DEV] Khởi động tiến trình quét mã nguồn chuyển đổi Vector (google-genai SDK)...")
+
+    ALL_SYSTEMS_TOOLS = ALL_READ_TOOLS + ALL_WRITE_TOOLS
     
     try:
         for tool_class in ALL_SYSTEMS_TOOLS:

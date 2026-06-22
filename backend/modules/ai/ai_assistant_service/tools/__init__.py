@@ -10,17 +10,24 @@ from backend.modules.ai.ai_assistant_service.tools.user_tools import *
 from backend.modules.ai.ai_assistant_service.app.models import AIToolRegistryModel
 
 # =========================================================
-# 1. ĐỊNH NGHĨA ALL_SYSTEMS_TOOLS Ở ĐÂY ĐỂ FILE SYNC ĐỌC ĐƯỢC
+# 1. ĐỊNH NGHĨA ALL_READ_TOOLS Ở ĐÂY ĐỂ FILE SYNC ĐỌC ĐƯỢC
 # =========================================================
-ALL_SYSTEMS_TOOLS = [
+ALL_READ_TOOLS = [
     GetInfoUserInput,
     GetEmailUserInput,
     GetFullnameUserInput,
     GetPhoneUserInput,
     GetBirthDateUserInput,
-    GetAddressUserInput
+    GetAddressUserInput,
 ]
 
+# =========================================================
+# === ĐỊNH NGHĨA WRITE_TOOLS Ở ĐÂY ĐỂ FILE SYNC ĐỌC ĐƯỢC (TẤT CẢ HÀM GHI)
+# =========================================================
+ALL_WRITE_TOOLS = [
+    UpdateAddressInput,
+    UpdateBirthDateInput
+]
 # Khởi tạo client dùng chung cho tầng xử lý logic
 load_dotenv()
 
@@ -31,7 +38,7 @@ if not GOOGLE_API_KEY:
 client = genai.Client(api_key=GOOGLE_API_KEY)
 
 # Gom các tool đọc của bạn vào TOOL_MAP
-TOOL_MAP = {
+READ_TOOL_MAP = {
     "GetInfoUserInput": GetInfoUserInput,
     "GetEmailUserInput": GetEmailUserInput,
     "GetFullnameUserInput": GetFullnameUserInput,
@@ -40,11 +47,17 @@ TOOL_MAP = {
     "GetAddressUserInput": GetAddressUserInput
 }
 
+# Gom các tool write của bạn vào WRITE_TOOL_MAP
+WRITE_TOOL_MAP = {
+    "UpdateAddressInput": UpdateAddressInput,
+    "UpdateBirthDateInput": UpdateBirthDateInput
+}
+
 def cosine_similarity(v1, v2):
     """Tính toán độ tương đồng hình học giữa 2 mảng vector số"""
     return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
 
-def get_relevant_tools_by_rag_mysql(db_session, user_input: str, top_k: int = 3):
+def get_relevant_tools_by_rag_mysql(db_session, user_input: str, top_k: int = 4):
     """
     RAG THẬT SỰ: Truy vấn và so sánh khoảng cách ngữ nghĩa trực tiếp từ MySQL sử dụng google-genai
     """
@@ -70,8 +83,11 @@ def get_relevant_tools_by_rag_mysql(db_session, user_input: str, top_k: int = 3)
     
     final_tools = []
     for tool_name, score in scored_tools[:top_k]:
-        if score > 0.55 and tool_name in TOOL_MAP:
-            final_tools.append(TOOL_MAP[tool_name])
+        if score > 0.55: 
+            if tool_name in READ_TOOL_MAP:
+                final_tools.append(READ_TOOL_MAP[tool_name])
+            elif tool_name in WRITE_TOOL_MAP:
+                final_tools.append(WRITE_TOOL_MAP[tool_name])
             
     return final_tools
 
@@ -89,4 +105,12 @@ async def handle_read_tool_execution(tool_name: str, args: dict, db, user_id: in
         return await execute_get_birth_date(db, user_id)
     elif tool_name == "GetAddressUserInput":
         return await execute_get_address(db, user_id)
+    return None
+
+# Bổ sung đầy đủ router điều phối cho các hàm ĐỌC (READ) của bạn
+async def handle_write_tool_execution(tool_name: str, args: dict, db, user_id: int):
+    if tool_name == "UpdateAddressInput": 
+        return await execute_update_address(db, user_id, args.get("new_address"))
+    elif tool_name == "UpdateBirthDateInput":
+        return await execute_update_birth_date(db, user_id, args.get("new_birth_date"))
     return None

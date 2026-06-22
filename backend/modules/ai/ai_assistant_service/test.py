@@ -1,4 +1,7 @@
-from backend.modules.ai.ai_assistant_service.tools.__init__ import ALL_SYSTEMS_TOOLS
+from pydantic import BaseModel
 
-for tool_class in ALL_SYSTEMS_TOOLS:
-  print(tool_class.__name__, tool_class.__doc__)
+class A(BaseModel):
+  """đây là class A"""
+  pass
+
+print(A.__doc__)

@@ -242,6 +242,7 @@ class UserService:
 
         return relative_url
 
+    # cập nhật địa chỉ
     def update_address_service(self, db: Session, user_id, new_address: str):
         try:
             user =  self.repo.update_address_repo(db, user_id, new_address)
@@ -255,3 +256,17 @@ class UserService:
             db.rollback()
             print("ERROR: ", e)
             return "failed"
+
+    # cập nhật ngày tháng năm sinh
+    def update_birth_date_service(self, db: Session, user_id, new_birth_date: str):
+        try:
+            user = self.repo.update_birth_date_repo(db, user_id, new_birth_date)
+            if not user:
+                return None
+            
+            db.commit()
+            db.refresh(user)
+            return "updated"
+        except Exception as e:
+            db.rollback()
+            raise ValueError("update_birth_date_service: ", {e})
