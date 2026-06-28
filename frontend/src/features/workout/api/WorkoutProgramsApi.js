@@ -46,12 +46,18 @@ export async function GetWorkoutProgramTemplatesDetailApi (devMode, program_id) 
     });
 }
 
-// =========================
+// ===================================
 // ======= API POST / INSERT =========
-// =========================
+// ===================================
 // thêm các bài tập vào schedule của user
-export async function InsertWorkoutExercisesApi (planDate, weekStart, selectedExercises){
-    return await JsonApi("/workout/insert-exercises-by-id",
+export async function InsertWorkoutExercisesApi (devMode, planDate, weekStart, selectedExercises){
+    console.log("InsertWorkoutExercisesApi: ", {
+        plan_date: planDate,
+        week_start: weekStart,
+        selected_exercises: selectedExercises,
+    })
+
+    return await JsonApi("/workout/insert-exercises",
         {
             method: "POST",
             body: {
@@ -74,4 +80,21 @@ export async function PostWorkoutProgramTemplatesDetailToWeekApi (devMode, curre
             workout_program_template_detail: workoutProgramTemplateDetail
         }
     });
+}
+
+export async function UpdateActiveDurationSecondsApi (payload) {
+    console.log("UpdateActiveDurationSecondsApi: ", payload)
+    return await JsonApi("/workout/update-active-duration-seconds", {
+        method: 'POST',
+        body: payload
+    })
+}
+
+export async function UpdateWorkoutSetCompletedApi (payload) {
+    console.log("UpdateWorkoutSetCompletedApi: ", payload)
+
+    return await JsonApi("workout/update-workout-set-completed", {
+        method: "POST",
+        body: payload
+    })
 }

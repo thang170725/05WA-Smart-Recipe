@@ -1,8 +1,8 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from collections import defaultdict
+
 from backend.modules.workout.repositories import WorkoutRepo
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 class WorkoutService:
     def __init__(self):
@@ -61,11 +61,60 @@ class WorkoutService:
         }
     
     # lấy ra lịch tập 1 ngày của user bằng plan_date
-    def get_exercises_list_service(self, db, user_id, plan_date):
-        rows = self.repo.get_exercises_list_repo(db, user_id, plan_date)
+    def get_exercises_list_service(self,
+        db: Session,
+        user_id: int,
+        plan_date: date
+    ):
+        rows = self.repo.get_exercises_list_repo(
+            db,
+            user_id,
+            plan_date
+        )
 
-        return rows
-    
+        exercises = {}
+
+        for row in rows:
+            workout_plan_item_id = row["workout_plan_item_id"]
+
+            exercise = exercises.get(workout_plan_item_id)
+
+            if exercise is None:
+                exercise = {
+                    "workout_plan_item_id": workout_plan_item_id,
+
+                    "exercise_id": row["exercise_id"],
+                    "exercise_name": row["exercise_name"],
+                    "difficulty": row["difficulty"],
+                    "met": row["met"],
+
+                    "started_at": row["started_at"],
+                    "ended_at": row["ended_at"],
+                    "active_duration_seconds": row["active_duration_seconds"],
+
+                    "order_index": row["order_index"],
+
+                    "sets": []
+                }
+                exercises[workout_plan_item_id] = exercise
+
+
+            exercise["sets"].append(
+                {
+                    "workout_set_id": row["workout_set_id"],
+
+                    "set_number": row["set_number"],
+
+                    "target_reps": row["target_reps"],
+                    "completed_reps": row["completed_reps"],
+
+                    "target_weight_kg": row["target_weight_kg"],
+                    "completed_weight_kg": row["completed_weight_kg"],
+                }
+            )
+
+        return list(exercises.values())
+
     def apply_program(self, db: Session, user, slug: str):
 
         # 1️⃣ Tìm program
@@ -192,12 +241,21 @@ class WorkoutService:
     # ==============================
     # ======= INSERT / POST ========
     # ==============================
-    def insert_exercises_by_id_service(self, db: Session, user_id: int, selected_exercises: list, plan_date, week_start):
+    def insert_exercises_service(self, db: Session, user_id: int, selected_exercises: list, plan_date, week_start):
         try:
-            for selected_exercise in selected_exercises:
-                row = self.repo.insert_exercises_by_id_repo(db, user_id, selected_exercise, plan_date, week_start)
+            self.repo.insert_exercises_repo(db, user_id, selected_exercises, plan_date, week_start)
 
-                db.commit()
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise e
+    
+    # lưu active_duration_seconds, started_at, ended_at
+    def update_active_duration_seconds_service(self, db: Session, user_id, workout_plan_item_id, started_at, ended_at, active_duration_seconds):
+        try:
+            workout_plan_item = self.repo.update_active_duration_seconds_repo(db, user_id, workout_plan_item_id, started_at, ended_at, active_duration_seconds)
+
+            db.commit()
         except Exception as e:
             db.rollback()
             raise e

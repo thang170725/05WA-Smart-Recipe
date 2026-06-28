@@ -21,7 +21,7 @@ export default function WorkoutRoadmap() {
   // =======================================================================================================================================
   // ========================= chức năng hiển thị các bài tập của user bằng planDate  ====================================================
   // =======================================================================================================================================
-  const [exercisesList, setExercisesList] = useState([])
+  const [exercisesList, setExercisesList] = useState([]) // biến chính lưu danh sách các bài tập
   const [currentDate, setCurrentDate] = useState(new Date()) // ngày hiện tại hoặc ngày mà website focus
   const weekStart = FormatDate(GetStartOfWeek(currentDate)) // ngày đầu tiên trong tuần dạng YY-MM-DD
   // API load lịch tập trong 1 ngày

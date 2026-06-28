@@ -35,6 +35,18 @@ export async function GetFoodByPlanDateAndMealTypeApi(devMode, planDate, mealTyp
     })
 }
 
+// lấy tổng lượng calo tuần của user bằng week_start 
+export async function GetTotalWeekCaloriesApi(WeekStart) {
+    return await JsonApi("/user/get-total-calories-week",
+        {
+            method: "GET",
+            params: {
+                week_start: WeekStart
+            }
+        }
+    )
+}
+
 // ======= REMOVE ========
 // xóa một món ra khỏi danh sách
 export async function RemoveMealApi(devMode, payload) {

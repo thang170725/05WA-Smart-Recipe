@@ -1,12 +1,14 @@
 // FORMAT DATE (DATE -> STRING)
 export function FormatDate(date) {
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
+  // Output: YY-MM-DD
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
 
-    return `${yyyy}-${mm}-${dd}`;
+  return `${yyyy}-${mm}-${dd}`;
 }
 
+// lấy ra ngày đầu tiên của tuần (tức thứ 2 của tuần đó)
 export function GetStartOfWeek(date) {
   /*
   Input: string (ngày hiện tại hoặc bất kỳ ngày trong tuần) 

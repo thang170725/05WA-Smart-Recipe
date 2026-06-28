@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional, Dict
-from datetime import date
+from datetime import date, datetime
 
 # INPUT
 class InputProgramWorkout(BaseModel):
@@ -9,17 +9,38 @@ class InputProgramWorkout(BaseModel):
 class InputApplyProgram(BaseModel):
     slug: str
 
-# ===================
+# ====================================================================
 # === chức năng lấy các bài tập trong thư viện bằng category_name ===
-# ===================
+# ====================================================================
 class OutputExercisesShema(BaseModel):
     id: int
     name: str
     description: Optional[str] = None
     muscle_group: str
-    calories_per_minute: float
     difficulty: str
     image_url: str
+
+# ======================================================
+# === chức năng lấy danh sách các bài tập của user ===
+# ======================================================
+class OutputWorkoutSet(BaseModel):
+    workout_set_id: int
+    set_number: int
+    target_reps: int
+    completed_reps: int | None = None
+    target_weight_kg: float | None = None
+    completed_weight_kg: float | None = None
+class OutputGetExercisesList(BaseModel):
+    workout_plan_item_id: int
+    exercise_id: int
+    exercise_name: str
+    difficulty: str
+    met: float
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    active_duration_seconds: int | None = None
+    order_index: int
+    sets: list[OutputWorkoutSet]
 
 # output lấy tên thư viện chương trình bài tập mẫu (name + id)
 class OutputGetWorkoutProgramTemplatesSchema(BaseModel):
@@ -76,11 +97,18 @@ class InputPostWorkoutProgramTemplateDetailToWeekSchema(BaseModel):
 class ExerciseInput(BaseModel):
     exercise_id: int
     sets: int
-    reps: int
-    duration_minutes: int
-    order_index: int
+    reps: List[int]
 
-class InsertExercisesRequest(BaseModel):
+class InputInsertExercisesRequest(BaseModel):
     plan_date: date
     week_start: date
-    selected_exercises: list[ExerciseInput]
+    selected_exercises: List[ExerciseInput]
+
+# ===================================================================
+# === chức năng lưu active_duration_seconds, started_at, ended_at ===
+# ===================================================================
+class InputUpdateActiveDurationSecondsSchema(BaseModel):
+    workout_plan_item_id: int
+    started_at: datetime
+    ended_at: datetime
+    active_duration_seconds: float

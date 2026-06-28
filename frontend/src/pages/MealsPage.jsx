@@ -30,8 +30,7 @@ export default function Meals() {
     <div className="page-shell space-y-6 text-white">
       <Title
           dateDetail={dateDetail}
-          currentDate={currentDate}
-          setCurrentDate={setCurrentDate}
+          currentDate={currentDate} setCurrentDate={setCurrentDate}
           selectedDay={selectedDay}
           setSelectedDay={setSelectedDay}
       />

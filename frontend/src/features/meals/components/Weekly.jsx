@@ -2,7 +2,11 @@ import { BASE_URL } from "../../../services/JsonApi"
 import { PostMealsApi, 
   GetFoodByPlanDateAndMealTypeApi, 
   RemoveMealApi } from "../api/MealsApi"
-import { GetIdAndNameFromFoodLibrary } from "../api/FoodLibraryApi";
+import { 
+  GetIdAndNameFromFoodLibrary,
+  GetIngredientsByIdApi,
+  GetInstructionsByIdApi
+ } from "../api/FoodLibraryApi";
 import { useState, useRef, useEffect } from "react";
 
 export function CustomSelect({
@@ -113,7 +117,31 @@ export default function Weekly ({
           console.error("LỖI LẤY MENU MÓN ĂN: ", err)
         }
       }, [currentDate, selectedMeal])
+    
+    // =======================================================================================================================================
+    // ========================= chức năng xem nguyên liệu của món ăn ================================
+    // =======================================================================================================================================
+    const [ingredients, setIngredients] = useState(null)
+    const onHandleIngredients = async (foodId) => {
+      const response = await GetIngredientsByIdApi(foodId)
 
+      console.log("ingredients:", response)
+      setIngredients(response)
+    }
+
+    // =======================================================================================================================================
+    // ========================= chức năng xem hướng dẫn nấu của món ăn ================================
+    // =======================================================================================================================================
+    const [instructions, setInstructions] = useState(null)
+    const onHandleInstructions = async (foodId) => {
+      const response = await GetInstructionsByIdApi(foodId)
+
+      setInstructions(response)
+    }
+    useEffect(() => {
+      console.log("ingredients:", ingredients)
+      console.log("instructions:", instructions)
+    }, [ingredients, instructions])
     // ====== USESTAE FOR USER ENTER MEAL AS HAND =======
     // ====== thêm món vào thực đơn =======
     const [newMealName, setNewMealName] = useState(""); // dùng để giữ giá trị người dùng đang nhập trong input
@@ -189,66 +217,10 @@ export default function Weekly ({
     setSuggestions(filtered)
   }, [newMealName, idAndNameFoodLibrary])
 
-  // ====== Modal xem chi tiết món ăn ======
-  const [ingredientMeal, setIngredientMeal] = useState(null)
-  const [recipeMeal, setRecipeMeal] = useState(null)
+ 
   
   return (
     <div className="mb-30">       
-      {/* ===== MODAL NGUYÊN LIỆU ===== */}
-{ingredientMeal && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-    <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-white/10 p-6">
-      <div className="flex justify-between items-center mb-5">
-        <h2 className="text-xl font-semibold text-white">
-          🥕 Nguyên liệu
-        </h2>
-
-        <button
-          onClick={() => setIngredientMeal(null)}
-          className="text-gray-400 hover:text-red-400"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div className="space-y-3">
-        {ingredientMeal.ingredients?.map((item, idx) => (
-          <div
-            key={idx}
-            className="px-4 py-3 rounded-xl bg-white/5 text-gray-300"
-          >
-            • {item}
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-)}     
-
-      {/* ===== MODAL CÁCH NẤU ===== */}
-{recipeMeal && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-    <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-white/10 p-6">
-      <div className="flex justify-between items-center mb-5">
-        <h2 className="text-xl font-semibold text-white">
-          👨‍🍳 Cách nấu
-        </h2>
-
-        <button
-          onClick={() => setRecipeMeal(null)}
-          className="text-gray-400 hover:text-red-400"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div className="rounded-2xl bg-white/5 p-5 text-gray-300 leading-7">
-        {recipeMeal.recipe}
-      </div>
-    </div>
-  </div>
-)}
       {/* ===== TABS SÁNG / TRƯA / TỐI (nút bấm chuyển tab) ===== */}
       <div className="flex gap-3 mb-6">
         {meals.map((meal) => {
@@ -385,34 +357,34 @@ export default function Weekly ({
                       </div>
 
                       <div className="flex gap-2 mt-4 flex-wrap">
-              <button
-                onClick={() => setIngredientMeal(meal)}
-                className="
-                  px-3 py-2
-                  rounded-xl
-                  bg-white/10
-                  text-sm
-                  hover:bg-white/20
-                  transition
-                "
-              >
-                🥕 Xem nguyên liệu
-              </button>
+                        <button
+                          onClick={() => onHandleIngredients(meal.id)}
+                          className="
+                            px-3 py-2
+                            rounded-xl
+                            bg-white/10
+                            text-sm
+                            hover:bg-white/20
+                            transition
+                          "
+                        >
+                          🥕 Xem nguyên liệu
+                        </button>
 
-              <button
-                onClick={() => setRecipeMeal(meal)}
-                className="
-                  px-3 py-2
-                  rounded-xl
-                  bg-sky-500/20
-                  text-sky-300
-                  text-sm
-                  hover:bg-sky-500/30
-                  transition
-                "
-              >
-                👨‍🍳 Xem cách nấu
-              </button>
+                        <button
+                          onClick={() => onHandleInstructions(meal.id)}
+                          className="
+                            px-3 py-2
+                            rounded-xl
+                            bg-sky-500/20
+                            text-sky-300
+                            text-sm
+                            hover:bg-sky-500/30
+                            transition
+                          "
+                        >
+                          👨‍🍳 Xem cách nấu
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -499,7 +471,72 @@ export default function Weekly ({
             </div>
           )}   
         </div>
-      </div>        
+      </div>     
+
+      {/* ===== MODAL NGUYÊN LIỆU ===== */}
+      {ingredients && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-white/10 p-6">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-semibold text-white">
+                🥕 Nguyên liệu
+              </h2>
+
+              <button
+                onClick={() => setIngredients(null)}
+                className="text-gray-400 hover:text-red-400"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {ingredients.map((i, idx) => (
+                <div
+                  key={idx}
+                  className="px-4 py-3 rounded-xl bg-white/5 text-gray-300"
+                >
+                  {i.name} ({i.mass} {i.unit})
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}     
+
+      {/* ===== MODAL CÁCH NẤU ===== */}
+      {instructions && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-white/10 p-6">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-semibold text-white">
+                👨‍🍳 Cách nấu
+              </h2>
+
+              <button
+                onClick={() => setInstructions(null)}
+                className="text-gray-400 hover:text-red-400"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="rounded-2xl bg-white/5 p-5 text-gray-300 leading-7">
+              {instructions.map((s) => (
+                <div
+                  key={s.step}
+                  className="bg-slate-50 px-4 py-3 rounded-lg shadow-sm"
+                >
+                  <span className="font-semibold text-sky-700">
+                    B{s.step}:
+                  </span>{" "}
+                  {s.text}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}   
     </div>
   )
 }

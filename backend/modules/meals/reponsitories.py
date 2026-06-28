@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 from backend.modules.meals.queries import get_meals_to_day
 from sqlalchemy import (
     text, select, delete,
-    func
+    func, 
+    case
 )
 from datetime import timedelta, date
 from backend.modules.meals.schemas import (
@@ -21,6 +22,7 @@ class MealRepository:
         # plan_date: YY-MM-DD
         stmt = (
             select(
+                FoodLibrary.id,
                 FoodLibrary.name.label("food_name"),
                 FoodLibrary.image_url,
                 FoodLibrary.calories_per_100.label("food_calories_per_100"),
@@ -115,28 +117,39 @@ class MealRepository:
 
         return db.execute(stmt).mappings().all()
     
-    # ==== lấy tổng calo tuần dựa vào week_start='2026-14-02' ===
-    def get_total_week_calories_repo(self, 
-        db: Session,
-        user_id: int,
-        week_start: date
-    ):
+    # lấy tổng lượng calo tuần dựa vào week_start='2026-14-02'
+    def get_total_week_calories_repo(self, db: Session, user_id: int, week_start: date):
         stmt = (
             select(
-                func.coalesce(
-                    func.sum(FoodLibrary.calories_per_100 * Meal.quantity * 0.1),
-                    0
-                ).label("total_calories")
+                func.round(
+                    func.sum(
+                        case(
+                            (
+                                Meal.food_id.isnot(None),
+                                FoodLibrary.calories_per_100 * Meal.quantity / 100
+                            ),
+                            (
+                                Meal.user_meal_id.isnot(None),
+                                UserMeal.calories_per_100 * Meal.quantity / 100
+                            ),
+                            else_= 0
+                        )
+                    )
+                ).label("total_week_calories")
             )
-            .join(Meal, Meal.food_id == FoodLibrary.id)
+            .select_from(MealPlan)
+            .join(MealPlanItem, MealPlanItem.meal_plan_id == MealPlan.id)
+            .join(Meal, Meal.id == MealPlanItem.meal_id)
+            .outerjoin(FoodLibrary, FoodLibrary.id == Meal.food_id)
+            .outerjoin(UserMeal, UserMeal.id == Meal.user_meal_id)
+            .group_by(MealPlan.week_start)
             .where(
-                Meal.created_at >= week_start,
-                Meal.created_at < week_start + timedelta(days=7),
-                Meal.user_id == user_id
+                Meal.user_id == user_id,
+                MealPlan.week_start == week_start
             )
         )
 
-        return db.execute(stmt).scalar()
+        return db.execute(stmt).mappings().first()
 
     def create_meal_plan_with_item(
         self,

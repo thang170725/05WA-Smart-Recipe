@@ -10,7 +10,8 @@ from backend.modules.workout.models import (
     WorkoutProgramDay,
     WorkoutPlan,
     WorkoutPlanItem,
-    ExerciseCategory
+    ExerciseCategory,
+    WorkoutSet
 )
 from backend.modules.meals.models import Category
 
@@ -26,7 +27,6 @@ class WorkoutRepo:
                 Exercise.name,
                 Exercise.description,
                 Exercise.muscle_group,
-                Exercise.calories_per_minute,
                 Exercise.difficulty,
                 Exercise.image_url,
             )
@@ -87,22 +87,47 @@ class WorkoutRepo:
     def get_exercises_list_repo(self, db: Session, user_id: int, plan_date):
         stmt = (
             select(
+                Exercise.id.label("exercise_id"),
                 Exercise.name.label("exercise_name"),
                 Exercise.difficulty,
-                Exercise.calories_per_minute,
+                Exercise.met,
 
-                WorkoutPlanItem.sets,
-                WorkoutPlanItem.reps,
-                WorkoutPlanItem.duration_minutes,
-                WorkoutPlanItem.order_index
+                WorkoutPlanItem.id.label("workout_plan_item_id"),
+                WorkoutPlanItem.started_at,
+                WorkoutPlanItem.ended_at,
+                WorkoutPlanItem.active_duration_seconds,
+                WorkoutPlanItem.order_index,
+
+                WorkoutSet.id.label("workout_set_id"),
+                WorkoutSet.set_number,
+
+                WorkoutSet.target_reps,
+                WorkoutSet.completed_reps,
+
+                WorkoutSet.target_weight_kg,
+                WorkoutSet.completed_weight_kg
             )
-            .join(WorkoutPlanItem, WorkoutPlanItem.exercise_id == Exercise.id)
-            .join(WorkoutPlan, WorkoutPlan.id == WorkoutPlanItem.workout_plan_id)
+            .select_from(WorkoutPlan)
+            .join(
+                WorkoutPlanItem, 
+                WorkoutPlanItem.workout_plan_id == WorkoutPlan.id
+            )
+            .join(
+                Exercise,
+                Exercise.id == WorkoutPlanItem.exercise_id
+            )
+            .outerjoin(
+                WorkoutSet,
+                WorkoutSet.workout_plan_item_id == WorkoutPlanItem.id
+            )
             .where(
                 WorkoutPlan.user_id == user_id, 
                 WorkoutPlan.plan_date == plan_date
             )
-            .order_by(WorkoutPlanItem.order_index)
+            .order_by(
+                WorkoutPlanItem.order_index,
+                WorkoutSet.set_number
+            )
         )
 
         return db.execute(stmt).mappings().all()
@@ -248,39 +273,66 @@ class WorkoutRepo:
     # ==============================
     # ======= INSERT / POST ========
     # ==============================
-    def insert_exercises_by_id_repo(self, db: Session, user_id: int, selected_exercise: list, plan_date, week_start):
-        exist_workout_plans = db.query(WorkoutPlan).filter(
-            WorkoutPlan.user_id==user_id,
-            WorkoutPlan.plan_date==plan_date
-        ).first()
-
-        workout_plans = None
-        if exist_workout_plans:
-            workout_plans = exist_workout_plans
-        else:
-            workout_plans = WorkoutPlan(
+    # thêm bài tập vào danh sách của người dùng
+    def insert_exercises_repo(self, db: Session, user_id: int, selected_exercises: list, plan_date, week_start):
+        # 1. insert vào WorkPlan (lấy ra ngày tập luyện đó)
+        workout_plan = (
+            db.query(WorkoutPlan)
+            .filter(
+                WorkoutPlan.user_id == user_id,
+                WorkoutPlan.plan_date == plan_date
+            )
+            .first()
+        )
+        if workout_plan is None:
+            workout_plan = WorkoutPlan(
                 user_id=user_id,
                 plan_date=plan_date,
                 week_start=week_start
             )
-            db.add(workout_plans)
-            db.flush()
-        
-        exist_workout_plan_items = db.query(WorkoutPlanItem).filter(
-            WorkoutPlanItem.workout_plan_id==workout_plans.id
-        ).first()
 
-        workout_plan_items = None
-        if exist_workout_plan_items:
-            workout_plan_items = exist_workout_plan_items
-        else:
-            workout_plan_items = WorkoutPlanItem(
-                workout_plan_id=workout_plans.id,
-                exercise_id=selected_exercise.exercise_id,
-                sets=selected_exercise.sets,
-                reps=selected_exercise.reps,
-                duration_minutes=selected_exercise.duration_minutes,
-                order_index=selected_exercise.order_index
-            )
-            db.add(workout_plan_items)
+            db.add(workout_plan)
             db.flush()
+
+        # 2. insert vào workplanitem
+        for order, exercise in enumerate(selected_exercises, start=1):
+            workout_item = WorkoutPlanItem(
+                workout_plan_id=workout_plan.id,
+                exercise_id=exercise.exercise_id,
+                order_index=order
+            )
+
+            db.add(workout_item)
+            db.flush()
+
+        
+            # Insert Sets
+            for set_number, rep in enumerate(exercise.reps, start=1):
+
+                workout_set = WorkoutSet(
+                    workout_plan_item_id=workout_item.id,
+                    set_number=set_number,
+                    target_reps=rep
+                )
+
+                db.add(workout_set)
+        
+        return workout_plan
+
+    # lưu active_duration_seconds, started_at, ended_at
+    def update_active_duration_seconds_repo(self, db: Session, user_id, workout_plan_item_id, started_at, ended_at, active_duration_seconds):
+        workout_plan_item = (
+            db.query(WorkoutPlanItem)
+            .filter(
+                WorkoutPlanItem.id == workout_plan_item_id,
+            )
+            .first()
+        )
+        if workout_plan_item is None:
+            return
+        
+        workout_plan_item.started_at = started_at
+        workout_plan_item.ended_at = ended_at
+        workout_plan_item.active_duration_seconds = active_duration_seconds
+
+        return workout_plan_item

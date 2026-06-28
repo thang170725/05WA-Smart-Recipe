@@ -12,7 +12,9 @@ from sqlalchemy import (
     text,
     Text,
     Float,
-    JSON
+    JSON,
+    func,
+    Boolean
 )
 from sqlalchemy.orm import relationship
 
@@ -116,7 +118,10 @@ class Exercise(Base):
         Enum('easy', 'medium', 'hard', name='exercise_difficulty_enum'),
         nullable=False
     )
-
+    tracking_type = Column(
+        Enum('rep', 'duration', 'hold', 'distance')
+    )
+    met = Column(Float)
     image_url = Column(String(255))
     video_url = Column(String(255))
 
@@ -191,25 +196,25 @@ class WorkoutPlanItem(Base):
     __tablename__ = "workout_plan_items"
 
     id = Column(Integer, primary_key=True)
-
     workout_plan_id = Column(
         Integer,
-        ForeignKey("workout_plans.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
+        ForeignKey("workout_plans.id")
     )
-
     exercise_id = Column(
         Integer,
-        ForeignKey("exercises.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
+        ForeignKey("exercises.id")
     )
 
-    sets = Column(Integer, nullable=True, server_default="3")
-    reps = Column(Integer, nullable=True, server_default="12")
-    duration_minutes = Column(Integer)
     order_index = Column(Integer)
+
+    started_at = Column(DateTime)
+    ended_at = Column(DateTime)
+    active_duration_seconds = Column(Integer)
+
+    created_at = Column(
+        TIMESTAMP,
+        server_default=text("CURRENT_TIMESTAMP")
+    )
 
     workout_plan = relationship("WorkoutPlan", back_populates="items")
     exercise = relationship("Exercise", back_populates="workout_items")
@@ -245,3 +250,66 @@ class WorkoutProgramDay(Base):
     day_number = Column(Integer, nullable=False)
     title = Column(String(100), nullable=True)
     description = Column(JSON, nullable=True)
+
+class WorkoutSet(Base):
+    __tablename__ = "workout_sets"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "workout_plan_item_id",
+            "set_number",
+            name="uq_workout_set_number"
+        ),
+    )
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True
+    )
+
+    workout_plan_item_id = Column(
+        Integer,
+        ForeignKey(
+            "workout_plan_items.id",
+            ondelete="CASCADE"
+        ),
+        nullable=False
+    )
+
+    set_number = Column(
+        Integer,
+        nullable=False
+    )
+
+    target_reps = Column(
+        Integer,
+        nullable=False
+    )
+
+    completed_reps = Column(
+        Integer,
+        nullable=True
+    )
+
+    target_weight_kg = Column(
+        Float,
+        nullable=True
+    )
+
+    completed_weight_kg = Column(
+        Float,
+        nullable=True
+    )
+
+    is_completed = Column(
+        Boolean,
+        nullable=False,
+        default=False
+    )
+
+    created_at = Column(
+        TIMESTAMP,
+        server_default=func.current_timestamp(),
+        nullable=False
+    )

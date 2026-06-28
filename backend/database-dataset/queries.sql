@@ -1,15 +1,11 @@
 use SmartRecipe;
 
 select * from users;
-select * from meals;
-select * from meal_plan_items mpi;
-select * from meal_plans mp;
-select * from user_meals um;
-select * from food_library fl;
 select * from food_library_category flc;
 
 
 select * from workout_plans;
+select * from workout_sets ws ;
 select * from workout_plan_items;
 select * from categories c;
 select * from exercises e ;
@@ -18,12 +14,11 @@ select * from ai_tool_registry atr;
 
 select * from platform p ;
 
-SELECT COALESCE(
-  SUM(fl.calories_per_100 * m.quantity * 0.1),
-  0
-) AS total_calories from food_library fl 
-join meals m on m.food_id = fl.id 
-where m.created_at >= :week_start and m.created_at < DATE_ADD(:week_start, INTERVAL 7 DAY) and m.user_id = :user_id;
+select * from meals;
+select * from meal_plan_items mpi;
+select * from meal_plans mp;
+select * from user_meals um;
+select * from food_library fl;
 
 -- 4. MUSCLE DISTRIBUTION: xem user tập nhóm cơ nào nhiều nhất
 SELECT
@@ -353,7 +348,9 @@ CREATE TABLE exercises (
     difficulty ENUM('easy', 'medium', 'hard') NOT NULL,
     image_url VARCHAR(255),
     video_url VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  
+    tracking_type enum('rep', 'duration', 'hold', 'distance'),
+	met float
 ) engine=InnoDB;
 
 CREATE TABLE exercises_categories (
@@ -392,10 +389,15 @@ CREATE TABLE workout_plan_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
     workout_plan_id INT NOT NULL,
     exercise_id INT NOT NULL,
-    sets INT DEFAULT 3,
-    reps INT DEFAULT 12,
-    duration_minutes INT,
+    
     order_index INT,
+    
+    started_at DATETIME NULL COMMENT 'Thời điểm bắt đầu bài tập',
+	ended_at DATETIME NULL COMMENT 'Thời điểm kết thúc bài tập',
+	active_duration_seconds INT DEFAULT NULL COMMENT 'Thời gian tập thực tế (giây)',
+
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Thời điểm tạo',
+    
 
     CONSTRAINT fk_workout_plan
         FOREIGN KEY (workout_plan_id)
@@ -410,6 +412,33 @@ CREATE TABLE workout_plan_items (
     INDEX idx_plan_id (workout_plan_id),
     INDEX idx_exercise_id (exercise_id)
 ) engine=InnoDB;
+
+CREATE TABLE workout_sets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    workout_plan_item_id INT NOT NULL,
+    
+    set_number INT NOT NULL COMMENT 'Set thứ mấy (1, 2, 3, ...)',
+
+    target_reps INT NOT NULL COMMENT 'Số rep theo kế hoạch',
+    completed_reps INT DEFAULT NULL COMMENT 'Số rep thực tế',
+
+    target_weight_kg DECIMAL(5,2) DEFAULT NULL COMMENT 'Mức tạ theo kế hoạch',
+    completed_weight_kg DECIMAL(5,2) DEFAULT NULL COMMENT 'Mức tạ thực tế',
+
+    is_completed BOOLEAN DEFAULT FALSE COMMENT 'Đã hoàn thành set hay chưa',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_workout_sets_plan_item
+        FOREIGN KEY (workout_plan_item_id)
+        REFERENCES workout_plan_items(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT uq_workout_set_number
+        UNIQUE(workout_plan_item_id, set_number)
+) engine=InnoDB;
+
 
 CREATE TABLE workout_programs (
     id INT AUTO_INCREMENT PRIMARY KEY,

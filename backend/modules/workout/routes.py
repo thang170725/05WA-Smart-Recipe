@@ -6,7 +6,8 @@ from backend.modules.workout.schemas import (
     OutputGetWorkoutProgramTemplateDetailSchema,
     InputPostWorkoutProgramTemplateDetailToWeekSchema,
     OutputGetWeekProgram,
-    InsertExercisesRequest
+    InputInsertExercisesRequest,
+    InputUpdateActiveDurationSecondsSchema
 )
 from backend.modules.user.dependencies import get_current_user
 from backend.core.database import get_db
@@ -75,11 +76,20 @@ def post_workout_program_template_detail_to_week(
 # ======= INSERT/POST =========
 # =============================
 # thêm bài tập vào schedule của user bằng plan_date
-@router.post("/insert-exercises-by-id")
+@router.post("/insert-exercises")
 def insert_exercises_by_id(
-    payload: InsertExercisesRequest,
+    payload: InputInsertExercisesRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    res = service.insert_exercises_by_id_service(db, current_user.id, payload.selected_exercises, payload.plan_date, payload.week_start)
+    res = service.insert_exercises_service(db, current_user.id, payload.selected_exercises, payload.plan_date, payload.week_start)
     return res
+
+# lưu active_duration_seconds, started_at, ended_at
+@router.post("/update-active-duration-seconds")
+def update_active_duration_seconds(
+    payload: InputUpdateActiveDurationSecondsSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return service.update_active_duration_seconds_service(db, current_user.id, payload.workout_plan_item_id, payload.started_at, payload.ended_at, payload.active_duration_seconds)

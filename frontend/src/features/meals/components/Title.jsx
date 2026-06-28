@@ -1,8 +1,11 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { GetTotalWeekCaloriesApi } from "../api/MealsApi";
+import { useEffect, useState } from "react";
+import { FormatDate, GetStartOfWeek } from "../../../components/Datetime";
 
 export default function Title({
     dateDetail,
-    setCurrentDate,
+    currentDate, setCurrentDate,
     selectedDay,
     setSelectedDay,
 }) {
@@ -71,6 +74,20 @@ export default function Title({
             return d;
         });
     };
+    // =======================================================================================================================================
+    // ========================= chức năng xem tổng lượng calories tuần của user ================================
+    // =======================================================================================================================================
+    const weekStart = FormatDate(GetStartOfWeek(currentDate));
+    const [totalWeekCalories, setTotalWeekCalories] = useState({})
+    useEffect(() => {
+        const loadApi = async () => {
+            const response = await GetTotalWeekCaloriesApi(weekStart)
+
+            setTotalWeekCalories(response)
+        }
+
+        loadApi()
+    }, [weekStart])
 
     return (
         <div className="space-y-6">
@@ -120,6 +137,61 @@ export default function Title({
                     >
                         <ChevronRight size={22} />
                     </button>
+                </div>
+
+                {/* ===== WEEK CALORIES ===== */}
+                <div
+                    className="
+                        mb-8
+                        rounded-3xl
+                        border border-white/10
+                        bg-white/5
+                        backdrop-blur-xl
+                        p-6
+                    "
+                >
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="text-slate-400 text-sm">
+                                Tổng năng lượng tuần
+                            </div>
+                                    
+                            <div className="text-xs text-slate-500 mt-1">
+                                Từ tất cả các bữa ăn trong tuần
+                            </div>
+                        </div>
+                                    
+                        <div className="text-right">
+                            <div className="text-4xl font-bold text-orange-400">
+                                {totalWeekCalories.total_week_calories}
+                            </div>
+                                    
+                            <div className="text-sm text-slate-400">
+                                kcal
+                            </div>
+                        </div>
+                    </div>
+                                    
+                    {/* progress mock */}
+                    <div className="mt-5">
+                        <div className="h-3 rounded-full bg-white/10 overflow-hidden">
+                            <div
+                                className="
+                                    h-full
+                                    rounded-full
+                                    bg-gradient-to-r
+                                    from-orange-500
+                                    to-red-500
+                                "
+                                style={{ width: "72%" }}
+                            />
+                        </div>
+                                    
+                        <div className="flex justify-between text-xs text-slate-500 mt-2">
+                            <span>Mục tiêu: 17,500 kcal</span>
+                            <span>72%</span>
+                        </div>
+                    </div>
                 </div>
 
                 {/* DAY TIMELINE */}
@@ -220,8 +292,8 @@ export default function Title({
                                     );
                                 })}
                             </div>
-                        </div>
-                    </div>          
-                </div>        
+                </div>
+            </div>          
+        </div>        
     );
 }

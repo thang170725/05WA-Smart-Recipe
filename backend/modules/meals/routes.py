@@ -51,6 +51,15 @@ def get_food(
 
     return data
 
+# lấy tổng lượng calo tuần của user bằng week_start
+@router.get("/get-total-calories-week")
+def get_total_calories_week(
+    week_start: date,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return service.get_total_calories_week_service(db, current_user.id, week_start)
+
 # ==============================================
 # ========== API RELATED TO LIBRARY ============
 # ==============================================
@@ -87,14 +96,6 @@ def get_id_and_name_food_library(
     db: Session = Depends(get_db)
 ):
     return service.get_id_and_name_from_food_library_table_service(db)
-
-@router.get("/get-total-calories-week")
-def get_total_calories_week(
-    week_start: date,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    return service.get_total_calories_week_service(db, current_user.id, week_start)
 
 # ===================================
 # ====== INSERT =====================

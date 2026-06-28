@@ -88,9 +88,13 @@ class MealService:
     def get_instructions_json_by_id_service(self, db: Session, food_id: int):
         return self.meal_repo.get_instructions_json_by_id_repo(db, food_id)
 
-    # === lấy tổng lượng calo tuần của user bằng week_start ===
+    # lấy tổng lượng calo tuần của user bằng week_start 
     def get_total_calories_week_service(self, db, user_id, week_start):
-        return self.meal_repo.get_total_week_calories_repo(db, user_id, week_start)
+        data = self.meal_repo.get_total_week_calories_repo(db, user_id, week_start)
+        if not data:
+            return {
+                "total_week_calories": 0}
+        return data
     
     # lấy id và tên của món tất cả món ăn trong thư viện
     def get_id_and_name_from_food_library_table_service(self, db):
