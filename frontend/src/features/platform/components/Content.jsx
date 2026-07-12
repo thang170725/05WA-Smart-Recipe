@@ -282,10 +282,10 @@ export function Content({devMode}) {
 
             <div
               className="
-              bg-zinc-900
+              bg-zinc-900/40
+              rounded-3xl
               border
               border-zinc-800
-              rounded-3xl
               p-6
               "
             >
@@ -335,7 +335,7 @@ export function Content({devMode}) {
 
             <div
               className="
-              bg-zinc-900
+              bg-zinc-900/40
               border
               border-zinc-800
               rounded-3xl
@@ -379,8 +379,8 @@ export function Content({devMode}) {
             <div
               className="
               bg-gradient-to-br
-              from-emerald-600
-              to-emerald-800
+              from-[#CB4232]
+              to-[#E45946]
               rounded-3xl
               p-6
               "
@@ -417,12 +417,12 @@ export function Content({devMode}) {
       <button
         className="
         fixed
-        bottom-8
-        right-8
-        w-16
-        h-16
+        bottom-20
+        right-2
+        w-12
+        h-12
         rounded-full
-        bg-emerald-600
+        bg-[#da4242]
         shadow-xl
         flex
         items-center

@@ -17,14 +17,12 @@ import {
   Mail,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext"
-import { UploadAvatarApi, UpdateProfile, UpdatePassword } from "../api/ProfileApi"
+import { UploadAvatarApi, UpdateProfileApi, UpdatePassword } from "../api/ProfileApi"
 import { BASE_URL } from "../../../services/JsonApi";
 
 /* ---------------- MOCK DATA ---------------- */
 const mockUser = {
-  id: "USR-001",
-  username: "leduythang",
-  role: "Admin",
+  id: 15,
   fullname: "Lê Đức Thắng",
   address: "Bắc Giang, Việt Nam",
   birth_date: "2000-05-20",
@@ -32,32 +30,13 @@ const mockUser = {
   avatar_url: "",
   created_at: "2025-12-12",
   gender: "male",
-  email: "thang@example.com",
   activity_level: "moderate",
   target_goal: "gain_muscle",
 };
 
-export default function ProfileForm() {
+export default function ProfileForm({ devMode }) {
   const [editMode, setEditMode] = useState(false);
   const [editPassword, setEditPassword] = useState(false)
-
-  // USESTATE
-  const [profile, setProfile] = useState({
-    id: "",
-    username: "",
-    role: "",
-    fullname: "",
-    address: "",
-    phone: "",
-    created_at: "",
-    birth_date: "",
-    password: "",
-    avatar_url: "https://i.pravatar.cc/300",
-    gender: "",
-    email: "",
-    activity_level: "",
-    target_goal: "",
-  });
 
   // ATTRIBUTE
   const { user, updateAvatar} = useAuth()
@@ -111,18 +90,25 @@ export default function ProfileForm() {
       console.log("upload failed: ", err)
     }
   };
-
+  
+  // =====================================================
+  // ======= CHỨC NĂNG UPDATE THÔNG TIN CỦA USER ======== 
+  // =====================================================
+  const [profile, setProfile] = useState({
+    id: user?.id ?? 15,
+    fullname: "",
+    address: "",
+    phone: "",
+    birth_date: "",
+    gender: "",
+    activity_level: "",
+    target_goal: "",
+  });
+  // API update info
   const handleUpdate = async () => {
   try {
     if (editMode) {
-      await UpdateProfile({
-        fullname: profile.fullname,
-        address: profile.address,
-        email: profile.email,
-        phone: profile.phone,
-        activity_level: profile.activity_level,
-        target_goal: profile.target_goal
-      });
+      await UpdateProfileApi(devMode, profile);
 
       setEditMode(false);
     }
@@ -150,36 +136,33 @@ export default function ProfileForm() {
 };
 
   return (
-    <div className="page-shell glass-panel text-slate-200 space-y-10">
+    <div className="page-shell glass-panel text-slate-200 space-y-10 my-15">
       {/* ================= HEADER + AVATAR ================= */}
-      <div className="grid grid-cols-3 items-center gap-10">
+      <div className="w-[85%] flex justify-between items-center gap-10">
 
         {/* LEFT INFO */}
         <div className="space-y-4">
           <InfoPill icon={IdCard} label="User ID" value={profile.id} />
-          <InfoPill icon={User} label="Tên tài khoản" value={profile.username} />
+          <InfoPill icon={User} label="Tên tài khoản (email)" value={profile.email} />
+        </div>
+
+        <div className="space-y-4">
+          <InfoPill icon={CalendarCheck} label="Ngày tạo" value={profile.created_at} />
           <InfoPill icon={Shield} label="Vai trò" value={profile.role} />
         </div>
 
-        {/* LEFT INFO */}
-        <div className="space-y-4">
-          <InfoPill icon={CalendarCheck} label="Ngày tạo" value={profile.created_at} />
-          <InfoPill icon={Cake} label="Ngày sinh" value={profile.birth_date} />
-          <InfoPill icon={VenusAndMars} label="Giới tính" value={profile.gender} />
-        </div>
-
         {/* AVATAR */}
-        <div className="relative group w-60 h-60 shrink-0 -right-20">
+        <div className="relative group w-50 h-60 shrink-0 -right-20">
           <img
             src={profile.avatar_url || "https://i.pravatar.cc/300"}
             alt="avatar"
-            className="w-60 h-60 rounded-full object-cover border-4 border-white/10 shadow-xl"
+            className="absolute top-5 w-50 h-50 rounded-full object-cover border-4 border-white/10 shadow-xl"
           />
 
-          <label className="absolute bottom-0 left-0 w-full h-1/2 bg-black/60 
+          <label className="absolute bottom-5 left-0 w-full h-1/2 bg-black/60 
             rounded-b-full flex items-center justify-center text-sm
             opacity-0 group-hover:opacity-100 transition cursor-pointer">
-            <Upload size={16} className="mr-2" />
+            <Upload size={8} className="mr-2" />
             Tải lên
             <input
               type="file"
@@ -192,8 +175,7 @@ export default function ProfileForm() {
       </div>
 
       {/* ================= THÔNG TIN CƠ BẢN ================= */}
-      <Section title="Thông tin cơ bản" editMode={editMode} setEditMode={setEditMode} handleUpdate={handleUpdate}
-      >
+      <Section title="Thông tin cơ bản" editMode={editMode} setEditMode={setEditMode} handleUpdate={handleUpdate}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <InputRow
             label="Tên đầy đủ"
@@ -224,13 +206,26 @@ export default function ProfileForm() {
           />
 
           <InputRow
-            label="Email"
+            label="Ngày sinh (MM/DD/YYYY)"
             icon={Mail}
-            type="email"
-            name="email"
-            value={profile.email}
+            type="date"
+            name="birth_date"
+            value={profile.birth_date}
             disabled={!editMode}
             onChange={handleChange}
+          />
+
+          <SelectRow
+            label="Giới tính"
+            icon={PersonStanding}
+            name="gender"
+            value={profile.gender}
+            disabled={!editMode}
+            onChange={handleChange}
+            options={[
+              { value: "male", label: "Nam" },
+              { value: "female", label: "Nữ" },
+            ]}
           />
 
           {/* Activity Level */}
@@ -374,7 +369,7 @@ function SelectRow({ label, icon: Icon, name, value, disabled, onChange, options
 
 function InfoPill({ icon: Icon, label, value }) {
   return (
-    <div className="bg-white/5 px-6 py-3 rounded-full border border-white/10 flex items-center gap-2 text-sm">
+    <div className="bg-white/5 px-10 py-4 rounded-full border border-white/10 flex items-center gap-2 text-md">
       <Icon size={16} />
       <span className="opacity-60">{label}:</span>
       <span className="font-medium">{value}</span>

@@ -2,20 +2,22 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import date
 
+# ===========================
 # ======= USER INFOR ======== 
+# ===========================
 class OutputUserInforSchema(BaseModel):
     fullname: Optional[str] = None
-    birth_date: date
-    gender: Optional[str]
-    activity_level: Optional[str]
     target_goal: Optional[str]
-
+    activity_level: Optional[str]
+    
+    health_status: Optional[str] = None
     weight: Optional[float]
     height: Optional[float]
-    bmi: Optional[float]
-    bmr: Optional[float]
-    tdee: Optional[float]
-    health_status: Optional[str] = None
+
+    bmi: Optional[float] = None
+    bmr: Optional[float] = None
+    tdee: Optional[float] = None
+    
 
 # ====== HEALTH HISTORY =======
 class OutputGethealthHistorySchema(BaseModel):

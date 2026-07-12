@@ -5,6 +5,12 @@ import MainTabNavigator from './MainTabNavigator';
 import Loading from '../components/Loading';
 import ScreenLayout from '../components/ScreenLayout';
 import { colors } from '../theme/colors';
+import {
+  DEV_PREVIEW_ENABLED,
+  getPreviewAppConfig,
+  getPreviewAuthRoute,
+  isPreviewingAuthScreen,
+} from '../config/devPreview';
 
 const navTheme = {
   ...DefaultTheme,
@@ -20,6 +26,8 @@ const navTheme = {
 
 export default function AppNavigator() {
   const { user, loading } = useAuth();
+  const previewAuthRoute = getPreviewAuthRoute();
+  const previewAppConfig = getPreviewAppConfig();
 
   if (loading) {
     return (
@@ -31,7 +39,21 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer theme={navTheme}>
-      {user ? <MainTabNavigator /> : <AuthNavigator />}
+      {DEV_PREVIEW_ENABLED ? (
+        isPreviewingAuthScreen() ? (
+          <AuthNavigator initialRouteName={previewAuthRoute} />
+        ) : (
+          <MainTabNavigator
+            initialRouteName={previewAppConfig.tab}
+            initialHealthScreen={previewAppConfig.healthScreen}
+            initialMoreScreen={previewAppConfig.moreScreen}
+          />
+        )
+      ) : user ? (
+        <MainTabNavigator />
+      ) : (
+        <AuthNavigator />
+      )}
     </NavigationContainer>
   );
 }

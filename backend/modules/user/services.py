@@ -28,6 +28,7 @@ if GOOGLE_CLIENT_ID == "Empty":
 class AccountService:
     def __init__(self):
         self.repo = AccountRepository()
+        self.user_service = UserService()
     
     def register(self, db: Session, data: dict):
         data["role"] = "user"
@@ -85,7 +86,7 @@ class AccountService:
 
         return self.repo.create_account(db, new_user)
 
-    def send_email(self, to_email: str, otp: str):
+    def _send_email(self, to_email: str, otp: str):
         msg = MIMEMultipart()
         msg["From"] = EMAIL
         msg["To"] = to_email
@@ -100,70 +101,78 @@ class AccountService:
         server.send_message(msg)
         server.quit()
 
-    def generate_otp(self):
+    def _generate_otp(self):
         return str(random.randint(100000, 999999))
 
-    def forgot_password(self, email, db: Session):
-        # gen otp
-        otp = self.generate_otp()
+    def forgot_password_service(self, db: Session, email):
+        try:
+            # 1. genarate otp random
+            generate_otp = self._generate_otp()
 
-        otp_record = OTP(
-            email=email,
-            otp=otp,
-            expires_at = (datetime.now(timezone.utc) + timedelta(minutes=5)).replace(tzinfo=None),
-            is_used=False
-        )
+            # 2. insert otp table
+            otp = self.repo.insert_otp_repo(db, email, generate_otp)
+            db.commit()
 
-        db.add(otp_record)
+            # 3. send otp to email
+            self._send_email(email, otp.otp) # gủi otp đến email
+        except Exception as e:
+            db.rollback()
+            raise ValueError(e)
 
-        db.commit()
+    # xác thực otp
+    def verity_otp_service(self, db: Session, email, otp: str):
+        try:
+            record = self.repo.verify_otp_repo(db, email, otp)
 
-        self.send_email(email, otp) # gủi otp đến email
+            # tránh crash chương trình
+            if not record:
+                raise HTTPException(status_code=400, detail="OTP invalid")
 
-    def verity_otp_service(self, email, otp: str, db: Session):
-        record = self.repo.verify_otp_repo(email, otp, db)
+            expires_at = record.expires_at.replace(tzinfo=timezone.utc)
+            if expires_at < datetime.now(timezone.utc):
+                raise HTTPException(status_code=400, detail="OTP expired")
 
-        # tránh crash chương trình
-        if not record:
-            raise HTTPException(status_code=400, detail="OTP invalid")
-        
-        expires_at = record.expires_at.replace(tzinfo=timezone.utc)
-        if expires_at < datetime.now(timezone.utc):
-            raise HTTPException(status_code=400, detail="OTP expired")
+            record.is_used = True
+            db.commit()
 
-        record.is_used = True
-        db.commit()
-
-        return {"message": "OTP valid"}
+            return True
+        except Exception as e:
+            db.rollback()
+            raise ValueError(e)
     
     # reset user bằng email
-    def reset_password_service(self, email: str, new_password: str, db: Session):
-        now = datetime.now(timezone.utc)
+    def reset_password_service(self, db: Session, email: str, new_password: str):
+        try:
+            now = datetime.now(timezone.utc)
 
-        otp_record = db.query(OTP).filter(
-            OTP.email == email,
-            OTP.is_used == True,
-        ).order_by(OTP.expires_at.desc()).first()
+            otp_record = db.query(OTP).filter(
+                OTP.email == email,
+                OTP.is_used == True,
+            ).order_by(OTP.expires_at.desc()).first()
 
-        if not otp_record:
-            raise HTTPException(status_code=400, detail="OTP not verified")
-        if not otp_record:
-            raise HTTPException(400, "OTP not verified")
+            if not otp_record:
+                raise HTTPException(status_code=400, detail="OTP not verified")
+            if not otp_record:
+                raise HTTPException(400, "OTP not verified")
 
-        expires_at = otp_record.expires_at.replace(tzinfo=timezone.utc)
+            expires_at = otp_record.expires_at.replace(tzinfo=timezone.utc)
 
-        if expires_at < now:
-            raise HTTPException(400, "OTP expired")
+            if expires_at < now:
+                raise HTTPException(400, "OTP expired")
 
-        user = self.repo.get_by_email(email, db)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            user = self.user_service.get_user_by_email_service(db, email)
 
-        user.password = hash_password(new_password)
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
 
-        db.commit()
+            user.password = hash_password(new_password)
 
-        return {"message": "Password updated"}
+            db.commit()
+
+            return {"message": "Password updated"}
+        except Exception as e:
+            db.rollback()
+            raise ValueError(e)
 
 class UserService:
     def __init__(self):
@@ -179,14 +188,13 @@ class UserService:
         user = self.repo.get_by_id(db, user_id)
         return user.address if user else None
 
-    def get_email(self, db: Session, user_id: int):
-        user = self.repo.get_by_id(db, user_id)
-        return user.username if user else None
+    def get_user_by_email_service(self, db: Session, email: str):
+        return self.repo.get_user_by_email_repo(db, email)
 
     def get_info_user_service(self, db, user_id):
         return self.repo.get_info_user_repo(db, user_id)
 
-    # lấy email
+    # lấy email bằng user_id
     def get_email_service(self, db: Session, user_id: int):
         return self.repo.get_email_repo(db, user_id)
 

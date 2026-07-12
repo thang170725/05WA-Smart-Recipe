@@ -6,7 +6,7 @@ from backend.modules.user.schemas import (
     IOUpdateProfileSchema,
     InputUpdatePasswordSchema,
     InputSendEmailSchema,
-    InputVerifyEmailSchema,
+    InputVerifyOtpSchema,
     InputResetPasswordSchema
 )
 from backend.modules.user.models import User
@@ -115,25 +115,30 @@ def update_password(
     user_service.update_password(db, current_user, payload.password)
     return {"message": "Password updated"}
 
+# ===========================
 # ===== FORGOT PASSWORD =====
+# ===========================
 @router.post("/send-email")
 def send_email(
     payload: InputSendEmailSchema,
     db: Session = Depends(get_db)
 ):
-    account_service.forgot_password(payload.email, db)
+    account_service.forgot_password_service(db, payload.email)
     return {"message": "OTP sent"}
 
-@router.post("/verify-email")
+# xác thực otp
+@router.post("/verify-otp")
 def verify_email(
-    payload: InputVerifyEmailSchema,
+    payload: InputVerifyOtpSchema,
     db: Session = Depends(get_db)
 ):
-    return account_service.verity_otp_service(payload.email, payload.otp, db)
+    return account_service.verity_otp_service(
+        db, payload.email, payload.otp)
 
+# reset password
 @router.post("/reset-password")
 def reset_password(
     payload: InputResetPasswordSchema,
     db: Session = Depends(get_db) 
 ):
-    return account_service.reset_password_service(payload.email, payload.new_password, db)
+    return account_service.reset_password_service(db, payload.email, payload.new_password)

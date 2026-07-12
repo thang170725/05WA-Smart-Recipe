@@ -7,8 +7,12 @@ export async function GetProfile() {
   }); 
 }
 
-export async function UpdateProfile(profile) {
-    return await JsonApi("/user/update-profile", {
+// =====================================================
+// ======= POST / UPDATE / PUT======== 
+// =====================================================
+export async function UpdateProfileApi(devMode, profile) {
+  console.log("UpdateProfileApi: ", profile)
+  return await JsonApi("/user/update-profile", {
       method: "PUT",
       body: profile,
     }); 

@@ -1,28 +1,22 @@
 import JsonApi from "../../../services/JsonApi";
 
-export async function SendEmailApi (devMode, email) {
+export async function SendEmailApi (devMode, payload) {
     return JsonApi("/user/send-email", {
         method: "POST",
-        body: {email: email}
+        body: payload
     })
 }
 
-export async function VerifyOtpApi (devMode, email, otp) {
-    return JsonApi("/user/verify-email", {
+export async function VerifyOtpApi (devMode, payload) {
+    return JsonApi("/user/verify-otp", {
         method: "POST",
-        body: {
-            email: email,
-            otp: otp
-        }
+        body: payload
     })
 }
 
-export async function ResetPasswordApi (devMode, email, newPassword) {
+export async function ResetPasswordApi (devMode, payload) {
     return JsonApi("/user/reset-password", {
         method: "POST",
-        body: {
-            email: email,
-            new_password: newPassword
-        }
+        body: payload
     })
 }

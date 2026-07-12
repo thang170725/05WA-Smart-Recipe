@@ -6,6 +6,10 @@ import AppNavigator from './src/navigation/AppNavigator';
 import Loading from './src/components/Loading';
 import ScreenLayout from './src/components/ScreenLayout';
 
+import { useEffect } from 'react';
+
+import * as NavigationBar from 'expo-navigation-bar';
+
 export default function App() {
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -17,6 +21,19 @@ export default function App() {
     Poppins_800ExtraBold,
   });
 
+  useEffect(() => {
+    // Thiết lập chế độ vuốt để hiện (giống các app xem phim, chơi game)
+    NavigationBar.setBehaviorAsync('intrusive-swipe'); 
+    
+    // Ẩn thanh điều hướng 3 nút đi
+    NavigationBar.setVisibilityAsync('hidden');
+
+    // (Tùy chọn) Nếu muốn khi tắt màn hình này đi thì hiện lại thanh điều hướng:
+    return () => {
+      NavigationBar.setVisibilityAsync('visible');
+    };
+  }, []);
+
   if (!fontsLoaded) {
     return (
       <ScreenLayout>
@@ -24,6 +41,8 @@ export default function App() {
       </ScreenLayout>
     );
   }
+
+
 
   return (
     <AuthProvider>

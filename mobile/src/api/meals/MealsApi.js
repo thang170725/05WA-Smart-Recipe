@@ -13,3 +13,19 @@ export async function RemoveMealApi(payload) {
     body: payload,
   });
 }
+
+// =========================
+// ======= API POST =========
+// =========================
+export async function PostMealsApi(devMode, payload) {
+  if (devMode === "dev") {
+      console.log("Lưu thực đơn (Post meal api):", payload)
+      return
+  }
+
+  return JsonApi('/user/insert-new-meal', {
+      method: 'POST',
+      body: payload,
+  })
+}
+

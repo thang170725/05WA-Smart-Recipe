@@ -23,7 +23,7 @@ export function GetInstructionsByIdApi (foodId) {
     });
 }
 
-// hướng dẫn nấu
+// nguyên liệu
 export function GetIngredientsByIdApi (foodId) {
     return JsonApi("/user/get-ingredients-by-id", {
         method: "GET",

@@ -1,6 +1,9 @@
 use SmartRecipe;
 
 select * from users;
+select * from health_metrics hm ;
+select * from health_history hh;
+select * from otp;
 select * from food_library_category flc;
 
 

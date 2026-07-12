@@ -5,7 +5,7 @@ import LoginApi from "../api/LoginApi"
 import { GoogleLogin } from '@react-oauth/google'
 import { LoginGoogleApi } from "../api/LoginGoogleApi"
 import { ForgotPasswordPopup } from "./ForgotPasswordPopup"
-import { UsernameRegExp, PasswordRegExp } from "../../../components/RegExp"
+import { EmailRegExp, PasswordRegExp } from "../../../components/RegExp"
 import { useAuth } from "../../../context/AuthContext"
 import { GetProfile } from "../../profile/api/ProfileApi"
 
@@ -38,13 +38,6 @@ export function LoginForm({ onCancel, onLoginSuccess, onSwitchToRegister, onSwit
     setError("")
       
     try {
-      if (!UsernameRegExp().test(form.username)){
-        throw new Error("Username 4-20 ký tự, không dấu")
-      }
-      
-      if (!PasswordRegExp().test(form.password)){
-        throw new Error("Password ≥8 ký tự, gồm chữ thường, chữ hoa, số và ký thự đặc biệt")
-      }
 
       const res = await LoginApi(form)
       setUser(res.user)

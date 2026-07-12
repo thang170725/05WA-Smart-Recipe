@@ -1,15 +1,59 @@
 from sqlalchemy.orm import Session
 from backend.modules.dashboard.repositories import DashboardRepo
+from backend.modules.user.services import UserService
+from backend.modules.health.services import HealthMetricService
+from backend.modules.ai_ml.services import AIMLService
+
+from datetime import date
 
 class DashboardService:
     def __init__(self):
         self.repo = DashboardRepo()
+        self.user_service = UserService()
+        self.health_metric = HealthMetricService()
+        self.ai_ml = AIMLService()
     
+    # ======================
     # ======== GET =========
+    # ======================
     # lấy thông tin cơ bản của người dùng
-    def get_user_infor_service(self, db: Session, user_id):
-        return self.repo.get_user_infor_repo(db, user_id)
-    
+    def get_user_infor_service(self, db: Session, user_id: int):
+        try:
+            user = self.user_service.get_profile(db, user_id)
+            health_metric = self.health_metric.get_health_metrics_info_service(db, user_id)
+            
+            bmi, label = self.ai_ml._calc_bmi(health_metric.weight, health_metric.height)
+            birth_date = date.fromisoformat(str(user.birth_date))
+            today = date.today()
+            age = today.year - birth_date.year - (
+                (today.month, today.day) < (birth_date.month, birth_date.day)
+            )
+
+            bmr = self.ai_ml._calc_bmr(
+                health_metric.weight,
+                health_metric.height,
+                age,
+                user.gender
+            )
+
+            tdee = self.ai_ml._calc_tdee(bmr, user.activity_level)
+
+            return {
+                "fullname": user.fullname,
+                "target_goal": user.target_goal,
+                "activity_level": user.activity_level,
+
+                "health_status": health_metric.health_status,
+                "height": health_metric.height,
+                "weight": health_metric.weight,
+
+                "bmi": bmi,
+                "bmr": bmr,
+                "tdee": tdee
+            }
+        except Exception as e:
+            raise ValueError(e)
+
     def get_health_history_service(self, db: Session, user_id: int):
         return self.repo.get_health_history_repo(db, user_id)
 

@@ -9,7 +9,7 @@ import {
   EyeOff
 } from "lucide-react"
 import Loading from "../../../components/Loading"
-import { UsernameRegExp, PasswordRegExp, PhoneRegExp, EmailRegExp } from "../../../components/RegExp"
+import { PasswordRegExp, PhoneRegExp, EmailRegExp } from "../../../components/RegExp"
 import { CalcAge } from "../../../components/Datetime"
 
 export function RegisterForm({ onCancel, onSwitchToLogin }) {

@@ -12,6 +12,7 @@ from backend.modules.user.services import UserService
 from backend.modules.meals.services import MealService
 from backend.modules.platform.service import PlatformService
 from backend.modules.workout.services import WorkoutService
+from backend.modules.dashboard.services import DashboardService
 
 from backend.modules.meals.reponsitories import MealRepository
 from backend.modules.workout.repositories import WorkoutRepo
@@ -30,7 +31,7 @@ SessionLocal = sessionmaker(
 
 db = SessionLocal()
 
-workout = WorkoutService()
-print(workout.get_exercises_list_service(db, 15, '2026-06-27'))
+dashboard = DashboardService()
+print(dashboard.get_user_infor_service(db, 15))
 
 db.close()

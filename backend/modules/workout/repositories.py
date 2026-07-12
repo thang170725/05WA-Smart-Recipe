@@ -1,6 +1,9 @@
 from backend.modules.workout.queries import get_loc_exercises_query
 from sqlalchemy.orm import Session
-from sqlalchemy import text, and_, select, insert
+from sqlalchemy import (
+    text, and_, select, 
+    func
+)
 from datetime import date, timedelta
 from backend.modules.workout.models import (
     WorkoutProgram,
@@ -218,6 +221,32 @@ class WorkoutRepo:
             .first()
         )
 
+    # tổng lượng calo đốt cháy theo tuần
+    def get_total_exercise_calories_repo(self, db: Session, user_id: int, weight, week_start):
+        total_calories = (
+            db.query(
+                func.coalesce(
+                    func.sum(
+                        Exercise.met * 
+                        weight * 
+                        (WorkoutPlanItem.active_duration_seconds/3600.0)
+                    ),
+                    0
+                ).label("calories")
+            )
+            .select_from(WorkoutPlan)
+            .join(WorkoutPlanItem, WorkoutPlanItem.workout_plan_id == WorkoutPlan.id)
+            .join(Exercise, Exercise.id == WorkoutPlanItem.exercise_id)
+            .filter(
+                WorkoutPlan.user_id == user_id,
+                WorkoutPlan.week_start == week_start,
+                WorkoutPlanItem.active_duration_seconds.isnot(None)
+            )
+            .scalar()
+        )
+
+        return round(total_calories, 2)
+
     def create_user_active_program(
         self,
         db: Session,
@@ -336,3 +365,23 @@ class WorkoutRepo:
         workout_plan_item.active_duration_seconds = active_duration_seconds
 
         return workout_plan_item
+    
+    # chức năng update completed khi user đã hoàn thành set tập
+    def update_workout_set_completed_repo(self, 
+        db: Session, 
+        user_id,
+        workout_set_id,
+        completed_reps
+    ):
+        stmt = select(WorkoutSet).where(
+            WorkoutSet.id == workout_set_id
+        )
+
+        workout_set = db.execute(stmt).scalar_one_or_none()
+
+        if workout_set is None:
+            return None
+
+        workout_set.completed_reps = completed_reps
+
+        return workout_set

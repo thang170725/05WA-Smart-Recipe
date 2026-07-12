@@ -1,7 +1,9 @@
 import ProfileForm from "../features/profile/components/ProfileForm"
 
-export default function Profile({ user }) {
+export default function Profile() {
+  const devMode = "dev"
+  
   return (
-    <ProfileForm user={user}/>
+    <ProfileForm devMode={devMode}/>
   )
 }

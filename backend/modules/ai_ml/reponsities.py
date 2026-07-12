@@ -29,29 +29,3 @@ class AIMLRepo:
             )
             .all()
         )
-
-    # tổng lượng calo đốt cháy theo tháng
-    def get_total_exercise_calories(self, session: Session, user_id: int, month: int):
-        return (
-            session.query(
-                func.extract("month", WorkoutPlan.plan_date).label("month"),
-                func.round(
-                    func.sum(
-                        Exercise.calories_per_minute *
-                        func.coalesce(WorkoutPlanItem.duration_minutes, 10)
-                    ),
-                    0
-                ).label("calories")
-            )
-            .join(WorkoutPlanItem, WorkoutPlanItem.workout_plan_id == WorkoutPlan.id)
-            .join(Exercise, Exercise.id == WorkoutPlanItem.exercise_id)
-            .filter(
-                WorkoutPlan.user_id == user_id,
-                func.extract("month", WorkoutPlan.plan_date) == month
-            )
-            .group_by(
-                WorkoutPlan.user_id,
-                func.extract("month", WorkoutPlan.plan_date)
-            )
-            .all()
-        )

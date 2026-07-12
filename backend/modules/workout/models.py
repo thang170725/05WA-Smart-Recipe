@@ -136,7 +136,6 @@ class Exercise(Base):
         server_default=text("CURRENT_TIMESTAMP")
     )
 
-    workout_items = relationship("WorkoutPlanItem", back_populates="exercise")
     items = relationship("WorkoutPlanItem", back_populates="exercise")
 
 class ExerciseCategory(Base):
@@ -217,7 +216,7 @@ class WorkoutPlanItem(Base):
     )
 
     workout_plan = relationship("WorkoutPlan", back_populates="items")
-    exercise = relationship("Exercise", back_populates="workout_items")
+    exercise = relationship("Exercise", back_populates="items")
 
 class WorkoutProgramDayItem(Base):
     __tablename__ = "workout_program_day_items"

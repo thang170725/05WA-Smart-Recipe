@@ -1,3 +1,4 @@
+from math import e
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -115,6 +116,14 @@ class WorkoutService:
 
         return list(exercises.values())
 
+    def get_total_exercise_calories_service(self, 
+        db,
+        user_id,
+        weight,
+        week_start
+    ):
+        return self.repo.get_total_exercise_calories_repo(db, user_id, weight, week_start)
+
     def apply_program(self, db: Session, user, slug: str):
 
         # 1️⃣ Tìm program
@@ -202,7 +211,6 @@ class WorkoutService:
         week_start,
         program_detail
     ):
-
         start_date = datetime.strptime(current_date, "%Y-%m-%d")
 
         for day in program_detail.days:
@@ -256,6 +264,27 @@ class WorkoutService:
             workout_plan_item = self.repo.update_active_duration_seconds_repo(db, user_id, workout_plan_item_id, started_at, ended_at, active_duration_seconds)
 
             db.commit()
+        except Exception as e:
+            db.rollback()
+            raise e
+
+    # chức năng update completed khi user đã hoàn thành set tập
+    def update_workout_set_completed_service(self, 
+        db: Session, 
+        user_id,
+        workout_set_id,
+        completed_reps
+    ):
+        try:
+            workout_sets = self.repo.update_workout_set_completed_repo(
+                db,
+                user_id,
+                workout_set_id,
+                completed_reps
+            )
+
+            db.commit()
+            db.refresh(workout_sets)
         except Exception as e:
             db.rollback()
             raise e

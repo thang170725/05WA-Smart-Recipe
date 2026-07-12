@@ -112,3 +112,10 @@ class InputUpdateActiveDurationSecondsSchema(BaseModel):
     started_at: datetime
     ended_at: datetime
     active_duration_seconds: float
+
+# ===================================================================
+# === chức năng update completed khi user đã hoàn thành set tập =====
+# ===================================================================
+class InputUpdateWorkSetCompletedSchema(BaseModel):
+    workout_set_id: int
+    completed_reps: Optional[int] = None

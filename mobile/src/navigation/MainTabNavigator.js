@@ -16,18 +16,18 @@ import AIChatScreen from '../screens/AIChatScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-function HealthStack() {
+function HealthStack({ initialRouteName = 'HealthCenter' }) {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator initialRouteName={initialRouteName} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="HealthCenter" component={HealthScreen} />
       <Stack.Screen name="Workout" component={WorkoutScreen} />
     </Stack.Navigator>
   );
 }
 
-function MoreStack() {
+function MoreStack({ initialRouteName = 'Profile' }) {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator initialRouteName={initialRouteName} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="Docs" component={DocsScreen} />
       <Stack.Screen name="AIChat" component={AIChatScreen} />
@@ -61,15 +61,23 @@ const tabScreenOptions = ({ route }) => ({
   },
 });
 
-export default function MainTabNavigator() {
+export default function MainTabNavigator({
+  initialRouteName = 'Home',
+  initialHealthScreen = 'HealthCenter',
+  initialMoreScreen = 'Profile',
+}) {
   return (
-    <Tab.Navigator screenOptions={tabScreenOptions}>
+    <Tab.Navigator initialRouteName={initialRouteName} screenOptions={tabScreenOptions}>
       <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Trang chủ' }} />
       <Tab.Screen name="Meals" component={MealsScreen} options={{ tabBarLabel: 'Thực đơn' }} />
-      <Tab.Screen name="Health" component={HealthStack} options={{ tabBarLabel: 'Sức khỏe' }} />
+      <Tab.Screen name="Health" options={{ tabBarLabel: 'Sức khỏe' }}>
+        {() => <HealthStack initialRouteName={initialHealthScreen} />}
+      </Tab.Screen>
       <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ tabBarLabel: 'Thống kê' }} />
       <Tab.Screen name="Forum" component={PlatformScreen} options={{ tabBarLabel: 'Diễn đàn' }} />
-      <Tab.Screen name="More" component={MoreStack} options={{ tabBarLabel: 'Tài khoản' }} />
+      <Tab.Screen name="More" options={{ tabBarLabel: 'Tài khoản' }}>
+        {() => <MoreStack initialRouteName={initialMoreScreen} />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 }

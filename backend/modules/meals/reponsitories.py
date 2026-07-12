@@ -149,7 +149,7 @@ class MealRepository:
             )
         )
 
-        return db.execute(stmt).mappings().first()
+        return float(db.execute(stmt).scalar() or 0)
 
     def create_meal_plan_with_item(
         self,

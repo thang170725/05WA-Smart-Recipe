@@ -52,13 +52,15 @@ class IOUpdateProfileSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-# ===== FORGOT PASSWORD ===== 
-# SEND EMAIL API
+# ====================================
+# ===== forgot password function ===== 
+# ====================================
+# send otp to email
 class InputSendEmailSchema(BaseModel):
     email: str
 
 # VERIFY EMAIL SCHEMA
-class InputVerifyEmailSchema(BaseModel):
+class InputVerifyOtpSchema(BaseModel):
     email: str
     otp: str
 

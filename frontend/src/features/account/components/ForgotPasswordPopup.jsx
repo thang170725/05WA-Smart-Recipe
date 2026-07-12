@@ -1,67 +1,54 @@
 import React, { useState, useEffect } from "react";
-import { ArrowRight, ArrowLeft, CheckCircle } from "lucide-react";
+import { ArrowRight, ArrowLeft, CheckCircle, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SendEmailApi, VerifyOtpApi, ResetPasswordApi } from "../api/FogotPasswordApi";
+import { EmailRegExp, PasswordRegExp } from "../../../components/RegExp";
 
 export function ForgotPasswordForm({ onCancel }) {
   const devMode = "production"
 
-  // USESTATE
-  const [email, setEmail] = useState("") // quản lý email nhập vào từ user
-  const [otp, setOtp] = useState("") // verify OTP
   const [step, setStep] = useState(1);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-
   const nextStep = () => setStep((prev) => Math.min(prev + 1, 4));
   const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
 
-  // API RESET PASSWORD
-  const handleResetPassword = async () => {
-    try {
-      if (newPassword.length < 8) {
-        alert("Mật khẩu phải ≥ 8 ký tự");
-        throw Error("Mật khẩu phải ≥ 8 ký tự")
-      }
-      if (newPassword !== confirmPassword) {
-        alert("Mật khẩu nhập lại không khớp");
-        throw Error("Mật khẩu nhập lại không khớp")
-      }
-
-      const response = await ResetPasswordApi(devMode, email, newPassword)
-    } catch (err) {
-      console.error(err)
-
-      if (devMode == "dev") nextStep()
-      else alert("Reset password thất bại")
-    }
-  };
-
+  // ===================================================================================================================
+  // ========================= chức năng gửi mã OTP về cho email  ====================================================
+  // ===================================================================================================================
+  const [email, setEmail] = useState("") // quản lý email nhập vào từ user
   // API SEND EMAIL TO SERVER
   const sendEmail = async () => {
     try {
-      const data = await SendEmailApi(devMode, email)
+      if (!EmailRegExp().test(email)){
+        throw new Error("email chưa đúng định dạng (ví dụ định dạng đúng: abc@gmail.com)")
+      }
 
-      console.log("data:", data)
+      await SendEmailApi(devMode, {email: email})
 
+      alert(`Send email to ${email} success`)
       nextStep(); // nếu tới đây = OK
-
     } catch (err) {
       console.error(err)
-
       if (devMode === "dev") {
         nextStep(); // dev vẫn cho đi tiếp
       } else {
-        alert("Gửi email thất bại")
+        alert("Gửi email thất bại: ", err)
       }
     }
   };
-
+  
+  // ===================================================================================================================
+  // ========================= chức năng xác minh OTP  ====================================================
+  // ===================================================================================================================
+  const [otp, setOtp] = useState("") // verify OTP
   // API VERIFY OTP
   const verifyOtp = async () => {
     try {
-      const response = await VerifyOtpApi(devMode, email, otp)
+      const response = await VerifyOtpApi(devMode, {
+        email: email,
+        otp: otp
+      })
 
+      alert("Confirm OTP success")
       nextStep()
     } catch (err) {
       console.error(err)
@@ -71,10 +58,38 @@ export function ForgotPasswordForm({ onCancel }) {
     }  
   };
 
-  // TEST
-  useEffect(() => {
-    console.log("Email: ", email)
-  }, [email])
+  // ===================================================================================================================
+  // ========================= chức năng reset password của email đó ==================================================
+  // ===================================================================================================================
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  // API RESET PASSWORD
+  const handleResetPassword = async () => {
+    try {
+      if (!PasswordRegExp().test(newPassword)){
+        throw new Error("Password ≥8 ký tự, gồm chữ thường, chữ hoa, số và ký thự đặc biệt")
+      }
+      if (newPassword !== confirmPassword) {
+        alert("Mật khẩu nhập lại không khớp");
+        throw Error("Mật khẩu nhập lại không khớp")
+      }
+
+      const response = await ResetPasswordApi(devMode, {
+        email: email, 
+        new_password: newPassword
+      })
+
+      nextStep()
+    } catch (err) {
+      console.error(err)
+
+      if (devMode == "dev") nextStep()
+      else alert("Reset password thất bại")
+    }
+  };
 
   return (
     <div className="relative text-black">
@@ -91,6 +106,7 @@ export function ForgotPasswordForm({ onCancel }) {
             >
               {s}
             </div>
+
             {s < 4 && (
               <div
                 className={`flex-1 h-1 mx-2 ${
@@ -119,6 +135,7 @@ export function ForgotPasswordForm({ onCancel }) {
                 <p className="text-gray-600">
                   Chúng tôi sẽ gửi mã OTP về email của bạn.
                 </p>
+
                 <input
                   type="email"
                   onChange={(e) => setEmail(e.target.value)}
@@ -153,21 +170,43 @@ export function ForgotPasswordForm({ onCancel }) {
                   Nhập mật khẩu mới cho tài khoản của bạn.
                 </p>
 
-                <input
-                  type="password"
-                  placeholder="Mật khẩu mới"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black"
-                />
+                <div className="relative mt-1">
+                  <input
+                    key={showNewPassword ? "text": "password"}
+                    type={showNewPassword ? "text": "password"}
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black"
+                  />
 
-                <input
-                  type="password"
-                  placeholder="Nhập lại mật khẩu"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black"
-                />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  >
+                    {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+
+                <div className="relative mt-1">
+                  <input
+                    key={showConfirmPassword ? "text": "password"}
+                    type={showConfirmPassword ? "text": "password"}
+                    placeholder="Nhập lại mật khẩu"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black"
+                  />
+
+                  <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    >
+                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -188,25 +227,42 @@ export function ForgotPasswordForm({ onCancel }) {
       {/* Navigation */}
       <div className="flex justify-between mt-6">
         {step === 1 && (
-          <button onClick={sendEmail} className="btn">
+          <button 
+            onClick={sendEmail} 
+            className="btn hover:bg-black hover:text-white px-5 py-3 transition-colors duration-500 rounded-md cursor-pointer">
             Next <ArrowRight size={16} />
           </button>
         )}
 
         {step === 2 && (
-          <button onClick={verifyOtp} className="btn">
-            Verify OTP
-          </button>
+          <>
+            <button onClick={prevStep} className="btn hover:bg-black hover:text-white px-5 py-3 transition-colors duration-500 rounded-md cursor-pointer">
+              Prev Step
+            </button>
+            <button onClick={verifyOtp} className="btn hover:bg-black hover:text-white px-5 py-3 transition-colors duration-500 rounded-md cursor-pointer">
+              Verify OTP
+            </button>
+          </>
+          
         )}
 
         {step === 3 && (
-          <button onClick={handleResetPassword} className="btn">
-            Xác nhận
-          </button>
+          <>
+            <button onClick={prevStep} className="btn hover:bg-black hover:text-white px-5 py-3 transition-colors duration-500 rounded-md cursor-pointer">
+              Prev Step
+            </button>
+            
+            <button onClick={handleResetPassword}
+              className="btn hover:bg-black hover:text-white px-5 py-3 transition-colors duration-500 rounded-md cursor-pointer"
+            >
+              Xác nhận
+            </button>
+          </>
+          
         )}
 
         {step === 4 && (
-          <button onClick={onCancel} className="btn">
+          <button onClick={onCancel} className="btn hover:bg-black hover:text-white px-5 py-3 transition-colors duration-500 rounded-md cursor-pointer">
             Quay lại đăng nhập
           </button>
         )}

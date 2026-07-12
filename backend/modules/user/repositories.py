@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from backend.modules.user.models import User, OTP
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
 
 class AccountRepository:
@@ -17,7 +17,7 @@ class AccountRepository:
     def get_by_google_id(self, db: Session, google_id: str) -> User | None:
         return db.query(User).filter(User.google_id == google_id).first()
     
-    def verify_otp_repo(self, email:str, otp: str, db: Session):
+    def verify_otp_repo(self, db: Session, email:str, otp: str):
         record = db.query(OTP).filter(
             OTP.email == email,
             OTP.otp == otp,
@@ -26,6 +26,22 @@ class AccountRepository:
         ).first()
 
         return record
+    
+    # ===============================
+    # ===== INSERT / POST / WRITE =======
+    # ===============================
+    def insert_otp_repo(self, db: Session, email, generate_otp):
+        otp = OTP(
+            email=email,
+            otp=generate_otp,
+            expires_at = (datetime.now(timezone.utc) + timedelta(minutes=5)).replace(tzinfo=None),
+            is_used=False
+        )
+        db.add(otp)
+        db.flush()
+
+        return otp
+
     
 class UserRepository:
     # =================
@@ -55,6 +71,14 @@ class UserRepository:
             "activity level": user.activity_level,
             "target goal": user.target_goal 
         }
+    
+    def get_user_by_email_repo(self, db: Session, email: str):
+        stmt = select(User).where(
+            User.email==email
+        )
+
+        user = db.execute(stmt).scalar_one_or_none()
+        return user
     
     # chỉ lấy email của người dùng hiện tại
     def get_email_repo(self, db: Session, user_id: int):

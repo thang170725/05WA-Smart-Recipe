@@ -20,4 +20,4 @@ async def post_health_form(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return ai_ml_service.analyst_health_form(db, current_user.id, payload)
+    return ai_ml_service.analyst_health_form_service(db, current_user.id, payload)

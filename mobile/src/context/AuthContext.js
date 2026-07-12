@@ -2,6 +2,11 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { GetProfile } from '../api/profile/ProfileApi';
 import { BASE_URL } from '../services/config';
 import { getToken, removeToken } from '../services/storage';
+import {
+  DEV_PREVIEW_ENABLED,
+  DEV_PREVIEW_USER,
+  isPreviewingAuthScreen,
+} from '../config/devPreview';
 
 const AuthContext = createContext();
 
@@ -34,6 +39,12 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const loadSession = async () => {
+      if (DEV_PREVIEW_ENABLED) {
+        setUserState(isPreviewingAuthScreen() ? null : formatUser(DEV_PREVIEW_USER));
+        setLoading(false);
+        return;
+      }
+
       const token = await getToken();
       if (!token) {
         setLoading(false);

@@ -9,8 +9,8 @@ export default function Header () {
             className="space-y-4"
         >
             <span className="badge-brand">Analytics</span>
-            <h1 className="page-title text-gradient">
-              Fitness Dashboard
+            <h1 className="page-title text-gradient text-5xl py-2">
+              Fitness Dashboard - Thống kê chi tiết
             </h1>
 
             <div className="flex gap-2 flex-wrap">
@@ -26,7 +26,7 @@ export default function Header () {
             </div>
 
             <p className="page-subtitle !mt-0">
-              Theo dõi toàn bộ hoạt động sức khỏe, luyện tập và tiến trình của bạn trong một nơi duy nhất.
+              Theo dõi toàn bộ hoạt động sức khỏe, luyện tập và tiến trình của bạn trong một nơi duy nhất. Hãy trận trọng sức khỏe của chính bạn.
             </p>
         </motion.div>
     )

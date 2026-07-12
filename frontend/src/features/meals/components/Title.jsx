@@ -63,6 +63,9 @@ export default function Title({
         });
     };
 
+    // =====================================================================
+    // ======== chức năng điều hướng tuần ================================
+    // =====================================================================
     const handleChangeWeek = (step) => {
         setCurrentDate((prev) => {
             const d = new Date(prev);
@@ -74,6 +77,7 @@ export default function Title({
             return d;
         });
     };
+
     // =======================================================================================================================================
     // ========================= chức năng xem tổng lượng calories tuần của user ================================
     // =======================================================================================================================================
@@ -99,17 +103,15 @@ export default function Title({
                 {/* WEEK NAV */}
                 <div className="flex items-center justify-between mb-6">
                     <button
-                        onClick={() =>
-            handleChangeWeek(-1)
-        }
-        className="
-            p-2
-            rounded-full
-            hover:bg-white/10
-            transition
-            cursor-pointer
-        "
-                    >
+                        onClick={() => handleChangeWeek(-1)}
+                        className="
+                            p-2
+                            rounded-full
+                            hover:bg-white/10
+                            transition
+                            cursor-pointer
+                        "
+                                    >
                         <ChevronLeft size={22} />
                     </button>
 

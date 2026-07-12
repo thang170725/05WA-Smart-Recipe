@@ -1,9 +1,3 @@
-// USERNAME
-export function UsernameRegExp () {
-    return /^[a-zA-Z0-9_]{4,20}$/
-    
-}
-
 // PASSWORD
 export function PasswordRegExp () {
     return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/

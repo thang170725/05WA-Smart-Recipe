@@ -68,13 +68,17 @@ export default function HomeScreen({ navigation }) {
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <View>
+            <View style={{
+              flex: 1,
+              paddingRight: spacing.sm
+            }}>
               <Text style={styles.greeting}>Xin chào{user?.fullname ? `, ${user.fullname.split(' ').pop()}` : ''}!</Text>
               <PageTitle
                 title="Ăn thông minh"
                 subtitle="Tập khoa học — Hành trình sức khỏe của bạn bắt đầu từ đây"
               />
             </View>
+
             {user && <Avatar uri={user.avatar_url} name={user.fullname} size={48} />}
           </View>
 
@@ -147,12 +151,14 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   scroll: { padding: spacing.md, paddingBottom: 32 },
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: spacing.lg,
   },
+  
   greeting: { color: colors.textSecondary, fontSize: 14, marginBottom: 4 },
   hero: {
     borderRadius: 20,
