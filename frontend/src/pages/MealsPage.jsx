@@ -27,7 +27,7 @@ export default function Meals() {
   const [selectedMeal, setSelectedMeal] = useState("breakfast"); // state chọn meal (UI tab), lựa chọn breakfast, lunch, dinner
 
   return (
-    <div className="page-shell space-y-6 text-white">
+    <div className="page-shell space-y-8 pb-24 text-white">
       <Title
           dateDetail={dateDetail}
           currentDate={currentDate} setCurrentDate={setCurrentDate}

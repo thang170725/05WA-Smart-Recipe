@@ -51,7 +51,7 @@
 @layer components {
   /* Page shell */
   .page-shell {
-    @apply w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8;
+    @apply w-full max-w-400 mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8;
   }
 
   .page-title {
@@ -200,13 +200,13 @@
 
   /* Modal */
   .modal-backdrop {
-    @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+    @apply fixed inset-0 z-[999] overflow-y-auto flex items-start justify-center py-10;
     background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(4px);
   }
-
+  
   .modal-panel {
-    @apply relative w-full max-w-md rounded-2xl p-6 sm:p-8;
+    @apply relative w-full my-auto rounded-2xl p-6 sm:p-8;
     background: #fff;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
     animation: fade-in 0.2s ease-out;

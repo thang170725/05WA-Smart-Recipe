@@ -1,38 +1,31 @@
-import { LoginForm, LoginPopup } from "./LoginForm.jsx"
-import { RegisterForm, RegisterPopup } from "./RegisterForm.jsx"
-import { useEffect, useState, useRef } from "react"
+import { LoginForm } from "./LoginForm.jsx"
+import { RegisterForm } from "./RegisterForm.jsx"
 import { Avatar } from "../../../components/Avatar.jsx"
 import { Bell } from "lucide-react";
-import { ForgotPasswordForm ,ForgotPasswordPopup } from "./ForgotPasswordPopup"
+import { ForgotPasswordForm } from "./ForgotPasswordPopup"
 import { useAuth } from "../../../context/AuthContext.jsx"
+import { Popup } from "../../../components/Popup.jsx";
 
 export function AuthSection() {
-  const [open, setOpen] = useState(false) // cho biết popup có mở không
-  const [mode, setMode] = useState("login") // dùng để mở popup login, đăng ký hoặc v.v
+  const { 
+    user, 
+    logout, 
+    isAuthModalOpen, 
+    authMode, 
+    setAuthMode, 
+    openAuthModal, 
+    closeAuthModal 
+  } = useAuth();
 
-  const {user, setUser, logout} = useAuth()
-
-  const hasOpenedRef = useRef(false)
-  useEffect(() => {
-    const token = localStorage.getItem("token")
-    if (token) return
-      
-    const timer = setTimeout(() => {
-      if (hasOpenedRef.current) return
-      hasOpenedRef.current = true
-        setMode("login")
-        setOpen(true)
-      }, 2000)
-
-      return () => clearTimeout(timer)
-  }, [])
-
+  //
+  // ========== khi đã đăng nhập thành công thì hiện avatar =======
+  //
   if (user) {
     return (
       <div className="flex items-center gap-3 sm:gap-4">
         <p className="hidden sm:block text-sm text-slate-300">
           <span className="text-slate-500">Xin chào,</span>{" "}
-          <span className="font-semibold text-white">{user.fullname}</span>
+          <span className="font-semibold text-white/90">{user.email}</span>
         </p>
 
         <Avatar
@@ -53,70 +46,57 @@ export function AuthSection() {
     )
   }
 
+  //
+  // ============ chưa đăng nhập thì hiện nút 2 nút bấm đăng nhập và đăng ký + các popup up điều hướng ============
+  //
   return (
     <>
-      <div className="flex items-center gap-2">
+      <div className="flex justify-end items-center gap-2">
         <button
           type="button"
-          onClick={() => {
-            setMode("login")
-            setOpen(true)
-          }}
-          className="btn-secondary text-sm !py-2 !px-4"
+          onClick={() => openAuthModal("login")}
+          className="btn-secondary text-sm py-2! px-4!"
         >
           Đăng nhập
         </button>
 
         <button
           type="button"
-          onClick={() => {
-            setMode("register")
-            setOpen(true)
-          }}
-          className="btn-primary text-sm !py-2 !px-4"
+          onClick={() => openAuthModal("register")}
+          className="btn-primary text-sm py-2! px-4!"
         >
           Đăng ký
         </button>
       </div>
-      
-      {/* Mở Popup đăng nhập */}
-      {open && mode === "login" && <LoginPopup
-        open={open}
-        onClose={() => setOpen(false)}
-        title="Đăng nhập"
-      >
-        <LoginForm
-          onCancel={() => setOpen(false)}
-          onSwitchToRegister={() => setMode("register")}
-          onSwitchToForgotPassword={() => setMode("forgotPassword")}
-          onLoginSuccess={() => {
-            setOpen(false)
-          }}
-        />
-      </LoginPopup>}
 
-      {/* Mở Popup đăng ký */}
-      {open && mode === "register" && <RegisterPopup
-        open={open}
-        onClose={() => setOpen(false)}
-        title="Đăng ký"
-      >
-        <RegisterForm
-          onCancel={() => setOpen(false)}
-          onSwitchToLogin={() => setMode("login")}
-        />
-      </RegisterPopup>}
-      
-      {/* Mở Popup quên mật khẩu */}
-      {open && mode === "forgotPassword" && <ForgotPasswordPopup
-        open={open}
-        onClose={() => setOpen(false)}
-        title="Quên mật khẩu"
-      >    
-        <ForgotPasswordForm 
-          onCancel={() => setMode("login")}
-        />
-      </ForgotPasswordPopup>}
+      {/* Popup đăng nhập */}
+      {isAuthModalOpen && authMode === "login" && (
+        <Popup open={isAuthModalOpen} onClose={closeAuthModal} title="Đăng nhập" maxWidth="max-w-2xl">
+          <LoginForm
+            onCancel={closeAuthModal}
+            onSwitchToRegister={() => setAuthMode("register")}
+            onSwitchToForgotPassword={() => setAuthMode("forgotPassword")}
+            onLoginSuccess={() => closeAuthModal()} // ✅ Sửa thêm cặp dấu ngoặc ()
+          />
+        </Popup>
+      )}
+
+      {/* Popup đăng ký */}
+      {isAuthModalOpen && authMode === "register" && (
+        <Popup open={isAuthModalOpen} onClose={closeAuthModal} title="Đăng ký" maxWidth="max-w-2xl">
+          <RegisterForm
+            onCancel={closeAuthModal}
+            onSwitchToLogin={() => setAuthMode("login")}
+          />
+        </Popup>
+      )}
+
+      {/* Popup quên mật khẩu */}
+      {isAuthModalOpen && authMode === "forgotPassword" && (
+        <Popup open={isAuthModalOpen} onClose={closeAuthModal} title="Quên mật khẩu">
+          <ForgotPasswordForm onCancel={() => setAuthMode("login")} />
+        </Popup>
+      )}
     </>
-  )
+  );
 }

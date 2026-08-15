@@ -216,8 +216,19 @@ class UserService:
     # ========================
     # ======= UPDATE =========
     # ========================
-    def update_profile(self, db: Session, user: User, data: dict):
-        return self.repo.update_user(db, user, data)
+    def update_profile_service(self, db: Session, user_id: int, payload):
+        try:
+            user, health_metric = self.repo.update_user_repo(db, user_id, payload)
+
+            db.add(health_metric)
+
+            db.commit()
+            db.refresh(user)
+
+            return True 
+        except Exception as e:
+            db.rollback()
+            raise ValueError(e)
 
     def update_password(self, db: Session, user: User, password: str):
         hashed_password = hash_password(password)

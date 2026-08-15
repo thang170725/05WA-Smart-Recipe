@@ -1,188 +1,107 @@
-import { Activity, Droplets, Info } from "lucide-react";
+import { Activity, Droplets, Info, Flame, Scale } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
 
 export function BMIDocs() {
-
   const fadeUp = {
-    hidden: { opacity: 0, y: 60 },
-    show: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.8, ease: "easeOut" }
-    }
+    hidden: { opacity: 0, y: 40 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: "easeOut" } }
   };
 
   const stagger = {
     hidden: {},
-    show: {
-      transition: {
-        staggerChildren: 0.2
-      }
-    }
-  };
-
-  const splitText = {
-    hidden: { opacity: 0, x: 0 },
-    showLeft: {
-      opacity: 1,
-      x: -40,
-      transition: { duration: 0.8 }
-    },
-    showRight: {
-      opacity: 1,
-      x: 40,
-      transition: { duration: 0.8 }
-    }
+    show: { transition: { staggerChildren: 0.15 } }
   };
 
   return (
-    <section className="w-full py-24">
-      <div className="w-[90%] mx-auto space-y-12">
+    <section className="w-full">
+      <div className="w-[90%] max-w-6xl mx-auto space-y-10">
 
         {/* HEADER */}
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          variants={fadeUp}
-          className="text-center space-y-6"
-        >
-          <div className="flex justify-center items-center gap-4 text-4xl font-bold text-gray-300 overflow-hidden">
-            <motion.span variants={splitText} initial="hidden" whileInView="showLeft" className="relative left-20">
-              BMI
-            </motion.span>
-            <motion.span variants={splitText} initial="hidden" whileInView="showRight">
-              & Cơ thể
-            </motion.span>
-          </div>
-
-          <p className="text-gray-300 text-lg">
-            Ít chữ – nhiều trực quan – cuộn xuống để khám phá
+        <motion.div initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp} className="text-center space-y-4">
+          <h2 className="section-heading">
+            <Scale className="w-6 h-6 text-brand-light inline-block mr-2 -mt-1" />
+            Các Chỉ Số Cơ Bản
+          </h2>
+          <p className="section-desc max-w-2xl mx-auto">
+            Những con số này không dùng để phán xét cơ thể bạn. Chúng là tấm bản đồ 
+            giúp Smart Recipe định vị bạn đang ở đâu trên hành trình tiến tới mục tiêu.
           </p>
         </motion.div>
 
-        {/* CARDS */}
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          animate="show"
-          className="grid md:grid-cols-3 gap-8"
-        >
-          {[{
-            icon: <Activity className="w-8 h-8 text-blue-500" />,
-            title: "BMI là gì?",
-            desc: "BMI = Cân nặng / Chiều cao²"
-          },
-          {
-            icon: <Droplets className="w-8 h-8 text-rose-500" />,
-            title: "Chỉ số mỡ",
-            desc: "Đánh giá chính xác hơn với người tập luyện"
-          },
-          {
-            icon: <Info className="w-8 h-8 text-emerald-500" />,
-            title: "Vì sao quan trọng?",
-            desc: "Giúp kiểm soát sức khoẻ dài hạn"
-          }].map((card, index) => (
-            <motion.div
-              key={index}
-              variants={fadeUp}
-              className="bg-black/50 rounded-3xl p-8 shadow-white shadow-sm hover:shadow-2xl transition-all duration-500"
-              whileHover={{ y: -10 }}
-            >
-              {card.icon}
-              <h3 className="font-semibold text-xl mt-4 mb-2 text-gray-300">
-                {card.title}
-              </h3>
-              <p className="text-gray-300">{card.desc}</p>
+        {/* CARDS INFO */}
+        <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true }} className="grid md:grid-cols-3 gap-6">
+          {[
+            {
+              icon: <Activity className="w-6 h-6 text-brand-light" />,
+              title: "BMI (Body Mass Index)",
+              desc: "Chỉ số khối cơ thể dựa trên chiều cao & cân nặng. Giúp phân loại tình trạng dinh dưỡng cơ bản (Gầy, Chuẩn, Thừa cân)."
+            },
+            {
+              icon: <Flame className="w-6 h-6 text-orange-400" />,
+              title: "TDEE & BMR",
+              desc: "BMR là năng lượng để duy trì sự sống. TDEE là tổng năng lượng tiêu hao/ngày. Đây là gốc rễ để tính calo tăng/giảm cân."
+            },
+            {
+              icon: <Droplets className="w-6 h-6 text-sky-400" />,
+              title: "Tỷ lệ mỡ (Body Fat)",
+              desc: "Hai người cùng BMI nhưng vóc dáng có thể khác xa nhau. Tỷ lệ mỡ phản ánh chính xác nhất độ săn chắc của cơ thể."
+            }
+          ].map((card, index) => (
+            <motion.div key={index} variants={fadeUp} className="glass-card p-8 hover:border-brand/30 transition-colors">
+              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-5 border border-white/10">
+                {card.icon}
+              </div>
+              <h3 className="font-display font-semibold text-lg text-white mb-2">{card.title}</h3>
+              <p className="text-sm text-slate-400 leading-relaxed">{card.desc}</p>
             </motion.div>
           ))}
         </motion.div>
 
-        {/* CHART SECTION */}
-        <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          className="grid md:grid-cols-2 gap-12"
-        >
-          <motion.div
-            whileInView={{ scale: [0.9, 1] }}
-            transition={{ duration: 0.6 }}
-            className="bg-black/50 rounded-3xl shadow-lg p-8 h-96"
-          >
-            <h4 className="font-semibold mb-6 text-lg text-gray-300">
-              Phân loại BMI
-            </h4>
+        {/* CHARTS & TABLES IN GLASS PANEL */}
+        <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} className="grid md:grid-cols-2 gap-8">
+          
+          <div className="glass-panel p-8">
+            <h4 className="font-display text-lg font-semibold text-white mb-6">Biểu Đồ Phân Loại BMI Chuẩn WHO</h4>
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[
+                  { name: "Thiếu cân", bmi: 18.5, fill: "#94a3b8" },
+                  { name: "Chuẩn", bmi: 24.9, fill: "#10b981" },
+                  { name: "Thừa cân", bmi: 29.9, fill: "#f59e0b" },
+                  { name: "Béo phì", bmi: 35, fill: "#ef4444" }
+                ]}>
+                  <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#94a3b8', fontSize: 12}} />
+                  <Tooltip 
+                    cursor={{fill: 'rgba(255,255,255,0.05)'}}
+                    contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                  />
+                  <Bar dataKey="bmi" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
 
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={[
-                { name: "Gầy", bmi: 18 },
-                { name: "Chuẩn", bmi: 22 },
-                { name: "Thừa", bmi: 27 },
-                { name: "Béo", bmi: 32 }
-              ]}>
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="bmi" radius={[12, 12, 0, 0]} fill="#fff" />
-              </BarChart>
-            </ResponsiveContainer>
-          </motion.div>
-
-          <motion.div
-            variants={fadeUp}
-            className="bg-black/50 rounded-3xl shadow-lg p-8 text-gray-300"
-          >
-            <h4 className="font-semibold mb-6 text-lg">
-              Bảng chỉ số
-            </h4>
-
-            {[
-              { name: "Gầy", value: "< 18.5" },
-              { name: "Bình thường", value: "18.5 – 24.9" },
-              { name: "Thừa cân", value: "25 – 29.9" },
-              { name: "Béo phì", value: "≥ 30" },
-            ].map((item, i) => (
-              <motion.div
-                key={i}
-                whileHover={{ scale: 1.03 }}
-                className="flex justify-between p-4 mb-3 bg-gray-300/20 rounded-xl"
-              >
-                <span>{item.name}</span>
-                <span className="text-gray-300">{item.value}</span>
-              </motion.div>
-            ))}
-          </motion.div>
-        </motion.div>
-
-        {/* SUGGESTIONS */}
-        <motion.div
-          initial={{ opacity: 0, y: 100 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="rounded-3xl bg-black/50 text-gray-300 p-12 shadow-2xl"
-        >
-          <h3 className="text-2xl font-semibold mb-8">
-            Gợi ý cải thiện
-          </h3>
-
-          <div className="grid md:grid-cols-4 gap-8">
-            {["BMI thấp", "BMI cao", "Mỡ cao", "Mỡ thấp"].map((item, i) => (
-              <motion.div
-                key={i}
-                whileHover={{ y: -8 }}
-              >
-                <h5 className="font-semibold mb-2">{item}</h5>
-                <p className="text-sm opacity-80">
-                  Điều chỉnh ăn uống và vận động hợp lý.
-                </p>
-              </motion.div>
-            ))}
+          <div className="glass-panel p-8 flex flex-col justify-center">
+            <h4 className="font-display text-lg font-semibold text-white mb-6">Bảng Tra Cứu Chỉ Số</h4>
+            <div className="space-y-3">
+              {[
+                { name: "Thiếu cân (Gầy)", value: "Dưới 18.5", color: "border-slate-500" },
+                { name: "Bình thường (Chuẩn)", value: "18.5 – 24.9", color: "border-emerald-500" },
+                { name: "Tiền béo phì (Thừa cân)", value: "25.0 – 29.9", color: "border-amber-500" },
+                { name: "Béo phì", value: "Trên 30.0", color: "border-red-500" },
+              ].map((item, i) => (
+                <div key={i} className={`flex justify-between items-center p-4 bg-white/5 border-l-4 ${item.color} rounded-r-xl`}>
+                  <span className="text-slate-300 font-medium">{item.name}</span>
+                  <span className="text-brand-light font-semibold">{item.value}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-6 text-sm text-slate-400 italic">
+              *Lưu ý: BMI có thể không phản ánh đúng với vận động viên hoặc người có lượng cơ bắp lớn.
+            </p>
           </div>
         </motion.div>
-
       </div>
     </section>
   );

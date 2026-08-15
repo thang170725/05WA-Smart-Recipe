@@ -8,6 +8,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import sessionmaker
 
 from backend.modules.user.models import User
+from backend.modules.user.routes import user_service
 from backend.modules.user.services import UserService
 from backend.modules.meals.services import MealService
 from backend.modules.platform.service import PlatformService
@@ -31,7 +32,7 @@ SessionLocal = sessionmaker(
 
 db = SessionLocal()
 
-dashboard = DashboardService()
-print(dashboard.get_user_infor_service(db, 15))
+user_service = UserService()
+print(user_service.get_info_user_service(db, 15))
 
 db.close()

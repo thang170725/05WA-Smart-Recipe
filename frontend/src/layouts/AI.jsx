@@ -18,7 +18,7 @@ export default function AI () {
 
       <aside
         className={`
-          fixed top-0 right-0 h-screen w-full sm:w-[380px] lg:w-[420px]
+          fixed top-0 right-0 h-screen w-full sm:w-[450px] lg:w-[600px]
           glass-panel rounded-none border-r-0 border-t-0 border-b-0 z-50
           transform transition-transform duration-300 ease-out
           ${open ? "translate-x-0" : "translate-x-full"}

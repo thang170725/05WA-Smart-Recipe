@@ -1,7 +1,10 @@
 from sqlalchemy.orm import Session
 from backend.modules.user.models import User, OTP
+from backend.modules.health.models import HealthMetric
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
+
+from backend.modules.user.schemas import InputUpdateProfileSchema
 
 class AccountRepository:
     def create_account(self, db: Session, data: dict) -> User:
@@ -55,21 +58,33 @@ class UserRepository:
     
     # lấy toàn bộ thông tin người dùng dựa vào id
     def get_info_user_repo(self, db: Session, user_id: int):
-        stmt = select(User).where(User.id == user_id)
+        stmt = (
+            select(User, HealthMetric.height, HealthMetric.weight)
+            .join(HealthMetric, HealthMetric.user_id == User.id)
+            .where(User.id == user_id, HealthMetric.user_id == user_id)
+            .order_by(HealthMetric.recorded_at.desc())
+        )
 
-        user = db.execute(stmt).scalar_one_or_none()
-        if not user:
+        result = db.execute(stmt).one_or_none()
+        if not result:
             return None
+        user, height, weight = result
         
         return {
+            "id": user.id,
+            "role": user.role,
             "email": user.email,
+            "created_at": user.created_at,
+            "avatar_url": user.avatar_url,
             "fullname": user.fullname,
             "address": user.address,
             "phone": user.phone,
-            "birth date": user.birth_date,
+            "birth_date": user.birth_date,
             "gender": user.gender,
-            "activity level": user.activity_level,
-            "target goal": user.target_goal 
+            "activity_level": user.activity_level,
+            "target_goal": user.target_goal,
+            "height": height,
+            "weight": weight
         }
     
     def get_user_by_email_repo(self, db: Session, email: str):
@@ -151,13 +166,32 @@ class UserRepository:
         user.address = new_address
         return user
 
-    def update_user(self, db: Session, user: User, data: dict) -> User:
-        for field, value in data.items():
-            setattr(user, field, value)
+    def update_user_repo(self, 
+        db: Session, 
+        user_id: int, 
+        payload: InputUpdateProfileSchema
+    ):
+        stmt = select(User).where(User.id == user_id)
+        user = db.excute(stmt).scalar_one_or_none()
+        if user is None:
+            raise ValueError("user not found")
 
-        db.commit()
-        db.refresh(user)
-        return user
+        user.fullname = payload.fullname
+        user.address = payload.address
+        user.phone = payload.phone
+        user.birth_date = payload.birth_date
+        user.gender = payload.gender
+        user.activity_level = payload.activity_level
+        user.target_goal = payload.target_goal
+        user.avatar_url = payload.avatar_url
+
+        health_metric = HealthMetric(
+            user_id=user_id,
+            height=payload.height,
+            weight=payload.weight
+        )
+
+        return user, health_metric
 
     def update_password(self, db: Session, user: User, new_password: str):
         user.password = new_password

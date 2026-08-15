@@ -3,7 +3,7 @@ from backend.modules.user.schemas import (
     OutputRegisterSchema,
     InputLoginSchema,
     OutputProfileUserSchema,
-    IOUpdateProfileSchema,
+    InputUpdateProfileSchema,
     InputUpdatePasswordSchema,
     InputSendEmailSchema,
     InputVerifyOtpSchema,
@@ -73,11 +73,33 @@ async def login_google(
         "user": user
     }
 
-# ======== PROFILE =========
-# ===== GET ====== 
+# =======================================
+# ===== PROFILE API =====
+# =======================================
+# lấy profile 
 @router.get("/get-profile", response_model=OutputProfileUserSchema)
 async def get_profile(current_user = Depends(get_current_user)):
     return current_user
+
+# lấy profile + weight, height
+@router.get("/get-all-profile")
+async def get_profile(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return user_service.get_info_user_service(db, current_user.id)
+
+# cập nhật prfile cơ bản
+@router.put('/update-profile')
+def update_profile(
+    payload: InputUpdateProfileSchema,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+): 
+    return user_service.update_profile_service(
+        db, 
+        current_user.id, 
+        payload)
 
 @router.post("/upload-avatar")
 async def upload_avatar(
@@ -95,15 +117,10 @@ async def upload_avatar(
     return {
         "avatar_url": avatar_url
     }
-    
-# UPDATE PROFILE 
-@router.put('/update-profile', response_model=IOUpdateProfileSchema)
-def update_profile(
-    payload: IOUpdateProfileSchema,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-): 
-    return user_service.update_profile(db, current_user, payload.model_dump(exclude_unset=True))
+
+# =======================================
+# ===== POST / PUT / INSERT / UPDATE =====
+# =======================================
 
 # UPDATE PASSWORD
 @router.put("/update-password")

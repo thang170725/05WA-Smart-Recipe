@@ -1,7 +1,9 @@
-export default function Popup({ open, onClose, title, children }) {
+import { createPortal } from "react-dom"
+
+export function Popup({ open, onClose, title, children, maxWidth = "max-w-lg" }) {
   if (!open) return null
 
-  return (
+  return createPortal(
     <div className="modal-backdrop">
       <div
         className="absolute inset-0"
@@ -9,7 +11,7 @@ export default function Popup({ open, onClose, title, children }) {
         aria-hidden="true"
       />
 
-      <div className="modal-panel relative z-10 w-full max-w-lg">
+      <div className={`modal-panel relative z-10 w-full ${maxWidth}`}>
         <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
           <h2 className="font-display text-xl font-bold text-slate-800">{title}</h2>
           <button
@@ -24,6 +26,7 @@ export default function Popup({ open, onClose, title, children }) {
 
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

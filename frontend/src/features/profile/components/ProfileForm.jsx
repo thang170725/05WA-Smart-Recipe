@@ -17,7 +17,9 @@ import {
   Mail,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext"
-import { UploadAvatarApi, UpdateProfileApi, UpdatePassword } from "../api/ProfileApi"
+import { UploadAvatarApi, UpdateProfileApi, UpdatePassword,
+  GetAllProfile
+ } from "../api/ProfileApi"
 import { BASE_URL } from "../../../services/JsonApi";
 
 /* ---------------- MOCK DATA ---------------- */
@@ -38,8 +40,63 @@ export default function ProfileForm({ devMode }) {
   const [editMode, setEditMode] = useState(false);
   const [editPassword, setEditPassword] = useState(false)
 
-  // ATTRIBUTE
-  const { user, updateAvatar} = useAuth()
+  // ============================================================
+  // ==== chức năng lấy thông tin user + height, weight ========
+  // ============================================================
+  const { _ , updateAvatar} = useAuth()
+  const [user, setUser] = useState()
+  // API 
+  useEffect(() => {
+    const loadApi = async () => {
+      const res = await GetAllProfile()
+
+      console.log(res)
+      setUser(res)
+    }
+    
+    loadApi()
+  }, [])
+
+  // ============================================================
+  // ==== chức năng update thông tin cơ bản user ========
+  // ============================================================
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setUser((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+  // API update info
+  const handleUpdate = async () => {
+    try {
+      if (editMode) {
+        await UpdateProfileApi(devMode, user);
+
+        setEditMode(false);
+      }
+
+      // if (editPassword && profile.password.trim() !== "") {
+      //   await UpdatePassword({
+      //     password: profile.password
+      //   });
+
+      //   setProfile(prev => ({
+      //     ...prev,
+      //     password: ""
+      //   }));
+
+      //   setEditPassword(false);
+      // }
+
+      alert("Cập nhật thành công!");
+    } catch (err) {
+      setEditMode(false)
+      setEditPassword(false)
+      console.log(err);
+    }
+  };
+  
 
   useEffect(() => {
   if (user) {
@@ -52,14 +109,7 @@ export default function ProfileForm({ devMode }) {
   }
 }, [user]);
 
-  // API
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setProfile((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+  
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -91,49 +141,7 @@ export default function ProfileForm({ devMode }) {
     }
   };
   
-  // =====================================================
-  // ======= CHỨC NĂNG UPDATE THÔNG TIN CỦA USER ======== 
-  // =====================================================
-  const [profile, setProfile] = useState({
-    id: user?.id ?? 15,
-    fullname: "",
-    address: "",
-    phone: "",
-    birth_date: "",
-    gender: "",
-    activity_level: "",
-    target_goal: "",
-  });
-  // API update info
-  const handleUpdate = async () => {
-  try {
-    if (editMode) {
-      await UpdateProfileApi(devMode, profile);
-
-      setEditMode(false);
-    }
-
-    if (editPassword && profile.password.trim() !== "") {
-      await UpdatePassword({
-        password: profile.password
-      });
-
-      setProfile(prev => ({
-        ...prev,
-        password: ""
-      }));
-
-      setEditPassword(false);
-    }
-
-    alert("Cập nhật thành công!");
-  } catch (err) {
-    setEditMode(false)
-    setEditPassword(false)
-    console.log(err);
-    
-  }
-};
+  
 
   return (
     <div className="page-shell glass-panel text-slate-200 space-y-10 my-15">
@@ -154,7 +162,10 @@ export default function ProfileForm({ devMode }) {
         {/* AVATAR */}
         <div className="relative group w-50 h-60 shrink-0 -right-20">
           <img
-            src={profile.avatar_url || "https://i.pravatar.cc/300"}
+            src={
+              user?.avatar_url
+                ? `${BASE_URL}${user.avatar_url}` 
+                : "https://i.pravatar.cc/300"}
             alt="avatar"
             className="absolute top-5 w-50 h-50 rounded-full object-cover border-4 border-white/10 shadow-xl"
           />
@@ -181,7 +192,7 @@ export default function ProfileForm({ devMode }) {
             label="Tên đầy đủ"
             icon={User}
             name="fullname"
-            value={profile.fullname}
+            value={user?.fullname}
             disabled={!editMode}
             onChange={handleChange}
           />
@@ -190,7 +201,7 @@ export default function ProfileForm({ devMode }) {
             label="Địa chỉ"
             icon={MapPin}
             name="address"
-            value={profile.address}
+            value={user?.address}
             disabled={!editMode}
             onChange={handleChange}
           />
@@ -200,7 +211,7 @@ export default function ProfileForm({ devMode }) {
             icon={Phone}
             type="tel"
             name="phone"
-            value={profile.phone}
+            value={user?.phone}
             disabled={!editMode}
             onChange={handleChange}
           />
@@ -210,7 +221,7 @@ export default function ProfileForm({ devMode }) {
             icon={Mail}
             type="date"
             name="birth_date"
-            value={profile.birth_date}
+            value={user?.birth_date}
             disabled={!editMode}
             onChange={handleChange}
           />
@@ -219,7 +230,7 @@ export default function ProfileForm({ devMode }) {
             label="Giới tính"
             icon={PersonStanding}
             name="gender"
-            value={profile.gender}
+            value={user?.gender}
             disabled={!editMode}
             onChange={handleChange}
             options={[
@@ -228,12 +239,32 @@ export default function ProfileForm({ devMode }) {
             ]}
           />
 
+          <InputRow
+            label="Cân nặng hiện tại (50)"
+            icon={Mail}
+            type="number"
+            name="weight"
+            value={user?.weight}
+            disabled={!editMode}
+            onChange={handleChange}
+          />
+
+          <InputRow
+            label="Chiều cao hiện tại"
+            icon={Mail}
+            type="number"
+            name="height"
+            value={user?.height}
+            disabled={!editMode}
+            onChange={handleChange}
+          />
+
           {/* Activity Level */}
           <SelectRow
             label="Mức vận động"
             icon={PersonStanding}
             name="activity_level"
-            value={profile.activity_level}
+            value={user?.activity_level}
             disabled={!editMode}
             onChange={handleChange}
             options={[
@@ -250,7 +281,7 @@ export default function ProfileForm({ devMode }) {
             label="Mục tiêu tập luyện"
             icon={User}
             name="target_goal"
-            value={profile.target_goal}
+            value={user?.target_goal}
             disabled={!editMode}
             onChange={handleChange}
             options={[

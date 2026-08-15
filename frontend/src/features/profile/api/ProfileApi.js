@@ -1,8 +1,18 @@
 import JsonApi from "../../../services/JsonApi";
 import FormDataApi from "../../../services/FormDataApi"
 
+// =====================================================
+// ======= GET ======== 
+// =====================================================
 export async function GetProfile() {
   return await JsonApi("/user/get-profile", {
+    method: "GET"
+  }); 
+}
+
+// lấy profile + weigt/height
+export async function GetAllProfile() {
+  return await JsonApi("/user/get-all-profile", {
     method: "GET"
   }); 
 }

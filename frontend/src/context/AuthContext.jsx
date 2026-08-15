@@ -8,6 +8,21 @@ export function AuthProvider({ children }) {
   const [user, setUserState] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // ➕ Thêm state quản lý Auth Popup / Modal
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState("login"); // "login" | "register" | "forgotPassword"
+
+  // ➕ Hàm mở Popup kèm chế độ (Mặc định là "login")
+  const openAuthModal = (mode = "login") => {
+    setAuthMode(mode);
+    setIsAuthModalOpen(true);
+  };
+
+  // ➕ Hàm đóng Popup
+  const closeAuthModal = () => {
+    setIsAuthModalOpen(false);
+  };
+
   // ✅ Format avatar đúng domain
   const formatUser = (rawUser) => {
     if (!rawUser) return null;
@@ -74,6 +89,11 @@ export function AuthProvider({ children }) {
         updateAvatar,
         logout,
         loading,
+        isAuthModalOpen,
+        authMode,
+        setAuthMode,
+        openAuthModal,
+        closeAuthModal,
       }}
     >
       {children}

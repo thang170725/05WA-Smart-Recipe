@@ -6,6 +6,7 @@ import { GetProfile } from "./features/profile/api/ProfileApi.js"
 import { AppRoutes } from "./routes/AppRoutes.jsx"
 import AI from "./layouts/AI.jsx"
 import Footer from "./layouts/Footer.jsx"
+import { AuthSection } from "./features/account/components/AuthSection.jsx"
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -47,6 +48,10 @@ export default function App() {
           <Sidebar />
 
           <div className="flex-1 flex flex-col min-w-0 lg:ml-65">
+            <header className="sticky top-0 z-20 px-4 sm:px-6 lg:px-8 py-3 border-b border-white/8 bg-slate-950/40 backdrop-blur-xl">
+              <AuthSection></AuthSection>
+            </header>
+
             <Main
               user={user}
               setUser={setUser}
@@ -61,6 +66,8 @@ export default function App() {
           <AI />
         </div>
       </div>
+
+      
     </BrowserRouter>
   )
 }

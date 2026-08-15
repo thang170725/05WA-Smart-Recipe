@@ -1,11 +1,14 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Home, UtensilsCrossed, HeartPulse, BarChart3, MessagesSquare, ChevronDown } from "lucide-react";
 import vietnamFlag from "../assets/vietnam_flag.png";
 import logo from "../assets/logo2.png"
+import { useAuth } from "../context/AuthContext";
 
 export function Sidebar() {
   const [openHealth, setOpenHealth] = useState(false);
+  const { user, openAuthModal } = useAuth()
+  const navigate = useNavigate();
 
   const navLinkClass = ({ isActive }) =>
     isActive ? "nav-item nav-item-active" : "nav-item";
@@ -14,6 +17,16 @@ export function Sidebar() {
     isActive
       ? "block px-4 py-2 rounded-lg text-sm font-medium text-white bg-white/10 border-l-2 border-brand"
       : "block px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/8 transition-colors";
+  
+  // Hàm xử lý chung khi click vào menu bảo mật
+  const handleProtectedNavigation = (e, path) => {
+    if (!user) {
+      e.preventDefault(); // Ngăn React Router chuyển trang
+      openAuthModal("login"); // Hiện Popup đăng nhập
+    } else {
+      navigate(path);
+    }
+  };
 
   return (
     <aside className="fixed left-0 top-0 z-30 hidden lg:flex flex-col w-[260px] h-screen glass-panel rounded-none border-l-0 border-t-0 border-b-0 border-r border-white/10">
@@ -43,7 +56,12 @@ export function Sidebar() {
           </li>
 
           <li>
-            <NavLink to="/meals" end className={navLinkClass}>
+            <NavLink 
+              to="/meals" 
+              end 
+              className={navLinkClass}
+              onClick={(e) => handleProtectedNavigation(e, "/meals")}
+            >
               <UtensilsCrossed size={18} className="shrink-0 opacity-80" />
               Thực đơn
             </NavLink>
@@ -65,12 +83,20 @@ export function Sidebar() {
             {openHealth && (
               <ul className="mt-1 ml-4 pl-3 border-l border-white/10 space-y-0.5">
                 <li>
-                  <NavLink to="/health-center" className={subLinkClass}>
+                  <NavLink 
+                    to="/health-center" 
+                    className={subLinkClass}
+                    onClick={(e) => handleProtectedNavigation(e, "/health-center")}
+                  >
                     Trung tâm sức khỏe
                   </NavLink>
                 </li>
                 <li>
-                  <NavLink to="/workout-roadmap" className={subLinkClass}>
+                  <NavLink 
+                    to="/workout-roadmap" 
+                    className={subLinkClass}
+                    onClick={(e) => handleProtectedNavigation(e, "/workout-roadmap")}
+                  >
                     Lộ trình luyện tập
                   </NavLink>
                 </li>
@@ -79,7 +105,12 @@ export function Sidebar() {
           </li>
 
           <li>
-            <NavLink to="/dashboard" end className={navLinkClass}>
+            <NavLink 
+              to="/dashboard" 
+              end 
+              className={navLinkClass}
+              onClick={(e) => handleProtectedNavigation(e, "/dashboard")}
+            >
               <BarChart3 size={18} className="shrink-0 opacity-80" />
               Thống kê
             </NavLink>

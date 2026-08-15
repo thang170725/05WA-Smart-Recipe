@@ -33,6 +33,8 @@ class OutputProfileUserSchema(BaseModel):
     activity_level: Optional[str] = None
     target_goal: Optional[str] = None
     avatar_url: Optional[str] = None 
+    height: Optional[str | float] = None
+    weight: Optional[str | float] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -40,15 +42,22 @@ class InputUpdatePasswordSchema(BaseModel):
     password: Optional[str] = None
 
 
-
+# ====================================
+# ===== chức năng cập nhật profile ===== 
+# ====================================
 # BOTH INPUT & OUTPUT
-class IOUpdateProfileSchema(BaseModel):
+class InputUpdateProfileSchema(BaseModel):
+    id: Optional[int] = None
     fullname: Optional[str] = None
     address: Optional[str] = None
     phone: Optional[str] = None
-    email: Optional[str] = None
+    birth_date: Optional[date | str] = None
+    gender: Optional[str] = None
     activity_level: Optional[str] = None
     target_goal: Optional[str] = None
+    weight: Optional[float] = None
+    height: Optional[float] = None
+    avatar_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
