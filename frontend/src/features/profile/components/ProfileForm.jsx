@@ -150,13 +150,13 @@ export default function ProfileForm({ devMode }) {
 
         {/* LEFT INFO */}
         <div className="space-y-4">
-          <InfoPill icon={IdCard} label="User ID" value={profile.id} />
-          <InfoPill icon={User} label="Tên tài khoản (email)" value={profile.email} />
+          <InfoPill icon={IdCard} label="User ID" value={user.id} />
+          <InfoPill icon={User} label="Tên tài khoản (email)" value={user.email} />
         </div>
 
         <div className="space-y-4">
-          <InfoPill icon={CalendarCheck} label="Ngày tạo" value={profile.created_at} />
-          <InfoPill icon={Shield} label="Vai trò" value={profile.role} />
+          <InfoPill icon={CalendarCheck} label="Ngày tạo" value={user.created_at} />
+          <InfoPill icon={Shield} label="Vai trò" value={user.role} />
         </div>
 
         {/* AVATAR */}

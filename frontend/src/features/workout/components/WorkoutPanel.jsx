@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Dumbbell, CheckCircle2, PlayCircle, X, Timer } from "lucide-react";
+import { Dumbbell, CheckCircle2, PlayCircle, X, Timer, ChevronRight } from "lucide-react";
 import LibraryProgram from "./LibraryProgram";
 import {
   UpdateActiveDurationSecondsApi,
@@ -18,19 +18,13 @@ function formatTime(seconds) {
 
 // ─────────────────────────────────────────────
 // Popup đồng hồ bấm giờ cho từng set
-// Props:
-//   exercise  – object bài tập hiện tại
-//   setIndex  – index của set đang chạy trong mảng sets (0-based)
-//   onDone    – callback(durationSeconds) khi bấm "Done Set"
-//   onClose   – callback khi bấm X (hủy session)
 // ─────────────────────────────────────────────
 function TimerPopup({ exercise, setIndex, onDone, onClose }) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const intervalRef = useRef(null);
 
-  // Mỗi khi setIndex thay đổi (chuyển set): reset đồng hồ và chạy lại
   useEffect(() => {
-    setElapsedSeconds(0); // reset về 0 khi chuyển set mới
+    setElapsedSeconds(0);
     intervalRef.current = setInterval(() => {
       setElapsedSeconds((prev) => prev + 1);
     }, 1000);
@@ -42,47 +36,48 @@ function TimerPopup({ exercise, setIndex, onDone, onClose }) {
 
   const handleDone = () => {
     clearInterval(intervalRef.current);
-    onDone(elapsedSeconds); // trả về số giây đã tập của set này
+    onDone(elapsedSeconds);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <motion.div
-        initial={{ scale: 0.85, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.85, opacity: 0 }}
-        className="bg-gray-900 border border-white/15 rounded-3xl p-8 w-80 shadow-2xl relative"
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        className="bg-zinc-950 border border-zinc-800 rounded-[2rem] p-8 w-full max-w-sm shadow-2xl shadow-emerald-900/10 relative"
       >
-        {/* Nút X đóng popup – hủy toàn bộ session */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white transition"
+          className="absolute top-5 right-5 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer bg-zinc-900 p-2 rounded-full"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
 
-        <h2 className="text-xl font-bold text-white text-center mb-1">
-          {exercise.exercise_name}
-        </h2>
-
-        <p className="text-cyan-400 text-center text-sm mb-6">
-          Set {currentSet.set_number} / {exercise.sets.length}
-          &nbsp;•&nbsp; Mục tiêu: {currentSet.target_reps} reps
-        </p>
+        <div className="text-center mb-6 mt-2">
+          <h2 className="text-2xl font-black text-zinc-100 tracking-tight leading-tight mb-2">
+            {exercise.exercise_name}
+          </h2>
+          <div className="inline-flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg">
+            <span className="text-emerald-500 font-bold text-sm">Set {currentSet.set_number} / {exercise.sets.length}</span>
+            <span className="text-zinc-600 text-xs">•</span>
+            <span className="text-zinc-400 text-sm">Mục tiêu: {currentSet.target_reps} reps</span>
+          </div>
+        </div>
 
         {/* Đồng hồ */}
-        <div className="flex items-center justify-center gap-3 mb-6">
-          <Timer size={28} className="text-cyan-400" />
-          <span className="text-6xl font-bold text-cyan-400 tabular-nums">
+        <div className="flex flex-col items-center justify-center gap-2 mb-8 bg-zinc-900/50 py-8 rounded-3xl border border-zinc-800/50">
+          <Timer size={24} className="text-emerald-500/80 mb-2" />
+          <span className="text-7xl font-black text-emerald-400 tabular-nums tracking-tighter drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]">
             {formatTime(elapsedSeconds)}
           </span>
         </div>
 
         <button
           onClick={handleDone}
-          className="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-3 rounded-xl transition"
+          className="w-full bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold text-lg py-4 rounded-2xl transition-all cursor-pointer shadow-lg shadow-emerald-900/20 active:scale-95"
         >
-          ✓ Done Set {currentSet.set_number}
+          ✓ Hoàn thành Set {currentSet.set_number}
         </button>
       </motion.div>
     </div>
@@ -102,34 +97,21 @@ export default function WorkoutPanel({
   planDate,
   weekStart,
 }) {
-  // activeSession != null → popup đang mở
-  // { exerciseIndex, setIndex, startedAt, setDurations[] }
   const [activeSession, setActiveSession] = useState(null);
-
-  // waitingNextSet != null → đã xong 1 set, đang chờ user bấm "Tiếp tục"
-  // { exerciseIndex, nextSetIndex, startedAt, setDurations[] }
   const [waitingNextSet, setWaitingNextSet] = useState(null);
 
-  // ─── useRef để tránh stale closure ───
-  // React: khi TimerPopup nhận prop onDone, nó "đóng băng" hàm đó tại thời điểm render.
-  // Nếu handleDoneSet đọc activeSession / exercisesList trực tiếp từ closure,
-  // nó sẽ đọc giá trị CŨ (tại thời điểm popup được mount), không phải giá trị hiện tại.
-  // Giải pháp: lưu giá trị mới nhất vào ref → ref.current luôn là giá trị mới nhất.
   const activeSessionRef = useRef(null);
   const exercisesListRef = useRef(exercisesList);
 
-  // Đồng bộ ref mỗi khi state thay đổi
   useEffect(() => { activeSessionRef.current = activeSession; }, [activeSession]);
   useEffect(() => { exercisesListRef.current = exercisesList; }, [exercisesList]);
 
-  // ── Bắt đầu bài tập: tìm set đầu tiên chưa xong và mở popup ──
   const handleStart = (exerciseIndex) => {
     const exercise = exercisesList[exerciseIndex];
-
     const firstIncompleteSetIndex = exercise.sets.findIndex(
       (s) => s.completed_reps == null
     );
-    if (firstIncompleteSetIndex === -1) return; // tất cả set đã xong
+    if (firstIncompleteSetIndex === -1) return;
 
     setActiveSession({
       exerciseIndex,
@@ -139,30 +121,22 @@ export default function WorkoutPanel({
     });
   };
 
-  // ── Khi bấm "Done Set" trong popup ──
   const handleDoneSet = async (durationSeconds) => {
-    // Đọc từ REF thay vì closure → luôn lấy được giá trị mới nhất
     const session = activeSessionRef.current;
-    if (!session) return; // guard: không làm gì nếu session đã null
+    if (!session) return;
 
     const { exerciseIndex, setIndex, startedAt, setDurations } = session;
-
-    // Đọc exercisesList từ ref để có data mới nhất
     const exercise = exercisesListRef.current[exerciseIndex];
     const currentSet = exercise.sets[setIndex];
 
-    // Tìm set tiếp theo chưa hoàn thành (scan từ setIndex+1 trở đi)
     const nextSetIndex = exercise.sets.findIndex(
       (s, i) => i > setIndex && s.completed_reps == null
     );
 
-    // Cộng thêm duration của set vừa xong
     const updatedDurations = [...setDurations, durationSeconds];
 
-    // Đóng popup NGAY LẬP TỨC trước khi làm bất cứ điều gì khác
     setActiveSession(null);
 
-    // Đánh dấu set này hoàn thành trong state
     setExercisesList((prev) => {
       const copy = [...prev];
       const ex = { ...copy[exerciseIndex] };
@@ -173,14 +147,12 @@ export default function WorkoutPanel({
       return copy;
     });
 
-    // Gọi API cập nhật set đã hoàn thành (không await để không block UI)
     UpdateWorkoutSetCompletedApi({
       workout_set_id: currentSet.workout_set_id,
       completed_reps: currentSet.target_reps,
     });
 
     if (nextSetIndex !== -1) {
-      // Còn set tiếp → chuyển sang trạng thái "chờ nghỉ giữa set"
       setWaitingNextSet({
         exerciseIndex,
         nextSetIndex,
@@ -188,7 +160,6 @@ export default function WorkoutPanel({
         setDurations: updatedDurations,
       });
     } else {
-      // Hết tất cả set → tính tổng và lưu
       const endedAt = new Date().toISOString();
       const totalActiveDuration = updatedDurations.reduce((a, b) => a + b, 0);
 
@@ -199,12 +170,11 @@ export default function WorkoutPanel({
           started_at: startedAt,
           ended_at: endedAt,
           active_duration_seconds: totalActiveDuration,
-          set_durations: updatedDurations, // chi tiết từng set để debug
+          set_durations: updatedDurations,
         };
         return copy;
       });
 
-      // Gọi API lưu tổng kết bài tập
       await UpdateActiveDurationSecondsApi({
         workout_plan_item_id: exercise.workout_plan_item_id,
         started_at: startedAt,
@@ -214,24 +184,19 @@ export default function WorkoutPanel({
     }
   };
 
-  // ── User bấm "Tiếp tục Set N" → mở lại popup cho set kế ──
   const handleContinueNextSet = () => {
     if (!waitingNextSet) return;
-
     setActiveSession({
       exerciseIndex: waitingNextSet.exerciseIndex,
       setIndex: waitingNextSet.nextSetIndex,
       startedAt: waitingNextSet.startedAt,
       setDurations: waitingNextSet.setDurations,
     });
-
-    setWaitingNextSet(null); // xóa trạng thái chờ
+    setWaitingNextSet(null);
   };
 
-  // ── Đóng popup (X) → hủy toàn bộ session ──
   const handleCloseTimer = () => {
     setActiveSession(null);
-    // Không xóa waitingNextSet ở đây vì X chỉ đóng popup đang mở
   };
 
   return (
@@ -240,16 +205,18 @@ export default function WorkoutPanel({
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl"
+          className="bg-zinc-900/60 backdrop-blur-xl border border-zinc-800 rounded-3xl p-6 md:p-8 shadow-2xl"
         >
           {/* ── HEADER ── */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="flex items-center gap-2 text-lg font-bold">
-              <PlayCircle size={20} className="text-emerald-400" />
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 border-b border-zinc-800/80 pb-6">
+            <h2 className="flex items-center gap-3 text-xl md:text-2xl font-bold text-zinc-100">
+              <span className="bg-emerald-500/10 p-2 rounded-xl text-emerald-500">
+                <PlayCircle size={24} />
+              </span>
               Buổi tập hôm nay
             </h2>
             <button
-              className="bg-white/10 px-4 py-2 rounded-xl hover:bg-white/20 transition"
+              className="bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 hover:text-white px-4 py-2.5 rounded-xl font-medium transition-all cursor-pointer text-sm shadow-sm"
               onClick={() => setShowLibrary(true)}
             >
               + Thêm bài tập
@@ -258,7 +225,7 @@ export default function WorkoutPanel({
 
           {/* ── DANH SÁCH BÀI TẬP ── */}
           {exercisesList.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
               {exercisesList.map((exercise, exerciseIndex) => {
                 const completedSets = exercise.sets.filter(
                   (s) => s.completed_reps != null
@@ -270,44 +237,46 @@ export default function WorkoutPanel({
                 const progress = Math.round((completedSets / totalSets) * 100);
                 const isCompleted = completedSets === totalSets;
 
-                // Popup đang mở cho bài tập này?
                 const isActive = activeSession?.exerciseIndex === exerciseIndex;
-
-                // Đang chờ nghỉ giữa set của bài tập này?
                 const isWaiting = waitingNextSet?.exerciseIndex === exerciseIndex;
 
                 return (
                   <motion.div
                     key={exercise.workout_plan_item_id}
-                    whileHover={{ scale: 1.01 }}
+                    whileHover={{ scale: 1.005 }}
                     className={`
-                      rounded-2xl border p-5 transition-all
+                      relative overflow-hidden rounded-2xl border p-5 sm:p-6 transition-all duration-300
                       ${isCompleted
-                        ? "bg-emerald-500/15 border-emerald-400/30"
+                        ? "bg-emerald-950/20 border-emerald-500/30"
                         : isActive || isWaiting
-                        ? "bg-cyan-500/10 border-cyan-400/40"
-                        : "bg-white/5 border-white/10"
+                        ? "bg-zinc-800/80 border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.05)]"
+                        : "bg-zinc-950/50 border-zinc-800 hover:border-zinc-700"
                       }
                     `}
                   >
+                    {/* Background Glow nếu đang active */}
+                    {(isActive || isWaiting) && (
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl" />
+                    )}
+
                     {/* Tên + độ khó */}
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start mb-5 relative z-10">
                       <div>
-                        <div className="flex items-center gap-2">
-                          <Dumbbell size={18} />
-                          <h3 className="text-xl font-bold">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Dumbbell size={18} className={isCompleted ? "text-emerald-500" : "text-zinc-500"} />
+                          <h3 className="text-xl font-bold text-zinc-100">
                             {exercise.exercise_name}
                           </h3>
                         </div>
-                        <div className="mt-2">
+                        <div>
                           <span
                             className={`
-                              px-3 py-1 rounded-full text-xs font-semibold
+                              px-3 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider border
                               ${exercise.difficulty === "easy"
-                                ? "bg-green-500/20 text-green-300"
+                                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                                 : exercise.difficulty === "medium"
-                                ? "bg-yellow-500/20 text-yellow-300"
-                                : "bg-red-500/20 text-red-300"
+                                ? "bg-yellow-500/10 border-yellow-500/20 text-yellow-400"
+                                : "bg-red-500/10 border-red-500/20 text-red-400"
                               }
                             `}
                           >
@@ -316,105 +285,117 @@ export default function WorkoutPanel({
                         </div>
                       </div>
                       {isCompleted && (
-                        <CheckCircle2 size={28} className="text-emerald-400" />
+                        <CheckCircle2 size={32} className="text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
                       )}
                     </div>
 
                     {/* Ô hiển thị từng set */}
-                    <div className="grid grid-cols-3 gap-3 mt-5">
-                      {exercise.sets.map((set) => (
-                        <div
-                          key={set.workout_set_id}
-                          className={`
-                            rounded-xl p-3 text-center
-                            ${set.completed_reps != null
-                              ? "bg-emerald-500/20 border border-emerald-400/30"
-                              : "bg-white/5"
-                            }
-                          `}
-                        >
-                          <p className="text-xs text-gray-400 mb-1">
-                            Set {set.set_number}
-                          </p>
-                          <p className="font-bold text-sm">
-                            {set.completed_reps != null
-                              ? `✓ ${set.completed_reps} reps`
-                              : `${set.target_reps} reps`}
-                          </p>
-                        </div>
-                      ))}
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mt-4 relative z-10">
+                      {exercise.sets.map((set) => {
+                        const isSetDone = set.completed_reps != null;
+                        return (
+                          <div
+                            key={set.workout_set_id}
+                            className={`
+                              rounded-xl p-3 text-center flex flex-col justify-center border transition-colors
+                              ${isSetDone
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                                : "bg-zinc-900 border-zinc-800 text-zinc-400"
+                              }
+                            `}
+                          >
+                            <p className="text-[10px] uppercase font-bold tracking-wider mb-1 opacity-70">
+                              Set {set.set_number}
+                            </p>
+                            <p className={`font-bold text-sm sm:text-base ${isSetDone ? "text-emerald-400" : "text-zinc-200"}`}>
+                              {isSetDone
+                                ? `✓ ${set.completed_reps}`
+                                : `${set.target_reps} reps`}
+                            </p>
+                          </div>
+                        )
+                      })}
                     </div>
 
                     {/* Thanh tiến độ */}
-                    <div className="mt-5">
-                      <div className="flex justify-between text-sm mb-2">
-                        <span>Set {completedSets}/{totalSets}</span>
-                        <span>{progress}%</span>
+                    <div className="mt-6 relative z-10">
+                      <div className="flex justify-between text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">
+                        <span>Hoàn thành {completedSets}/{totalSets}</span>
+                        <span className={progress === 100 ? "text-emerald-500" : "text-zinc-400"}>{progress}%</span>
                       </div>
-                      <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-2 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${progress}%` }}
-                          transition={{ duration: 0.3 }}
-                          className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400"
-                        />
+                          transition={{ duration: 0.5, ease: "easeOut" }}
+                          className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] relative"
+                        >
+                          <div className="absolute inset-0 bg-white/20 w-full" style={{ animation: "shimmer 2s infinite" }}/>
+                        </motion.div>
                       </div>
 
-                      {nextPendingSet && !isCompleted && (
-                        <p className="mt-2 text-sm text-cyan-300">
-                          Tiếp theo: Set {nextPendingSet.set_number} •{" "}
-                          {nextPendingSet.target_reps} reps
-                        </p>
-                      )}
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center mt-3 gap-2">
+                        <div>
+                          {nextPendingSet && !isCompleted && (
+                            <p className="text-sm text-zinc-400">
+                              Tiếp theo: <span className="font-bold text-zinc-200">Set {nextPendingSet.set_number}</span> ({nextPendingSet.target_reps} reps)
+                            </p>
+                          )}
+                          {isCompleted && exercise.active_duration_seconds != null && (
+                            <p className="text-sm text-emerald-500 font-medium flex items-center gap-1.5">
+                              <Timer size={14} /> Tổng thời gian: {formatTime(exercise.active_duration_seconds)}
+                            </p>
+                          )}
+                        </div>
 
-                      {isCompleted && exercise.active_duration_seconds != null && (
-                        <p className="mt-2 text-sm text-emerald-300">
-                          ⏱ Tổng thời gian tập:{" "}
-                          {formatTime(exercise.active_duration_seconds)}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* ── Nút bấm – 4 trạng thái ── */}
-                    <div className="mt-5 flex justify-end">
-                      {isCompleted ? (
-                        // Trạng thái 1: đã xong hết
-                        <button
-                          disabled
-                          className="bg-emerald-500/50 text-white px-5 py-2 rounded-xl cursor-not-allowed"
-                        >
-                          Đã hoàn thành
-                        </button>
-                      ) : isActive ? (
-                        // Trạng thái 2: popup đang mở
-                        <span className="text-cyan-400 text-sm animate-pulse">
-                          ⏱ Đang chạy Set {activeSession.setIndex + 1}...
-                        </span>
-                      ) : isWaiting ? (
-                        // Trạng thái 3: xong 1 set, chờ nghỉ rồi bấm tiếp
-                        <button
-                          onClick={handleContinueNextSet}
-                          className="bg-orange-500 hover:bg-orange-400 text-white font-semibold px-5 py-2 rounded-xl transition"
-                        >
-                          ▶ Tiếp tục Set {waitingNextSet.nextSetIndex + 1}
-                        </button>
-                      ) : (
-                        // Trạng thái 4: chưa bắt đầu
-                        <button
-                          onClick={() => handleStart(exerciseIndex)}
-                          className="bg-cyan-500 hover:bg-cyan-400 text-white font-semibold px-5 py-2 rounded-xl transition"
-                        >
-                          ▶ Bắt đầu
-                        </button>
-                      )}
+                        {/* ── Nút bấm – 4 trạng thái ── */}
+                        <div className="flex justify-end mt-2 sm:mt-0">
+                          {isCompleted ? (
+                            <button
+                              disabled
+                              className="bg-zinc-800 text-zinc-500 px-5 py-2.5 rounded-xl font-bold text-sm cursor-not-allowed border border-zinc-700/50"
+                            >
+                              Đã xong
+                            </button>
+                          ) : isActive ? (
+                            <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm px-3 py-2 bg-emerald-950/30 rounded-xl border border-emerald-900/50 animate-pulse">
+                              <Timer size={16} /> Đang chạy Set {activeSession.setIndex + 1}
+                            </div>
+                          ) : isWaiting ? (
+                            <button
+                              onClick={handleContinueNextSet}
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2.5 rounded-xl transition-all cursor-pointer shadow-lg shadow-emerald-900/30 flex items-center gap-2 text-sm"
+                            >
+                              <PlayCircle size={16} /> Tiếp tục Set {waitingNextSet.nextSetIndex + 1}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleStart(exerciseIndex)}
+                              className="bg-zinc-100 hover:bg-white text-zinc-900 font-bold px-6 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 text-sm"
+                            >
+                              Bắt đầu <ChevronRight size={16} className="-mr-1" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </motion.div>
                 );
               })}
             </div>
           ) : (
-            <div className="text-center py-10 text-gray-400">
-              Chưa có bài tập nào. Bấm "+ Thêm bài tập" để bắt đầu!
+            <div className="flex flex-col items-center justify-center py-16 px-4 bg-zinc-950/50 rounded-2xl border border-zinc-800/50 border-dashed">
+              <div className="w-16 h-16 bg-zinc-900 flex items-center justify-center rounded-full mb-4">
+                <Dumbbell size={32} className="text-zinc-600" />
+              </div>
+              <h3 className="text-lg font-bold text-zinc-300 mb-1">Chưa có bài tập nào</h3>
+              <p className="text-zinc-500 text-sm text-center mb-6">Hãy thêm bài tập từ thư viện để bắt đầu lịch trình hôm nay.</p>
+              <button 
+                onClick={() => setShowLibrary(true)}
+                className="bg-emerald-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-900/20 cursor-pointer"
+              >
+                Khám phá thư viện bài tập
+              </button>
             </div>
           )}
         </motion.div>

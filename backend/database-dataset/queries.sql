@@ -130,7 +130,6 @@ WHERE user_id = :user_id
 GROUP BY DATE(recorded_at)
 ORDER BY date;
 
-
 -- tạo bảng --
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -146,7 +145,9 @@ CREATE TABLE users (
 	gender enum('male', 'female', 'other') not null default 'other',
 	activity_level enum('sedentary', 'light', 'moderate', 'active', 'very_active'), 
 	target_goal enum('lose_weight', 'gain_muscle', 'maintenance'),
-	avatar_url varchar(255)
+	avatar_url varchar(255),
+	
+	unique key uq_users_email (email)
 ) ENGINE=InnoDB;
 
 CREATE TABLE otp (

@@ -22,7 +22,7 @@ export function AuthSection() {
   //
   if (user) {
     return (
-      <div className="flex items-center gap-3 sm:gap-4">
+      <div className="flex justify-end items-center gap-3 sm:gap-4">
         <p className="hidden sm:block text-sm text-slate-300">
           <span className="text-slate-500">Xin chào,</span>{" "}
           <span className="font-semibold text-white/90">{user.email}</span>
@@ -71,7 +71,7 @@ export function AuthSection() {
 
       {/* Popup đăng nhập */}
       {isAuthModalOpen && authMode === "login" && (
-        <Popup open={isAuthModalOpen} onClose={closeAuthModal} title="Đăng nhập" maxWidth="max-w-2xl">
+        <Popup open={isAuthModalOpen} onClose={closeAuthModal} title="Đăng nhập" maxWidth="max-w-xl">
           <LoginForm
             onCancel={closeAuthModal}
             onSwitchToRegister={() => setAuthMode("register")}

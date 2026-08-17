@@ -1,38 +1,35 @@
 import { useRef, useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Activity } from "lucide-react";
 import ProgramTemplateDetail from "./ProgramTemplateDetail"
 import { GetWorkoutProgramTemplatesApi } from "../api/WorkoutProgramsApi"
 
 export default function ProgramFilter({ 
   devMode,
-  setWeekPrograms, // lưu lịch 1 tuần
-  weekStart, // ngày đầu tiên của tuần chứa currentDate (YY-MM-DD)
-  currentDate,// ngày mà hệ thống hoặc người dùng focus đến (YY-MM-DD)
+  setWeekPrograms, 
+  weekStart, 
+  currentDate,
 }) {
-
-  const [defineProgramTemplate, setDefineProgramTemplate] = useState([]) // danh sách các chương trình tập luyên có list id và name
-  const [showProgramTemplateDetail, setShowProgramTemplateDetail] = useState(false)
-  const [selectedProgramTemplate, setSelectedProgramTemplate] = useState({}) // chương trình người dùng chọn có id, name dạng object
+  const [defineProgramTemplate, setDefineProgramTemplate] = useState([]);
+  const [showProgramTemplateDetail, setShowProgramTemplateDetail] = useState(false);
+  const [selectedProgramTemplate, setSelectedProgramTemplate] = useState({}); 
 
   useEffect(() => {
     const loadApi = async () => {
       try {
-        const response = await GetWorkoutProgramTemplatesApi(devMode)
-        setDefineProgramTemplate(response || [])
+        const response = await GetWorkoutProgramTemplatesApi(devMode);
+        setDefineProgramTemplate(response || []);
       } catch (err) {
-        console.error("Lỗi WorkoutProgramsApi: ", err)
+        console.error("Lỗi WorkoutProgramsApi: ", err);
       }
     }
-
-    loadApi()
-  }, [])
+    loadApi();
+  }, [devMode]);
 
   const scrollRef = useRef(null);
 
   const scroll = (direction) => {
     const container = scrollRef.current;
     const amount = 280;
-
     container.scrollBy({
       left: direction === "left" ? -amount : amount,
       behavior: "smooth",
@@ -41,61 +38,71 @@ export default function ProgramFilter({
 
   return (
     <>
-      <div className="relative w-[95%] mt-10">
-        {/* LEFT BUTTON */}
-        <button
-          onClick={() => scroll("left")}
-          className="absolute -left-5 top-1/2 -translate-y-1/2 z-20
-          bg-white/10 backdrop-blur border border-white/20
-          shadow-lg rounded-full w-10 h-10
-          flex items-center justify-center
-          hover:scale-110 transition"
-        >
-          <ChevronLeft size={18} />
-        </button>
-
-        {/* SCROLL AREA */}
-        <div
-          ref={scrollRef}
-          className="flex gap-3 overflow-x-auto scroll-smooth
-          px-10 py-3 no-scrollbar"
-        >
-          {defineProgramTemplate.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                setSelectedProgramTemplate(item)
-                setShowProgramTemplateDetail(true)
-              }}
-              className={`whitespace-nowrap px-6 py-2 rounded-full text-sm font-medium transition-all duration-200
-              ${
-                selectedProgramTemplate["id"] === item.id
-                ? "bg-blue-600 text-white shadow-lg scale-105"
-                : "bg-white/5 text-gray-300 hover:bg-white/10"
-              }`}
-            >
-              {item.name}
-            </button>
-          ))}
+      <div className="relative w-full mt-8 bg-zinc-900/40 p-4 rounded-3xl border border-zinc-800/50">
+        <div className="flex items-center gap-2 mb-4 px-4">
+          <Activity size={18} className="text-emerald-500" />
+          <h3 className="text-zinc-200 font-bold text-sm uppercase tracking-wider">Mẫu Lộ Trình</h3>
         </div>
 
-        {/* RIGHT BUTTON */}
-        <button
-          onClick={() => scroll("right")}
-          className="absolute -right-5 top-1/2 -translate-y-1/2 z-20
-          bg-white/10 backdrop-blur border border-white/20
-          shadow-lg rounded-full w-10 h-10
-          flex items-center justify-center
-          hover:scale-110 transition"
-        >
-          <ChevronRight size={18} />
-        </button>
+        <div className="relative w-full">
+          {/* LEFT BUTTON */}
+          <button
+            onClick={() => scroll("left")}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-20
+            bg-zinc-950 border border-zinc-800 text-zinc-400
+            shadow-xl rounded-full w-10 h-10
+            flex items-center justify-center
+            hover:text-emerald-400 hover:border-emerald-500/50 transition-all cursor-pointer"
+          >
+            <ChevronLeft size={20} />
+          </button>
 
+          {/* SCROLL AREA */}
+          <div
+            ref={scrollRef}
+            className="flex gap-3 overflow-x-auto scroll-smooth
+            px-12 py-2 no-scrollbar"
+          >
+            {defineProgramTemplate.map((item) => {
+              const isSelected = selectedProgramTemplate["id"] === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setSelectedProgramTemplate(item);
+                    setShowProgramTemplateDetail(true);
+                  }}
+                  className={`whitespace-nowrap px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer border
+                  ${
+                    isSelected
+                    ? "bg-emerald-600 text-white border-emerald-500 shadow-[0_4px_15px_rgba(16,185,129,0.3)] scale-105"
+                    : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-zinc-200 hover:border-zinc-700"
+                  }`}
+                >
+                  {item.name}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* RIGHT BUTTON */}
+          <button
+            onClick={() => scroll("right")}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-20
+            bg-zinc-950 border border-zinc-800 text-zinc-400
+            shadow-xl rounded-full w-10 h-10
+            flex items-center justify-center
+            hover:text-emerald-400 hover:border-emerald-500/50 transition-all cursor-pointer"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
       </div>
 
       <ProgramTemplateDetail
         devMode={devMode}
-        showProgramTemplateDetail={showProgramTemplateDetail} setShowProgramTemplateDetail={setShowProgramTemplateDetail}
+        showProgramTemplateDetail={showProgramTemplateDetail} 
+        setShowProgramTemplateDetail={setShowProgramTemplateDetail}
         selectedProgramTemplate={selectedProgramTemplate}
         setWeekPrograms={setWeekPrograms}
         currentDate={currentDate}

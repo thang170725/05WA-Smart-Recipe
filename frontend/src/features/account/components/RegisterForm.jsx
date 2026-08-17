@@ -1,5 +1,5 @@
-import { useState } from "react"
-import RegisterApi from "../api/RegisterApi"
+import { useState, useEffect } from "react"
+import { RegisterApi, checkEmailApi } from "../api/RegisterApi"
 import SuccessPopup from "../../../components/SuccessPopup"
 import { 
   User, 
@@ -18,8 +18,27 @@ export function RegisterForm({ onCancel, onSwitchToLogin }) {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+
+  // =====================================================
+  // =========== REGISTER FUNCTION WITH NEW USER =========
+  // =====================================================
+  const [form, setForm] = useState({
+    fullname: "",
+    birth_date: "",
+    age: 0,
+    password: "",
+    address: "",
+    phone: "",
+    gender: "",
+    email: ""
+  })
   const handleChange = (e) => {
     const { name, value } = e.target
+
+    if (name == "email") {
+      setEmailError("")
+      setEmailAvailable(false)
+    }
 
     if (name === "birth_date") {
       const age = CalcAge(value)
@@ -36,18 +55,6 @@ export function RegisterForm({ onCancel, onSwitchToLogin }) {
       }))
     }
   }
-
-  // USESTATE'S REGISTERFORM
-  const [form, setForm] = useState({
-    fullname: "",
-    birth_date: "",
-    age: 0,
-    password: "",
-    address: "",
-    phone: "",
-    gender: "",
-    email: ""
-  })
 
   const handleSend = async (e) => {
     e.preventDefault()
@@ -79,8 +86,9 @@ export function RegisterForm({ onCancel, onSwitchToLogin }) {
         throw new Error("Vui lòng nhập địa chỉ")
       }  
 
-      if (!EmailRegExp().test(form.email)){
-        throw new Error("Email không hợp lệ")
+      if (!EmailRegExp().test(form.email)) {
+        setEmailError("Email không hợp lệ")
+        return
       }
 
       await RegisterApi(form)
@@ -92,6 +100,63 @@ export function RegisterForm({ onCancel, onSwitchToLogin }) {
       setLoading(false)
     }
   }
+
+  // ===============================================================================
+  // ======= chức năng bắt lỗi cho email, kiểm tra tồn tại và validate =========
+  // ===============================================================================
+  const [emailError, setEmailError] = useState("")
+  const [checkingEmail, setCheckingEmail] = useState(false)
+  const [emailAvailable, setEmailAvailable] = useState(false)
+
+  const checkEmail = async (email) => {
+    if (!email.trim()) {
+      setEmailError("")
+      setEmailAvailable(false)
+      return
+    }
+  
+    // Kiểm tra format trước
+    if (!EmailRegExp().test(email)) {
+      setEmailError("Email không hợp lệ")
+      setEmailAvailable(false)
+      return
+    }
+  
+    try {
+      setCheckingEmail(true)
+      setEmailError("")
+      setEmailAvailable(false)
+  
+      const response = await checkEmailApi(email)
+  
+      if (response) {
+        setEmailError("Email này đã được đăng ký")
+        setEmailAvailable(false)
+      } else {
+        setEmailError("")
+        setEmailAvailable(true)
+      }
+    } catch (error) {
+      setEmailError("Không thể kiểm tra email")
+      setEmailAvailable(false)
+    } finally {
+      setCheckingEmail(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!form.email.trim()) {
+      setEmailError("")
+      setEmailAvailable(false)
+      return
+    }
+  
+    const timer = setTimeout(() => {
+      checkEmail(form.email)
+    }, 500)
+  
+    return () => clearTimeout(timer)
+  }, [form.email])
 
   return (
     <>
@@ -151,24 +216,48 @@ export function RegisterForm({ onCancel, onSwitchToLogin }) {
           {/* Username - Email */}
           <div className="col-span-3">
             <label className="label-light">
-              Email
+              Email <span className="text-red-700">(*)</span>
             </label>
 
-            <div className="relative mt-1">
-              <User
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                size={18}
-              />
+            <div className="relative mt-1 flex gap-2">
+              <div className="relative flex-1">
+                <User
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={18}
+                />
 
-              <input
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-                type="text"
-                placeholder="Nhập email của bạn"
-                className="input-light pl-10"
-              />
+                <input
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  type="email"
+                  placeholder="Nhập email của bạn"
+                  className={`input-light w-full pl-10 ${
+                    emailError
+                      ? "border-red-400 focus:border-red-500"
+                      : emailAvailable
+                        ? "border-green-400 focus:border-green-500"
+                        : ""
+                  }`}
+                />
+              </div>
+                
+              <button
+                type="button"
+                onClick={() => checkEmail(form.email)}
+                disabled={!form.email || checkingEmail}
+                className="shrink-0 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-600 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {checkingEmail ? "Đang kiểm tra..." : "Kiểm tra"}
+              </button>
             </div>
+                
+            {/* Email error */}
+            {emailError && (
+              <p className="mt-1 text-sm text-red-500">
+                {emailError}
+              </p>
+            )}
           </div>
 
           {/* Password */}
