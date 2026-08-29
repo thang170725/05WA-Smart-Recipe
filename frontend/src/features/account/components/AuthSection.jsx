@@ -1,3 +1,5 @@
+// ========== nơi import thư viện =========
+import { useState } from "react"
 import { LoginForm } from "./LoginForm.jsx"
 import { RegisterForm } from "./RegisterForm.jsx"
 import { Avatar } from "../../../components/Avatar.jsx"
@@ -5,8 +7,12 @@ import { Bell } from "lucide-react";
 import { ForgotPasswordForm } from "./ForgotPasswordPopup"
 import { useAuth } from "../../../context/AuthContext.jsx"
 import { Popup } from "../../../components/Popup.jsx";
+import { AuthorStoryDialog } from "../../../components/AuthorStoryDialog.jsx"
 
 export function AuthSection() {
+  // STATE hiển thị Dialog Lời tâm sự
+  const [showAuthorStory, setShowAuthorStory] = useState(false)
+
   const { 
     user, 
     logout, 
@@ -17,9 +23,13 @@ export function AuthSection() {
     closeAuthModal 
   } = useAuth();
 
-  //
+  // Hàm xử lý sau khi Đăng ký thành công
+  const handleRegisterSuccess = () => {
+    closeAuthModal(); // 1. Đóng Popup Register
+    setShowAuthorStory(true); // 2. Bật Popup Lời tâm sự của tác giả
+  };
+
   // ========== khi đã đăng nhập thành công thì hiện avatar =======
-  //
   if (user) {
     return (
       <div className="flex justify-end items-center gap-3 sm:gap-4">
@@ -46,9 +56,7 @@ export function AuthSection() {
     )
   }
 
-  //
-  // ============ chưa đăng nhập thì hiện nút 2 nút bấm đăng nhập và đăng ký + các popup up điều hướng ============
-  //
+  // ============ chưa đăng nhập ============
   return (
     <>
       <div className="flex justify-end items-center gap-2">
@@ -76,7 +84,7 @@ export function AuthSection() {
             onCancel={closeAuthModal}
             onSwitchToRegister={() => setAuthMode("register")}
             onSwitchToForgotPassword={() => setAuthMode("forgotPassword")}
-            onLoginSuccess={() => closeAuthModal()} // ✅ Sửa thêm cặp dấu ngoặc ()
+            onLoginSuccess={() => closeAuthModal()} 
           />
         </Popup>
       )}
@@ -87,6 +95,7 @@ export function AuthSection() {
           <RegisterForm
             onCancel={closeAuthModal}
             onSwitchToLogin={() => setAuthMode("login")}
+            onRegisterSuccess={handleRegisterSuccess} 
           />
         </Popup>
       )}
@@ -95,6 +104,21 @@ export function AuthSection() {
       {isAuthModalOpen && authMode === "forgotPassword" && (
         <Popup open={isAuthModalOpen} onClose={closeAuthModal} title="Quên mật khẩu">
           <ForgotPasswordForm onCancel={() => setAuthMode("login")} />
+        </Popup>
+      )}
+
+      {/* ✅ Bọc bằng Popup chung để không bị lỗi UI */}
+      {showAuthorStory && (
+        <Popup 
+          open={showAuthorStory} 
+          onClose={() => {
+            setShowAuthorStory(false);
+            if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+          }} 
+          title="Lời tâm sự từ Tác giả" 
+          maxWidth="max-w-2xl"
+        >
+          <AuthorStoryDialog onClose={() => setShowAuthorStory(false)} />
         </Popup>
       )}
     </>

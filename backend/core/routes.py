@@ -1,4 +1,4 @@
-# from backend.modules.user import routes as user
+from backend.modules.user import routes as user
 # from backend.modules.ingredients import routes as ingredients
 # from backend.modules.meals import routes as meals
 # from backend.modules.workout import routes as workout

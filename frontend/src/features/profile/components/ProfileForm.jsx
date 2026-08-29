@@ -23,18 +23,6 @@ import { UploadAvatarApi, UpdateProfileApi, UpdatePassword,
 import { BASE_URL } from "../../../services/JsonApi";
 
 /* ---------------- MOCK DATA ---------------- */
-const mockUser = {
-  id: 15,
-  fullname: "Lê Đức Thắng",
-  address: "Bắc Giang, Việt Nam",
-  birth_date: "2000-05-20",
-  phone: "0987654321",
-  avatar_url: "",
-  created_at: "2025-12-12",
-  gender: "male",
-  activity_level: "moderate",
-  target_goal: "gain_muscle",
-};
 
 export default function ProfileForm({ devMode }) {
   const [editMode, setEditMode] = useState(false);
@@ -44,13 +32,28 @@ export default function ProfileForm({ devMode }) {
   // ==== chức năng lấy thông tin user + height, weight ========
   // ============================================================
   const { _ , updateAvatar} = useAuth()
-  const [user, setUser] = useState()
+  const [user, setUser] = useState({
+    id: "",
+    role: "",
+    email: "",
+    created_at: "",
+    avatar_url: "",
+    fullname: "",
+    address: "",
+    phone: "",
+    birth_date: "",   
+    gender: "",
+    activity_level: "",
+    target_goal: "",
+    height: "",
+    weight: "",
+    password: ""
+  })
   // API 
   useEffect(() => {
     const loadApi = async () => {
       const res = await GetAllProfile()
 
-      console.log(res)
       setUser(res)
     }
     
@@ -76,19 +79,6 @@ export default function ProfileForm({ devMode }) {
         setEditMode(false);
       }
 
-      // if (editPassword && profile.password.trim() !== "") {
-      //   await UpdatePassword({
-      //     password: profile.password
-      //   });
-
-      //   setProfile(prev => ({
-      //     ...prev,
-      //     password: ""
-      //   }));
-
-      //   setEditPassword(false);
-      // }
-
       alert("Cập nhật thành công!");
     } catch (err) {
       setEditMode(false)
@@ -97,20 +87,6 @@ export default function ProfileForm({ devMode }) {
     }
   };
   
-
-  useEffect(() => {
-  if (user) {
-    setProfile({
-      ...user,
-      avatar_url: user.avatar_url || "https://i.pravatar.cc/300",
-    });
-  } else {
-    setProfile(mockUser);
-  }
-}, [user]);
-
-  
-
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return
@@ -300,7 +276,7 @@ export default function ProfileForm({ devMode }) {
           icon={Lock}
           type="password"
           name="password"
-          value={profile.password}
+          value={user.password}
           onChange={handleChange}  
           disabled={!editPassword}
         />

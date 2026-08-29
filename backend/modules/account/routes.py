@@ -1,5 +1,17 @@
+#
+# ======= nơi setup logging =====
+#
+import logging
+from backend.config.logging import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
+#
+# ======= nơi import thư viện =====
+#
 from backend.config.database import get_db
 from backend.modules.account import services
+from backend.core.security import create_access_token
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +21,7 @@ router = APIRouter(prefix="/account", tags=["Account"])
 # ========================================
 # ============ chức năng đăng ký =========
 # ========================================
+# API để check email tồn tại hay chưa. mỗi email chỉ được có 1 tài khoản
 @router.get('/check-email')
 async def check_email(
     email: str,
@@ -19,22 +32,47 @@ async def check_email(
     '''
     return await services.check_email_service(db, email)
 
-# @router.post('/register', response_model=OutputRegisterSchema)
-# async def register(
-#     payload: InputRegisterSchema,
-#     db: Session = Depends(get_db)
-# ):
-#     result = account_service.register(db, payload.model_dump(exclude_unset=True))
-#     return {"status": "success" if result else "failed"}
+# API để đăng ký tài khoản
+@router.post('/register')
+async def register(
+    payload: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    logger.debug(payload)
+    user =  await services.register_service(db, payload)
+    return user
 
-# # LOGIN
-# @router.post('/login')
-# async def login(
-#     payload: InputLoginSchema,
+# API để đăng nhập tài khoản
+@router.post('/login')
+async def login(
+    payload: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    logger.debug(payload)
+    user = await services.login_service(db, payload)
+    logger.debug(user)
+    access_token = create_access_token(data={"sub": str(user.id)})
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user
+    }
+
+# # LOGIN AS GOOGLE CLIENT 
+# @router.post("/login/google")
+# async def login_google(
+#     payload: dict,
 #     db: Session = Depends(get_db)
 # ):
-#     user = account_service.login(db, payload.username, payload.password)
-    
+#     user = account_service.authenticate_google(db, payload["token"])
+
+#     if not user:
+#         raise HTTPException(
+#             status_code=401,
+#             detail="Invalid Google token"
+#         )
+
 #     access_token = create_access_token(
 #         data={"sub": str(user.id)}
 #     )
@@ -45,7 +83,7 @@ async def check_email(
 #         "user": user
 #     }
 
-# # LOGIN AS GOOGLE CLIENT 
+# LOGIN AS GOOGLE CLIENT 
 # @router.post("/login/google")
 # async def login_google(
 #     payload: dict,

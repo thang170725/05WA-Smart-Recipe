@@ -23,7 +23,7 @@ export function LoginForm({ onCancel, onLoginSuccess, onSwitchToRegister, onSwit
 
   // USESTATE
   const [form, setForm] = useState({
-    username: "",
+    email: "",
     password: ""
   })
   const { setUser } = useAuth()
@@ -61,8 +61,8 @@ export function LoginForm({ onCancel, onLoginSuccess, onSwitchToRegister, onSwit
           <div className="relative mt-1">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
-              name="username"
-              value={form.username}
+              name="email"
+              value={form.email}
               onChange={handleChange}
               type="text"
               placeholder="Nhập email của bạn"

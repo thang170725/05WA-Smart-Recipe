@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, Float, String, TIMESTAMP, ForeignKey, Enum, text
-from backend.core.database import Base
+from backend.config.database import Base
 
 
 class HealthMetric(Base):
