@@ -21,18 +21,10 @@ async def get_by_email(email: str, db: AsyncSession):
 
 # lấy toàn bộ thông tin người dùng dựa vào id
 async def get_info_user_repo(db: AsyncSession, user_id: int):
-    stmt = (
-        select(User, HealthMetric.height, HealthMetric.weight)
-        .join(HealthMetric, HealthMetric.user_id == User.id)
-        .where(User.id == user_id, HealthMetric.user_id == user_id)
-        .order_by(HealthMetric.recorded_at.desc())
-    )
-
-    result = await db.execute(stmt)
-    result = result.first()
-    if not result:
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
         return None
-    user, height, weight = result
         
     return {
         "id": user.id,
@@ -47,8 +39,8 @@ async def get_info_user_repo(db: AsyncSession, user_id: int):
         "gender": user.gender,
         "activity_level": user.activity_level,
         "target_goal": user.target_goal,
-        "height": height,
-        "weight": weight,
+        "height": user.current_height,
+        "weight": user.current_weight,
         "password": ""
     }
 
@@ -60,7 +52,7 @@ async def update_user_repository(
     user_id: int, 
     payload: InputUpdateProfileSchema
 ):
-    user = await db.excute(select(User).where(User.id == user_id))
+    user = await db.execute(select(User).where(User.id == user_id))
     user = user.scalar_one_or_none()
     if user is None:
         raise ValueError("user not found")
@@ -160,14 +152,12 @@ async def update_address_repo(db, user_id, new_address: str):
     return user
 
 
-async def update_password(self, db: AsyncSession, user: User, new_password: str):
-
+# thay đổi password mới
+async def update_password(user: User, new_password: str):
     user.password = new_password
 
-    await db.commit()
 
-
-async def update_avatar(self, db, user_id: int, avatar_url: str):
+async def update_avatar(db, user_id: int, avatar_url: str):
 
     result = await db.execute(
         select(User).where(User.id == user_id)
@@ -189,7 +179,7 @@ async def update_avatar(self, db, user_id: int, avatar_url: str):
 
 
 # cập nhật ngày tháng năm sinh
-async def update_birth_date_repo(self, db, user_id, new_birth_date):
+async def update_birth_date_repo(db, user_id, new_birth_date):
 
     user = await db.get(User, user_id)
 

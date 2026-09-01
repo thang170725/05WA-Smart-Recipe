@@ -36,7 +36,6 @@ def create_app() -> FastAPI:
         # Routers
         app.include_router(routes.account.router)
         app.include_router(routes.user.router)
-        app.include_router(routes.ingredients.router)
         app.include_router(routes.meals.router)
         app.include_router(routes.workout.router)
         app.include_router(routes.dashboard.router)

@@ -12,6 +12,7 @@ const Docs = lazy(() => import("../pages/DocsPage.jsx"))
 const Platform = lazy(() => import("../pages/PlatformPage.jsx"))
 const Dashboard = lazy(() => import("../pages/DashboardPage.jsx"))
 const Test = lazy(() => import("../pages/TestPage.jsx"))
+const AIHealthAssessment = lazy(() => import("../pages/AIHealthAssessmentPage.jsx"))
 
 export function AppRoutes({ user }) {
   return (
@@ -25,7 +26,8 @@ export function AppRoutes({ user }) {
         <Route path="/docs" element={<Docs />} />
         <Route path="/platform" element={<Platform />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/test" elment={<Test />} />
+        <Route path="/test" element={<Test />} />
+        <Route path="/ai-health-assessment" element={<AIHealthAssessment />} />
       </Routes>
     </Suspense>
   )

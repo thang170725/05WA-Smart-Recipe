@@ -115,9 +115,26 @@ Câu: "{original_text}"
 Nếu không chắc chắn → confidence < 0.7
 """
 
-def get_llm(option: str = "local"):
+# chỉ định chọn model nào
+def get_llm(
+    option: str = "local", 
+    name_local: str = "Qwen/Qwen2.5-1.5B-Instruct",
+    temperature:float=0.7
+):
+    '''
+    Input:
+    - temperature=float: độ sáng tạo của mô hình
+    '''
     if option == "local":
         return ChatOllama(
+            model=name_local,
+            temperature=temperature,
+            request_timeout=60,
+            # TỐI ƯU VRAM/RAM TẠI ĐÂY:
+            num_ctx=2048,        # Giới hạn context window xuống 2048 tokens (đủ dùng cho Chatbot)
+            num_thread=4,        # Giới hạn số luồng CPU xử lý khi bị tràn RAM (giúp máy không bị đơ)
+            keep_alive="5m"      # Giải phóng RAM sau 5 phút không có request
+        ) if name_local else ChatOllama(
             model="qwen:1.8b",
             temperature=0,
             request_timeout=60,
@@ -130,7 +147,7 @@ def get_llm(option: str = "local"):
         return ChatGoogleGenerativeAI(
             model="models/gemini-2.5-flash",
             google_api_key=api_key,
-            temperature=0,
+            temperature=temperature,
             request_timeout=60
         )
 

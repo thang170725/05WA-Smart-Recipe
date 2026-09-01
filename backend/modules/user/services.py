@@ -117,7 +117,9 @@ async def get_fullname_service( db: AsyncSession, user_id ):
 async def update_password( db: AsyncSession, user: User, password: str ): 
     try: 
         hashed_password = hash_password(password) 
-        await repositories.update_password( db, user, hashed_password ) 
+        await repositories.update_password(user, hashed_password) 
+
+        await db.commit()
     except Exception as e: 
         await db.rollback() 
         raise ValueError(e) 

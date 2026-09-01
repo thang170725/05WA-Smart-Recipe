@@ -1,3 +1,6 @@
+#
+# ========== nơi import thư viện ========== 
+# 
 from datetime import datetime
 from sqlalchemy import (
     Column,
@@ -18,7 +21,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from backend.core.database import Base
+from backend.config.database import Base
+from backend.modules.user.models import User
 
 
 # =============================

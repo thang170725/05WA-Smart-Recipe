@@ -10,9 +10,11 @@ select * from food_library_category flc;
 select * from workout_plans;
 select * from workout_sets ws ;
 select * from workout_plan_items;
-select * from categories c;
+
 select * from exercises e ;
 select * from exercises_categories ec ;
+select * from categories c;
+
 select * from ai_tool_registry atr;
 
 select * from platform p ;
@@ -22,6 +24,8 @@ select * from meal_plan_items mpi;
 select * from meal_plans mp;
 select * from user_meals um;
 select * from food_library fl;
+select * from food_library_category flc;
+
 
 -- 4. MUSCLE DISTRIBUTION: xem user tập nhóm cơ nào nhiều nhất
 SELECT
@@ -146,6 +150,8 @@ CREATE TABLE users (
 	activity_level enum('sedentary', 'light', 'moderate', 'active', 'very_active'), 
 	target_goal enum('lose_weight', 'gain_muscle', 'maintenance'),
 	avatar_url varchar(255),
+	current_height float not null,
+	current_weight float not null;
 	
 	unique key uq_users_email (email)
 ) ENGINE=InnoDB;
@@ -178,7 +184,9 @@ CREATE TABLE food_library (
     ingredients_json json,
     instructions_json json,
     cooking_time int,
-    difficulty enum('easy', 'medium', 'hard')
+    difficulty enum('easy', 'medium', 'hard'),
+    
+    CONSTRAINT uq_food_library_name UNIQUE (name)
 ) ENGINE=InnoDB;
 
 CREATE TABLE food_library_category (

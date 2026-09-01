@@ -1,11 +1,14 @@
+# 
+# ===== nơi import thư viện ======= 
+# 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.modules.user.models import User
-from backend.core.database import get_db
+from backend.config.database import get_db
 from backend.modules.ai.ai_assistant_service.app.ai import AIAssistantService, PENDING_ACTIONS
 from backend.modules.ai.ai_assistant_service.app.schemas import InputAiAssistantSchema, ConfirmSchema
-from backend.modules.user.dependencies import get_current_user
+from backend.modules.account.dependencies import get_current_user
 
 router = APIRouter(prefix="/ai", tags=["AIAssistant"])
 
@@ -13,7 +16,7 @@ router = APIRouter(prefix="/ai", tags=["AIAssistant"])
 async def chat(
     message: InputAiAssistantSchema,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     ai_assistant = AIAssistantService(
         current_user=current_user,
@@ -54,7 +57,7 @@ async def chat(
 async def confirm_action(
     action: ConfirmSchema,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     pending = PENDING_ACTIONS.get(action.action_id)
 

@@ -12,8 +12,13 @@ logger = logging.getLogger(__name__)
 from backend.config.database import get_db
 from backend.modules.account import services
 from backend.core.security import create_access_token
+from backend.modules.user.schemas import (
+    InputSendEmailSchema,
+    InputVerifyOtpSchema,
+    InputResetPasswordSchema
+)
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/account", tags=["Account"])
@@ -59,137 +64,79 @@ async def login(
         "user": user
     }
 
-# # LOGIN AS GOOGLE CLIENT 
-# @router.post("/login/google")
-# async def login_google(
-#     payload: dict,
-#     db: Session = Depends(get_db)
-# ):
-#     user = account_service.authenticate_google(db, payload["token"])
+# LOGIN AS GOOGLE CLIENT 
+@router.post("/login/google")
+async def login_google(
+    payload: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    user = await services.authenticate_google(db, payload["token"])
 
-#     if not user:
-#         raise HTTPException(
-#             status_code=401,
-#             detail="Invalid Google token"
-#         )
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid Google token"
+        )
 
-#     access_token = create_access_token(
-#         data={"sub": str(user.id)}
-#     )
+    access_token = create_access_token(
+        data={"sub": str(user.id)}
+    )
 
-#     return {
-#         "access_token": access_token,
-#         "token_type": "bearer",
-#         "user": user
-#     }
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user
+    }
 
 # LOGIN AS GOOGLE CLIENT 
-# @router.post("/login/google")
-# async def login_google(
-#     payload: dict,
-#     db: Session = Depends(get_db)
-# ):
-#     user = account_service.authenticate_google(db, payload["token"])
+@router.post("/login/google")
+async def login_google(
+    payload: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    user = await services.authenticate_google(db, payload["token"])
 
-#     if not user:
-#         raise HTTPException(
-#             status_code=401,
-#             detail="Invalid Google token"
-#         )
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid Google token"
+        )
 
-#     access_token = create_access_token(
-#         data={"sub": str(user.id)}
-#     )
+    access_token = create_access_token(
+        data={"sub": str(user.id)}
+    )
 
-#     return {
-#         "access_token": access_token,
-#         "token_type": "bearer",
-#         "user": user
-#     }
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user
+    }
 
-# # =======================================
-# # ===== PROFILE API =====
-# # =======================================
-# # lấy profile 
-# @router.get("/get-profile", response_model=OutputProfileUserSchema)
-# async def get_profile(current_user = Depends(get_current_user)):
-#     return current_user
 
-# # lấy profile + weight, height
-# @router.get("/get-all-profile")
-# async def get_profile(
-#     db: Session = Depends(get_db),
-#     current_user: User = Depends(get_current_user)
-# ):
-#     return user_service.get_info_user_service(db, current_user.id)
+# ===========================
+# ===== FORGOT PASSWORD =====
+# ===========================
+@router.post("/send-email")
+async def send_email(
+    payload: InputSendEmailSchema,
+    db: AsyncSession = Depends(get_db)
+):
+    await services.forgot_password_service(db, payload.email)
+    return {"message": "OTP sent"}
 
-# # cập nhật prfile cơ bản
-# @router.put('/update-profile')
-# def update_profile(
-#     payload: InputUpdateProfileSchema,
-#     current_user: User = Depends(get_current_user),
-#     db: Session = Depends(get_db)
-# ): 
-#     return user_service.update_profile_service(
-#         db, 
-#         current_user.id, 
-#         payload)
+# xác thực otp
+@router.post("/verify-otp")
+async def verify_email(
+    payload: InputVerifyOtpSchema,
+    db: AsyncSession = Depends(get_db)
+):
+    return await services.verity_otp_service(
+        db, payload.email, payload.otp)
 
-# @router.post("/upload-avatar")
-# async def upload_avatar(
-#     avatar_url: UploadFile = File(...),
-#     current_user: User = Depends(get_current_user), 
-#     db: Session = Depends(get_db)
-# ):
-#     avatar_url = user_service.upload_avatar(
-#         db=db,
-#         user_id=current_user.id,
-#         file=avatar_url,
-#         avatars_path=avatars_path
-#     )
-
-#     return {
-#         "avatar_url": avatar_url
-#     }
-
-# # =======================================
-# # ===== POST / PUT / INSERT / UPDATE =====
-# # =======================================
-
-# # UPDATE PASSWORD
-# @router.put("/update-password")
-# def update_password(
-#     payload: InputUpdatePasswordSchema,
-#     current_user: User = Depends(get_current_user),
-#     db: Session = Depends(get_db),
-# ):
-#     user_service.update_password(db, current_user, payload.password)
-#     return {"message": "Password updated"}
-
-# # ===========================
-# # ===== FORGOT PASSWORD =====
-# # ===========================
-# @router.post("/send-email")
-# def send_email(
-#     payload: InputSendEmailSchema,
-#     db: Session = Depends(get_db)
-# ):
-#     account_service.forgot_password_service(db, payload.email)
-#     return {"message": "OTP sent"}
-
-# # xác thực otp
-# @router.post("/verify-otp")
-# def verify_email(
-#     payload: InputVerifyOtpSchema,
-#     db: Session = Depends(get_db)
-# ):
-#     return account_service.verity_otp_service(
-#         db, payload.email, payload.otp)
-
-# # reset password
-# @router.post("/reset-password")
-# def reset_password(
-#     payload: InputResetPasswordSchema,
-#     db: Session = Depends(get_db) 
-# ):
-#     return account_service.reset_password_service(db, payload.email, payload.new_password)
+# reset password
+@router.post("/reset-password")
+def reset_password(
+    payload: InputResetPasswordSchema,
+    db: AsyncSession = Depends(get_db) 
+):
+    return services.reset_password_service(db, payload.email, payload.new_password)

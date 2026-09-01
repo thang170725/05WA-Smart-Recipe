@@ -13,7 +13,7 @@ from sqlalchemy import (
     Float
 )
 from sqlalchemy.sql import func
-from backend.core.database import Base
+from backend.config.database import Base
 
 class FoodLibrary(Base):
     __tablename__ = "food_library"

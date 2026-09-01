@@ -1,4 +1,4 @@
-from backend.core.database import Base
+from backend.config.database import Base
 from sqlalchemy import (
     Column,
     String,

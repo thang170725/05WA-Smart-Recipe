@@ -45,7 +45,7 @@ function TimerPopup({ exercise, setIndex, onDone, onClose }) {
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="bg-zinc-950 border border-zinc-800 rounded-[2rem] p-8 w-full max-w-sm shadow-2xl shadow-emerald-900/10 relative"
+        className="bg-zinc-950 border border-zinc-800 rounded-4xl p-8 w-full max-w-sm shadow-2xl shadow-emerald-900/10 relative"
       >
         <button
           onClick={onClose}

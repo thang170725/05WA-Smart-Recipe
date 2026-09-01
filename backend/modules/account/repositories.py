@@ -37,34 +37,35 @@ async def check_email_repository(db: AsyncSession, email:str):
 
     return result.scalar()
 
-
-# class AccountRepository:
-#     def get_by_google_id(self, db: Session, google_id: str) -> User | None:
-#         return db.query(User).filter(User.google_id == google_id).first()
+async def get_by_google_id(db: AsyncSession, google_id: str) -> User | None:
+    user = await db.execute(
+        select(User).where(User.google_id == google_id)
+    )
+    return user.scalar_one_or_none()
     
-#     def verify_otp_repo(self, db: Session, email:str, otp: str):
-#         record = db.query(OTP).filter(
-#             OTP.email == email,
-#             OTP.otp == otp,
-#             OTP.is_used == False,
-#             OTP.expires_at > datetime.now(timezone.utc)
-#         ).first()
+async def verify_otp_repo(db: AsyncSession, email:str, otp: str):
+    record = await db.execute(OTP).where(
+        OTP.email == email,
+        OTP.otp == otp,
+        OTP.is_used == False,
+        OTP.expires_at > datetime.now(timezone.utc)
+    )
+    record = record.first()
 
-#         return record
-    
-#     # ===============================
-#     # ===== INSERT / POST / WRITE =======
-#     # ===============================
-#     def insert_otp_repo(self, db: Session, email, generate_otp):
-#         otp = OTP(
-#             email=email,
-#             otp=generate_otp,
-#             expires_at = (datetime.now(timezone.utc) + timedelta(minutes=5)).replace(tzinfo=None),
-#             is_used=False
-#         )
-#         db.add(otp)
-#         db.flush()
+    return record
 
-#         return otp
+# ===============================
+# ===== INSERT / POST / WRITE =======
+# ===============================
+async def insert_otp_repo(db: AsyncSession, email, generate_otp):
+    otp = OTP(
+        email=email,
+        otp=generate_otp,
+        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=5)).replace(tzinfo=None),
+        is_used=False
+    )
+    await db.add(otp)
+    await db.flush()
+    return otp
 
     

@@ -87,7 +87,7 @@ export function Content({ devMode }) {
     <div className="min-h-screen text-zinc-300 mx-5 my-5">
       
       {/* HEADER SECTION */}
-      <div className="border-b border-zinc-800 bg-zinc-950/50 sticky top-0 z-40 backdrop-blur-md rounded-4xl">
+      <div className="border-b border-zinc-800 bg-[#171c2c]/50 sticky top-0 z-40 backdrop-blur-md rounded-4xl">
         <div className="max-w-8xl mx-auto px-6 py-6 lg:py-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
@@ -119,14 +119,14 @@ export function Content({ devMode }) {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
             <input
               placeholder="Tìm kiếm kinh nghiệm giảm cân, tăng cơ..."
-              className="w-full bg-zinc-900/80 border border-zinc-800 text-zinc-200 placeholder-zinc-500 py-3 pl-12 pr-4 rounded-xl focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 transition-all text-sm"
+              className="w-full bg-[#171c2c]/50 border border-zinc-800 text-zinc-200 placeholder-zinc-500 py-3 pl-12 pr-4 rounded-xl focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 transition-all text-sm"
             />
           </div>
         </div>
       </div>
 
       {/* MAIN CONTENT AREA */}
-      <div className="px-6 py-8 bg-zinc-900/60 border border-zinc-800 rounded-2xl my-5">
+      <div className="px-6 py-8 bg-[#171c2c]/50 border border-zinc-800 rounded-2xl my-5">
         <div className="grid lg:grid-cols-12 gap-8 lg:gap-12">
           
           {/* =========== FEED BÀI VIẾT (CỘT TRÁI) =========== */}
@@ -134,12 +134,12 @@ export function Content({ devMode }) {
             {listPost.map((item, index) => (
               <div
                 key={index}
-                className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 sm:p-6 hover:border-zinc-700 transition-colors shadow-sm shadow-amber-50"
+                className="bg-[#171c2c]/50 border border-zinc-800 rounded-2xl p-5 sm:p-6 hover:border-zinc-700 transition-colors shadow-sm shadow-amber-50"
               >
                 {/* Header Bài viết */}
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex gap-3 items-center">
-                    <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700">
+                    <div className="w-10 h-10 rounded-full bg-[#171c2c]/50 flex items-center justify-center border border-zinc-700">
                       <User className="text-zinc-400" size={20} />
                     </div>
                     <div>
@@ -199,9 +199,9 @@ export function Content({ devMode }) {
                   <div className="flex gap-3 pt-2">
                     <input
                       placeholder="Thêm bình luận..."
-                      className="flex-1 bg-zinc-950 border border-zinc-800 text-zinc-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-emerald-500/50 transition-colors"
+                      className="flex-1 bg-[#171c2c]/50 border border-zinc-800 text-zinc-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-emerald-500/50 transition-colors"
                     />
-                    <button className="bg-zinc-800 hover:bg-emerald-600 text-zinc-300 hover:text-white px-4 rounded-xl transition-colors flex items-center justify-center cursor-pointer">
+                    <button className="bg-[#171c2c]/50 hover:bg-emerald-600 text-zinc-300 hover:text-white px-4 rounded-xl transition-colors flex items-center justify-center cursor-pointer">
                       <Send size={16} />
                     </button>
                   </div>
@@ -214,7 +214,7 @@ export function Content({ devMode }) {
           <div className="lg:col-span-4 space-y-6 ">
             
             {/* Widget Trending */}
-            <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 shadow-sm shadow-amber-50">
+            <div className="bg-[#171c2c]/50 border border-zinc-800 rounded-2xl p-6 shadow-sm shadow-amber-50">
               <div className="flex items-center gap-2 mb-5">
                 <TrendingUp size={18} className="text-emerald-500" />
                 <h3 className="font-bold text-zinc-100">Đang thịnh hành</h3>
@@ -240,7 +240,7 @@ export function Content({ devMode }) {
             </div>
 
             {/* Widget Topics */}
-            <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 shadow-sm shadow-amber-50">
+            <div className="bg-[#171c2c]/50 border border-zinc-800 rounded-2xl p-6 shadow-sm shadow-amber-50">
               <div className="flex items-center gap-2 mb-5">
                 <Hash size={18} className="text-emerald-500" />
                 <h3 className="font-bold text-zinc-100">Chủ đề nổi bật</h3>
@@ -260,7 +260,7 @@ export function Content({ devMode }) {
             </div>
 
             {/* Widget Stats */}
-            <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 relative overflow-hidden shadow-sm shadow-amber-50">
+            <div className="bg-[#171c2c]/50 border border-zinc-800 rounded-2xl p-6 relative overflow-hidden shadow-sm shadow-amber-50">
               <h3 className="font-bold text-zinc-100 mb-4">Cộng đồng</h3>
               <div className="grid grid-cols-2 gap-4 text-center">
                 <div className="bg-zinc-950 rounded-xl p-3 border border-zinc-800">

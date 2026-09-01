@@ -31,8 +31,9 @@ export async function UpdateProfileApi(devMode, profile) {
 export async function UpdatePassword(password) {
     return await JsonApi("/user/update-password", {
       method: "PUT",
-      body: password,
-    }); 
+      body: {
+        password: password,
+    }}); 
 }
 
 export async function UploadAvatarApi (formData) {

@@ -1,3 +1,14 @@
+#
+# ======= nơi import logging ======
+#
+import logging
+from backend.config.logging import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
+#
+# ======= nơi import thư viện =====
+#
 import asyncio
 import uuid
 from typing import Annotated, TypedDict, List, Dict, Any, Optional
@@ -11,24 +22,15 @@ from backend.modules.ai.ai_assistant_service.tools import (
     get_relevant_tools_by_rag_mysql, handle_read_tool_execution, handle_write_tool_execution,
     WRITE_TOOL_MAP, READ_TOOL_MAP
 )
+from backend.modules.ai.ai_assistant_service.app.core.base import (
+    classify_intent_node, friendly_answer_node,
+    route_after_classify,
+     
+)
+from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
 
 PENDING_ACTIONS = {}
 
-# =================================================================
-# 1. ĐỊNH NGHĨA STATE CHO LANGGRAPH
-# State này sẽ chạy xuyên suốt qua các Node để truyền dữ liệu
-# =================================================================
-class AgentState(TypedDict):
-    messages: Annotated[list[AnyMessage], add_messages]
-    db: Any
-    current_user: Any
-    llm: Any
-    relevant_tools: List[Any]
-    
-    # Kết quả trả ra cuối cùng cho API
-    final_status: Optional[str]
-    final_message: Optional[str]
-    action_id: Optional[str]
 
 # =================================================================
 # 2. ĐỊNH NGHĨA CÁC NODES (Trạm xử lý)
@@ -152,10 +154,22 @@ def route_after_llm(state: AgentState) -> str:
 # 4. CLASS SERVICE CHÍNH KHỞI TẠO GRAPH
 # =================================================================
 class AIAssistantService:
-    def __init__(self, current_user=None, db: Session = None, option: str = "key"):
+    def __init__(self, 
+    current_user=None, 
+    db: Session = None, 
+    option: str = "key", 
+    name_local="qwen2.5:1.5b",
+    temperature=0.7
+    ):
         self.current_user = current_user
         self.db = db
-        self.llm = get_llm(option=option)
+        
+        self.llm = get_llm(
+            option=option,
+            name_local=name_local,
+            temperature=temperature
+        )
+
         self.graph = self._build_graph()
 
     def _build_graph(self):
@@ -163,14 +177,29 @@ class AIAssistantService:
         workflow = StateGraph(AgentState)
         
         # Thêm các Node
+        workflow.add_node("classify_intent", classify_intent_node)
+        workflow.add_node("friendly_answer", friendly_answer_node)
         workflow.add_node("retrieve", retrieve_tools_node)
         workflow.add_node("call_llm", call_llm_node)
         workflow.add_node("handle_read", execute_read_node)
         workflow.add_node("handle_write", execute_write_node)
         workflow.add_node("handle_chat", handle_no_tool_node)
         
+        # 3. tạo đường kết nối
+        workflow.add_edge(START, "classify_intent")
+        # 3.1. Rẽ nhánh sau khi Classify
+        workflow.add_conditional_edges(
+            "classify_intent",
+            route_after_classify,
+            {
+                "need_tools": "retrieve", # Nếu cần Tool -> Đi bốc Tool từ DB
+                "friendly_chat": "friendly_answer"  # Nếu chat bình thường -> Bỏ qua retrieve, đi thẳng sang gọi LLM
+            }
+        )
+        # 3.2 Ngắt luồng ngay sau khi friendly_answer chạy xong
+        workflow.add_edge("friendly_answer", END)
+
         # Vẽ đường kết nối (Edges)
-        workflow.add_edge(START, "retrieve")
         workflow.add_edge("retrieve", "call_llm")
         
         # Điều hướng rẽ nhánh
@@ -193,7 +222,7 @@ class AIAssistantService:
 
     async def run_pipline(self, input_text: str):
         """Hàm kích hoạt Graph (Endpoint chính)"""
-        print(f"\n[AI Agent] Nhận yêu cầu: '{input_text}'")
+        logger.debug(f"\n[AI Agent] Nhận yêu cầu: '{input_text}'")
         
         # Khởi tạo dữ liệu đầu vào cho State
         initial_state = {
@@ -202,6 +231,7 @@ class AIAssistantService:
             "current_user": self.current_user,
             "llm": self.llm,
             "relevant_tools": [],
+            'intent': None,
             "final_status": None,
             "final_message": None,
             "action_id": None
@@ -245,3 +275,4 @@ class AIAssistantService:
             return {"status": "success", "message": result.get("message")}
             
         return {"status": "error", "message": "Thực thi cập nhật dữ liệu thất bại."}
+    

@@ -1,8 +1,11 @@
+# 
+# ======= nơi import thư viện ======
+# 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
-from backend.modules.user.dependencies import get_current_user
-from backend.core.database import get_db
-from backend.modules.platform.service import PlatformService
+from sqlalchemy.ext.asyncio import AsyncSession
+from backend.modules.account.dependencies import get_current_user
+from backend.config.database import get_db
+from backend.modules.platform import services
 from backend.modules.user.models import User
 from backend.modules.platform.schemas import (
     InputCreatePostSchema,
@@ -13,47 +16,46 @@ from backend.modules.platform.schemas import (
 )
 
 router = APIRouter(prefix="/platform", tags=["Platform"])
-service = PlatformService()
 
 # ====================
 # ====== GET =========
 # ====================
 # lấy các bài post
 @router.get("/get-posts", response_model=list[OutputGetPostSchema])
-def get_posts(
-    db: Session = Depends(get_db)
+async def get_posts(
+    db: AsyncSession = Depends(get_db)
 ):
-    return service.get_posts_service(db)
+    return await services.get_posts_service(db)
 
 # lấy comment của 1 bài post
 @router.get("/get-comments", response_model=OutputGetCommmentSchema)
-def get_comments(
+async def get_comments(
     platform_id: int,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
-    return service.get_comments_service(db, platform_id)
+    return await services.get_comments_service(db, platform_id)
 
 # ====================
 # ======= POST =======
 # ====================
 # tạo bài đăng mới
 @router.post("/create-post", response_model=OutputCreatePostSchema)
-def create_post(
+async def create_post(
     payload: InputCreatePostSchema,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return service.create_post_service(db, current_user.id, payload)
+    return await services.create_post_service(db, current_user.id, payload)
 
 # viết bình luận
 @router.post("/write-comment")
-def write_comment(
+async def write_comment(
     payload: InputWriteCommentSchema,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     try:
-        service.write_comment_service(db, current_user.id, payload)
+        await services.write_comment_service(db, current_user.id, payload)
         return {'status': 'successed'}
     except:
         return {'status': 'failed'}
@@ -63,10 +65,10 @@ def write_comment(
 # RATE
 # =============================
 @router.post("/{post_id}/rating")
-def rate_post(
+async def rate_post(
     post_id: int,
     body: dict,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     user_id = 1
-    return service.rate_post(db, post_id, user_id, body["rating"])
+    return await services.rate_post(db, post_id, user_id, body["rating"])

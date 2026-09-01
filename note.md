@@ -1,6 +1,8 @@
 - [Blog giới thiệu về sản phẩm](#blog-giới-thiệu-về-sản-phẩm)
 - [luồng hoạt động](#luồng-hoạt-động)
   - [chức năng đăng ký](#chức-năng-đăng-ký)
+  - [chức năng update lên bản trả phí](#chức-năng-update-lên-bản-trả-phí)
+  - [luồng chức năng đánh giá AI và dự phóng mục tiêu](#luồng-chức-năng-đánh-giá-ai-và-dự-phóng-mục-tiêu)
 ---
 **Tên đề tài: Smart-Recipe: trợ lý ảo dinh dưỡng**
 ```bash
@@ -28,4 +30,69 @@ Tiêu đề: Hành trình từ một sinh viên mệt mỏi đến trợ lý s�
 ## chức năng đăng ký
 ```bash
 user nhập thông tin -> xác thực -> be -> xác thực -> db -> be -> fe -> (1) xác thực thành công
+```
+## chức năng update lên bản trả phí
+```bash
+┌────────────────────────────────────────┐
+│    Người dùng Đăng nhập thành công      │
+└───────────────────┬────────────────────┘
+                    │
+                    ▼
+┌──────────────────────────────────────────────────┐
+│ Mặc định: Giao diện gắn Badge "FREE"             │
+│ Thấy Button "Nâng cấp Pro" (Góc Header/Profile)  │
+└───────────────────┬──────────────────────────────┘
+                    │
+                    ▼ (User click "Nâng cấp Pro")
+┌──────────────────────────────────────────────────┐
+│ Popup / Modal: Bảng giá & So sánh Quyền lợi       │
+│ [Free vs Pro (AI Co-pilot, Không giới hạn)]     │
+└───────────────────┬──────────────────────────────┘
+                    │
+                    ▼ (User chọn gói Pro & Click "Thanh toán")
+┌──────────────────────────────────────────────────┐
+│ Popup Thanh toán (Checkout Modal - Mock Data)    │
+│ - Mã QR Chuyển khoản (VietQR / Momo / ZaloPay)   │
+│ - Mã giao dịch & Thông tin tài khoản mẫu        │
+│ - Countdown Timer (15 phút)                      │
+└───────────────────┬──────────────────────────────┘
+                    │
+                    ▼ (User click "Đã hoàn thành chuyển khoản")
+┌──────────────────────────────────────────────────┐
+│ Simulation / Giả lập xử lý                       │
+│ - Toast Loading "Đang kiểm tra giao dịch..."     │
+│ - Sau 2-3s: Bật Confetti + Notification thành công│
+└───────────────────┬──────────────────────────────┘
+                    │
+                    ▼
+┌──────────────────────────────────────────────────┐
+│ Cập nhật State Frontend:                         │
+│ - Badge đổi sang "PRO / VIP" (Màu Vàng / Gradient)│
+│ - Mở khóa toàn bộ AI Feature Mock trên UI       │
+└──────────────────────────────────────────────────┘
+```
+## luồng chức năng đánh giá AI và dự phóng mục tiêu
+```bash
+┌─────────────────────────────────────────────────────────┐
+       │ Người dùng bấm "AI Đánh giá Sức khỏe" trên Sidebar      │
+       │ (Nằm ngay trên phần "Ăn thông minh · Tập khoa học")     │
+       └────────────────────────────┬────────────────────────────┘
+                                    │
+                                    ▼
+       ┌─────────────────────────────────────────────────────────┐
+       │ TAB 1: FORM CUNG CẤP CHỈ SỐ NÂNG CAO (Input Data)       │
+       │ - Lấy sẵn: Chiều cao, Cân nặng, Tuổi, Giới tính (DB)   │
+       │ - Bổ sung: Số đo 3 vòng, Tạng người, Tần suất vận động, │
+       │   Mục tiêu (Tăng/Giảm cân), Lượng mỡ ước tính (% Bodyfat)│
+       └────────────────────────────┬────────────────────────────┘
+                                    │
+                                    ▼ (Bấm "AI Phân tích & Đánh giá")
+       ┌─────────────────────────────────────────────────────────┐
+       │ TAB 2: KẾT QUẢ ĐÁNH GIÁ SƠ BỘ & DỰ PHÓNG (Dashboard)   │
+       │ 1. Bảng Chỉ Số Tổng Quan (BMI, BMR, TDEE, Bodyfat)      │
+       │ 2. Đánh giá Tạng Người & Nhận xét Tổng quan từ AI       │
+       │ 3. Mốc Thời Gian Thực Hiện (Timeline Milestones)         │
+       │    (Ví dụ: Tuần 1 -> Tuần 4 -> Tuần 8 -> Tuần 12)       │
+       │ 4. Hướng dẫn Lộ trình Dinh dưỡng & Tập luyện           │
+       └─────────────────────────────────────────────────────────┘
 ```

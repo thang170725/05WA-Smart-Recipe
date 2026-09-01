@@ -61,7 +61,7 @@ export default function ProfileForm({ devMode }) {
   }, [])
 
   // ============================================================
-  // ==== chức năng update thông tin cơ bản user ========
+  // ==== chức năng update thông tin cơ bản user ===============
   // ============================================================
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -116,7 +116,21 @@ export default function ProfileForm({ devMode }) {
       console.log("upload failed: ", err)
     }
   };
-  
+
+  // ================================================
+  // =========== chức năng update password ==========
+  // ================================================
+  const handleUpdatePassword = async () => {
+    try {
+      const res = await UpdatePassword(user.password)
+      if (res) {
+        alert(res.message)
+      }
+    } catch (err) {
+      alert(`LỖI: ${err}`)
+    }
+    
+  }
   
 
   return (
@@ -270,7 +284,7 @@ export default function ProfileForm({ devMode }) {
       </Section>
 
       {/* ================= ĐỔI MẬT KHẨU ================= */}
-      <Section title="Đổi mật khẩu" editMode={editPassword} setEditMode={setEditPassword} handleUpdate={handleUpdate}>
+      <Section title="Đổi mật khẩu" editMode={editPassword} setEditMode={setEditPassword} handleUpdate={handleUpdatePassword}>
         <InputRow
           label="Mật khẩu mới"
           icon={Lock}

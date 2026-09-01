@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Enum, TIMESTAMP, Date, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Enum, TIMESTAMP, Date, DateTime, Boolean, Float
 from backend.config.database import Base
 
 class User(Base):
@@ -35,6 +35,9 @@ class User(Base):
         nullable=True,
     )
     avatar_url = Column(String(255), nullable=True)
+
+    current_height = Column(Float, nullable=False)
+    current_weight = Column(Float, nullable=False)
 
 # bảng otp
 class OTP(Base):

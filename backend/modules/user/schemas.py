@@ -39,8 +39,7 @@ class OutputProfileUserSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class InputUpdatePasswordSchema(BaseModel):
-    password: Optional[str] = None
-
+    password: str
 
 # ====================================
 # ===== chức năng cập nhật profile ===== 

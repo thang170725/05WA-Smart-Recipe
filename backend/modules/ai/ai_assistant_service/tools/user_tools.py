@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Literal
-from backend.modules.user.services import UserService 
+from backend.modules.user import services
 from sqlalchemy.orm import Session
 
 # ==================================
@@ -65,13 +65,11 @@ class UpdateFitnessGoalInput(BaseModel):
         description="Mục tiêu vóc dáng mới của người dùng."
     )
 
-user_service = UserService()
-
 # ==============================
 # === Thực thi Đọc thông tin ===
 # ==============================
 async def execute_get_info_user(db: Session, user_id: int):
-    data = user_service.get_info_user_service(db, user_id)
+    data = services.get_info_user_service(db, user_id)
     if not data:
         return {"status": "error", "message": "Không tìm thấy thông tin người dùng."}
     
@@ -79,31 +77,31 @@ async def execute_get_info_user(db: Session, user_id: int):
 
 async def execute_get_email(db: Session, user_id: int):
     # Dùng hàm có sẵn của bạn: get_email
-    data = user_service.get_email_service(db, user_id)
+    data = services.get_email_service(db, user_id)
     if not data:
         return {"status": "error", "message": "Không tìm thấy email."}
     return {"status": "success", "data": data}
 
 async def execute_get_address(db: Session, user_id: int):
-    data = user_service.get_address_service(db, user_id)
+    data = services.get_address_service(db, user_id)
     if not data:
         return {"status": "error", "message": "Không tìm thấy email."}
     return {"status": "success", "data": data}
 
 async def execute_get_phone(db: Session, user_id: int):
-    data = user_service.get_phone_service(db, user_id)
+    data = services.get_phone_service(db, user_id)
     if not data:
         return {"status": "error", "message": "Không tìm thấy email."}
     return {"status": "success", "data": data}
 
 async def execute_get_birth_date(db: Session, user_id: int):
-    data = user_service.get_birth_date_service(db, user_id)
+    data = services.get_birth_date_service(db, user_id)
     if not data:
         return {"status": "error", "message": "Không tìm thấy email."}
     return {"status": "success", "data": data}
 
 async def execute_get_fullname(db: Session, user_id: int):
-    data = user_service.get_fullname_service(db, user_id)
+    data = services.get_fullname_service(db, user_id)
     if not data:
         return {"status": "error", "message": "Không tìm thấy email."}
     return {"status": "success", "data": data}
@@ -113,7 +111,7 @@ async def execute_get_fullname(db: Session, user_id: int):
 # ===================================
 # Thực thi Cập nhật địa chỉ
 async def execute_update_address(db: Session, user_id: int, new_address: str):
-    user = user_service.update_address_service(db, user_id, new_address)
+    user = services.update_address_service(db, user_id, new_address)
     if not user:
         return {"status": "error", "message": "User not found"}
     
@@ -121,7 +119,7 @@ async def execute_update_address(db: Session, user_id: int, new_address: str):
 
 # Thực thi Cập nhật ngày tháng năm sinh (YY-MM-DD)
 async def execute_update_birth_date(db: Session, user_id: int, new_birth_date: str):
-    user = user_service.update_birth_date_service(db, user_id, new_birth_date)
+    user = services.update_birth_date_service(db, user_id, new_birth_date)
     if (not user) or user == "failed" or user == "fail":
         return {"status": "error", "message": "User not found"}
     

@@ -24,7 +24,7 @@ from backend.core.security import create_access_token
 from backend.modules.user import services
 from backend.config.settings import avatars_path
 
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/user", tags=["User"])
@@ -43,7 +43,9 @@ async def get_profile(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    logger.debug(current_user.id)
     user = await services.get_info_user_service(db, current_user.id)
+    logger.debug(user)
     return user
 
 # cập nhật prfile cơ bản

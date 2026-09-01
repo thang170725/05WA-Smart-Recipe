@@ -447,7 +447,7 @@ export default function Weekly ({
                         setQuantityUnit("g");
                         setActiveMeal(null);
                         }}
-                        className="flex-1 md:flex-none px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 hover:opacity-90 text-white text-sm font-medium shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+                        className="flex-1 md:flex-none px-6 py-2.5 rounded-xl bg-linear-to-r from-[#E85D4A] to-[#E86D6A] hover:opacity-90 text-white text-sm font-medium shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
                     >
                         Thêm
                     </button>   
@@ -466,7 +466,7 @@ export default function Weekly ({
 
       {/* ===== MODAL NGUYÊN LIỆU ===== */}
       {ingredients && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIngredients(null)}></div>
           <div className="relative w-full max-w-md rounded-3xl glass-panel bg-slate-900/80 border border-white/10 p-6 sm:p-8 animate-scale-in shadow-2xl">
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
