@@ -21,14 +21,32 @@ from backend.modules.meals.models import (
 
 from backend.modules.meals.queries import get_meals_to_day
 
+# ================================
+# ======== GET REPOSITORY ========
+# ================================
+# lấy toàn bộ thư viện món ăn
+async def get_foods_library_repository(db: AsyncSession):
+    foods_library = await db.execute(
+        select(
+            FoodLibrary.id,
+            FoodLibrary.name,
+            FoodLibrary.unit_support,
+            FoodLibrary.image_url,
+            FoodLibrary.calories_per_100,
+            FoodLibrary.created_at,
+            FoodLibrary.description,
+            FoodLibrary.ingredients_json,
+            FoodLibrary.instructions_json,
+            FoodLibrary.cooking_time,
+            FoodLibrary.difficulty
+        )
+    )
+    foods_library = foods_library.mappings().all()
 
-# plan_date: YY-MM-DD
-async def get_food_by_plan_date_and_meal_type_repo(
-    db: AsyncSession,
-    user_id: int,
-    plan_date,
-    meal_type: str
-):
+    return foods_library
+
+# lấy menu món ăn dựa vào ngày, bữa ăn
+async def get_food_by_plan_date_and_meal_type_repo(db: AsyncSession, user_id: int, plan_date, meal_type: str):
     stmt = (
         select(
             FoodLibrary.id,
@@ -39,7 +57,8 @@ async def get_food_by_plan_date_and_meal_type_repo(
             UserMeal.name.label("user_meal_name"),
             UserMeal.calories_per_100.label("user_meal_calories_per_100"),
             Meal.quantity,
-            Meal.unit
+            Meal.unit,
+            Meal.id.label("meal_id")
         )
 
         .select_from(MealPlan)  # chỉ định bảng gốc
@@ -80,7 +99,6 @@ async def get_food_by_plan_date_and_meal_type_repo(
 
     return result.mappings().all()
 
-
 async def get_meal_to_day(
     db: AsyncSession,
     user_id,
@@ -98,10 +116,7 @@ async def get_meal_to_day(
 
 
 # lấy danh sách món ăn theo category
-async def get_list_food_library_by_category_name_repo(
-    db: AsyncSession,
-    category_name: str
-):
+async def get_list_food_library_by_category_name_repo(db: AsyncSession, category_name: str):
     stmt = (
         select(
             FoodLibrary.id.label("food_id"),
@@ -111,6 +126,7 @@ async def get_list_food_library_by_category_name_repo(
             FoodLibrary.description,
             FoodLibrary.cooking_time,
             FoodLibrary.difficulty,
+            FoodLibrary.unit_support,
             Category.name.label("category_name"),
             Category.type.label("category_type"),
         )
@@ -136,10 +152,7 @@ async def get_list_food_library_by_category_name_repo(
 
 
 # lấy nguyên liệu của 1 món ăn bằng id
-async def get_ingredients_json_by_id_repo(
-    db: AsyncSession,
-    food_id: int
-):
+async def get_ingredients_json_by_id_repo(db: AsyncSession, food_id: int):
     stmt = select(
         FoodLibrary.ingredients_json
     ).where(
@@ -152,10 +165,7 @@ async def get_ingredients_json_by_id_repo(
 
 
 # lấy hướng dẫn của 1 món ăn bằng id
-async def get_instructions_json_by_id_repo(
-    db: AsyncSession,
-    food_id: int
-):
+async def get_instructions_json_by_id_repo(db: AsyncSession, food_id: int):
     stmt = select(
         FoodLibrary.instructions_json
     ).where(
@@ -167,9 +177,7 @@ async def get_instructions_json_by_id_repo(
     return result.scalars().first()
 
 
-async def get_id_and_name_from_food_library_table_repo(
-    db: AsyncSession
-):
+async def get_id_and_name_from_food_library_table_repo(db: AsyncSession):
     stmt = (
         select(
             FoodLibrary.id,
@@ -186,11 +194,7 @@ async def get_id_and_name_from_food_library_table_repo(
 
 
 # lấy tổng lượng calo tuần dựa vào week_start='2026-14-02'
-async def get_total_week_calories_repo(
-    db: AsyncSession,
-    user_id: int,
-    week_start: date
-):
+async def get_total_week_calories_repository(db: AsyncSession, user_id: int, week_start: date):
     stmt = (
         select(
             func.round(
@@ -209,7 +213,6 @@ async def get_total_week_calories_repo(
                 )
             ).label("total_week_calories")
         )
-
         .select_from(MealPlan)
 
         .join(

@@ -1,4 +1,5 @@
 from backend.modules.meals.models import (
+    Meal,
     MealPlan,
     MealPlanItem
 )
@@ -35,19 +36,23 @@ async def delete_meal_week_repo(
 
     await db.commit()
 
-
-# ======= REMOVE =======
-
+# =================================
+# ======= REMOVE REPOSITORY =======
+# =================================
 # xóa 1 món
-async def remove_meal_repo(
+async def remove_meal_repository(
     db: AsyncSession,
-    payload: InputRemoveMealSchema
+    user_id: int,
+    meal_id: int
 ):
-    meal_plan_item = await db.get(
-        MealPlanItem,
-        payload.id
+    meal = await db.execute(
+        select(Meal).where(Meal.id==meal_id)
     )
+    meal = meal.scalar_one_or_none()
 
-    await db.delete(
-        meal_plan_item
-    )
+    if meal:
+        await db.delete(meal)
+    
+        return "success"
+    else: 
+        return None

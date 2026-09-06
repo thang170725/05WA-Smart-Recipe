@@ -24,7 +24,7 @@ from backend.modules.ai.ai_assistant_service.tools import (
 )
 from backend.modules.ai.ai_assistant_service.app.core.base import (
     classify_intent_node, friendly_answer_node,
-    route_after_classify,
+    route_after_classify, rewrite_query_node
      
 )
 from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
@@ -177,6 +177,7 @@ class AIAssistantService:
         workflow = StateGraph(AgentState)
         
         # Thêm các Node
+        workflow.add_node("rewrite_query", rewrite_query_node)
         workflow.add_node("classify_intent", classify_intent_node)
         workflow.add_node("friendly_answer", friendly_answer_node)
         workflow.add_node("retrieve", retrieve_tools_node)
@@ -186,7 +187,9 @@ class AIAssistantService:
         workflow.add_node("handle_chat", handle_no_tool_node)
         
         # 3. tạo đường kết nối
-        workflow.add_edge(START, "classify_intent")
+        workflow.add_edge(START, "rewrite_query")
+        workflow.add_edge("rewrite_query", "classify_intent")
+
         # 3.1. Rẽ nhánh sau khi Classify
         workflow.add_conditional_edges(
             "classify_intent",

@@ -37,6 +37,13 @@ async def get_info_user_service(db, user_id):
     except Exception as e:
         logger.error(e)
 
+async def get_by_user_service(db, email):
+    try:
+        user = await repositories.get_by_email(email, db)
+        return user
+    except Exception as e:
+        logger.error(e)
+
 # ========================
 # ======= UPDATE =========
 # ========================

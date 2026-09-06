@@ -43,6 +43,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
+      <div className="flex flex-col justify-between flex-1">
       <nav className="flex-1 overflow-y-auto no-scrollbar px-3 py-4">
         <p className="px-4 mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
           Menu chính
@@ -125,22 +126,26 @@ export function Sidebar() {
         </ul>
       </nav>
 
-      {/* Footer note */}
-      <div className="px-5 py-4 border-t border-white/10">
-        {/* Nút AI Đánh giá Sức khỏe (MỚI) */}
-  <button
-    type="button"
-    onClick={() => navigate("/ai-health-assessment")} // Hoặc hàm chuyển Tab View của bạn
-    className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 to-transparent border border-amber-500/20 text-amber-300 font-semibold text-sm hover:bg-amber-500/20 transition-all"
-  >
+      {/* Nút AI Đánh giá Sức khỏe (MỚI) */}
+      <button
+      type="button"
+      onClick={() => navigate("/ai-health-assessment")} // Hoặc hàm chuyển Tab View của bạn
+      className="mx-2 my-5 flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 to-transparent border border-amber-500/20 text-amber-300 font-semibold text-sm hover:bg-amber-500/20 transition-all"
+    >
     <Sparkles className="w-4 h-4 text-amber-400" />
     <span>AI Đánh giá Sức khỏe</span>
     <span className="ml-auto text-[10px] font-bold bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-500/30">
       HOT
     </span>
   </button>
+      </div>
+      
+
+      {/* Footer note */}
+      <div className="px-5 py-4 border-t border-white/10">
+        
             
-        <p className="text-[11px] text-slate-500 leading-relaxed">
+        <p className="text-[11px] text-slate-500 leading-relaxed text-center">
           Ăn thông minh · Tập khoa học
         </p>
       </div>

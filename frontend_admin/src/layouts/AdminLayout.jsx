@@ -7,13 +7,14 @@ import {
   ChefHat, 
   LogOut, 
   ShieldCheck,
-  Bell
+  Bell, Utensils
 } from "lucide-react";
 
 export function AdminLayout() {
   const menuItems = [
     { path: "/dashboard", label: "Tổng quan Analytics", icon: LayoutDashboard },
     { path: "/users", label: "Quản lý Người dùng", icon: Users },
+    { path: "/foods", label: "Quản lý món ăn", icon: Utensils },
     { path: "/transactions", label: "Duyệt Gói Pro / Nạp tiền", icon: CreditCard },
     { path: "/recipes", label: "Kho Công thức & Bài tập", icon: ChefHat },
     { path: "/ai-config", label: "Cấu hình AI & Prompt", icon: Bot },

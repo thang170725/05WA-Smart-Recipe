@@ -20,6 +20,7 @@ class FoodLibrary(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
+    unit_support = Column(String(100), nullable=True)
     image_url = Column(String(255), nullable=True)
     calories_per_100 = Column(Integer, nullable=True)
     created_at = Column(DateTime, server_default=func.now())

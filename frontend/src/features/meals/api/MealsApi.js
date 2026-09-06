@@ -57,8 +57,10 @@ export async function RemoveMealApi(devMode, payload) {
     }
 
     return JsonApi(`/user/remove-meal`, {
-        method: "POST",
-        body: payload
+        method: "DELETE",
+        params: {
+            meal_id: payload
+        }
     })
 }
 

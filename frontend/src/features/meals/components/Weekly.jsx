@@ -76,11 +76,6 @@ export default function Weekly ({
   menuDay, setMenuDay,
   selectedMeal, setSelectedMeal // lựa chọn 1 trong các option breakfast, lunch, dinner
 }) {   
-    // TEST
-    useEffect(() => {
-      console.log("🔥 selectedDay:", selectedDay)
-    }, [selectedDay])
-
     // =======================================================================================================================================
     // ========================= chức năng select và ghi lại xem người dùng đang ở breakfast, lunch, dinner  ================================
     // =======================================================================================================================================
@@ -98,26 +93,23 @@ export default function Weekly ({
     // =======================================================================================================================================
     // ==== API lấy Menu thực đơn trong 1 ngày ======
     const [isLoaded, setIsLoaded] = useState(false)
+    const loadGetFoodByPlanDateAndMealTypeApi = async () => {
+      try {
+        const data = await GetFoodByPlanDateAndMealTypeApi(
+          devMode,
+          dateDetail.currentDate,
+          selectedMeal
+        )
+  
+        setMenuDay(data) // set vào biến lưu thực đơn 1 ngày
+        setIsLoaded(true) // ✅ đánh dấu đã load xong
+      } catch (err) {
+        console.error("LỖI LẤY MENU MÓN ĂN: ", err)
+      }
+    }
     useEffect(() => {
-        try {
-          const loadApi = async () => {
-            const data = await GetFoodByPlanDateAndMealTypeApi(
-              devMode,
-              dateDetail.currentDate,
-              selectedMeal
-            )
-
-            console.log(data)
-            setMenuDay(data) // set vào biến lưu thực đơn 1 ngày
-            setIsLoaded(true) // ✅ đánh dấu đã load xong
-          }
-
-          loadApi()
-
-        } catch (err) {
-          console.error("LỖI LẤY MENU MÓN ĂN: ", err)
-        }
-      }, [currentDate, selectedMeal])
+      loadGetFoodByPlanDateAndMealTypeApi()
+    }, [currentDate, selectedMeal])
     
     // =======================================================================================================================================
     // ========================= chức năng xem nguyên liệu của món ăn ================================
@@ -126,7 +118,6 @@ export default function Weekly ({
     const onHandleIngredients = async (foodId) => {
       const response = await GetIngredientsByIdApi(foodId)
 
-      console.log("ingredients:", response)
       setIngredients(response)
     }
 
@@ -139,10 +130,6 @@ export default function Weekly ({
 
       setInstructions(response)
     }
-    useEffect(() => {
-      console.log("ingredients:", ingredients)
-      console.log("instructions:", instructions)
-    }, [ingredients, instructions])
     
     // ====== USESTAE FOR USER ENTER MEAL AS HAND =======
     // ====== thêm món vào thực đơn =======
@@ -171,12 +158,12 @@ export default function Weekly ({
           console.error("LỖI INSERT MÓN MỚI: ", err)
       }
     }
-    
-    // ==== API xóa món khỏi thực đơn =====
+
+    // ===========================================
+    // ==== chức năng xóa món khỏi thực đơn =====
+    // ===========================================
     const removeDish = async (meal) => {
-      await RemoveMealApi(devMode, {
-          id: meal.id,
-      })
+      await RemoveMealApi(devMode, meal.meal_id)
 
       setMenuDay((prev) => prev.filter((m) => m.id !== meal.id)); // cập nhật UI
     };

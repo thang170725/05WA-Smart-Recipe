@@ -1,13 +1,13 @@
 from backend.config.database import SessionLocal
 
-from backend.modules.workout.repositories import get_repository
+from backend.modules.meals.repositories.get_repository import get_foods_library_repository
 
 
 async def test():
 
     async with SessionLocal() as db:
 
-        data = await get_repository.get_exercises_library_repository(db, 'chest')
+        data = await get_foods_library_repository(db)
 
         print(data)
 

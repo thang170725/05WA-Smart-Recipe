@@ -145,7 +145,7 @@ def get_llm(
             raise ValueError("api_key is none")
         
         return ChatGoogleGenerativeAI(
-            model="models/gemini-2.5-flash",
+            model="models/gemini-3.5-flash",
             google_api_key=api_key,
             temperature=temperature,
             request_timeout=60

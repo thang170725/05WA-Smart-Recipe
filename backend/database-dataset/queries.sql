@@ -19,13 +19,15 @@ select * from ai_tool_registry atr;
 
 select * from platform p ;
 
+select * from user_meals um;
 select * from meals;
 select * from meal_plan_items mpi;
 select * from meal_plans mp;
-select * from user_meals um;
+
 select * from food_library fl;
 select * from food_library_category flc;
 
+update food_library set unit_support='gram';
 
 -- 4. MUSCLE DISTRIBUTION: xem user tập nhóm cơ nào nhiều nhất
 SELECT
@@ -177,6 +179,7 @@ CREATE TABLE categories (
 CREATE TABLE food_library (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
+    unit_support varchar(100) null,
     image_url VARCHAR(255),
     calories_per_100 decimal(6,2),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

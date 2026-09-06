@@ -1,3 +1,11 @@
+#
+# ======= nơi để setup logging =====
+#
+import logging
+from backend.config.logging import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
 from datetime import date, timedelta, datetime
 
 from backend.modules.meals.repositories import (
@@ -13,9 +21,18 @@ from backend.modules.meals.schemas import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-# =================
-# ===== GET =======
-# =================
+# =========================
+# ===== GET SERVICE =======
+# =========================
+# service lấy toàn bộ thư viện món ăn
+async def get_foods_library_service(db):
+    try:
+        foods_lib = await get_repository.get_foods_library_repository(db)
+
+        return foods_lib if foods_lib else None
+    except Exception as e:
+        logger.error(f"get_foods_library_service: {e}")
+        raise
 
 def _get_week_start(date_str: str) -> str:
     try:
@@ -111,21 +128,16 @@ async def create_meal_plan_items(
 
 
 # lấy danh sách món ăn trong thư viện bởi category_name
-async def get_list_food_library_by_category_name_service(
-    db: AsyncSession,
-    category_name: str
-):
+async def get_list_food_library_by_category_name_service(db: AsyncSession, category_name: str):
     try:
-        return await get_repository.get_list_food_library_by_category_name_repo(
-            db,
-            category_name
-        )
-
+        rows = await get_repository.get_list_food_library_by_category_name_repo(db, category_name)
+        rows = [dict(row) for row in rows]
+        for row in rows:
+            row['unit_support'] = row['unit_support'].split(',')
+        
+        return rows
     except Exception as e:
-        print(
-            "ERROR get_list_food_library_by_category_name_service:",
-            e
-        )
+        logger.error("ERROR get_list_food_library_by_category_name_service:", e)
         raise
 
 
@@ -168,11 +180,7 @@ async def get_total_calories_week_service(
     week_start
 ):
     try:
-        data = await get_repository.get_total_week_calories_repo(
-            db,
-            user_id,
-            week_start
-        )
+        data = await get_repository.get_total_week_calories_repository(db, user_id, week_start)
 
         return data
 
@@ -222,27 +230,22 @@ async def save_new_meal_hand_service(
 
         raise
 
-
-# ====== REMOVE ======
+# ============================
+# ====== REMOVE SERVICE ======
+# ============================
 # xóa 1 món
 async def remove_meal_service(
     db: AsyncSession,
     user_id,
-    payload: InputRemoveMealSchema
+    meal_id
 ):
     try:
-        await remove_repository.remove_meal_repo(
-            db,
-            payload
-        )
+        await remove_repository.remove_meal_repository(db, user_id, meal_id)
 
         await db.commit()
-
     except Exception as e:
         print("LỖI XÓA MÓN: ", e)
-
         await db.rollback()
-
         raise
 
 

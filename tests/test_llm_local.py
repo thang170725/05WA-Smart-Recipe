@@ -11,18 +11,23 @@ logger = logging.getLogger(__name__)
 # ===== nơi import thư viện =======
 #
 import asyncio
+import sys
+
 from backend.modules.ai.ai_assistant_service.app.ai import AIAssistantService
 from backend.modules.ai.ai_assistant_service.app.config.settings import get_llm
+from backend.modules.user.services import get_user_by_email_service
+from backend.config.database import SessionLocal
 
 #
 #
 #
 async def main():
-
-
+    sys.stdin.reconfigure(encoding='utf-8')
+    sys.stdout.reconfigure(encoding='utf-8')
+    
     ai_service = AIAssistantService(
-        option="local",
-        name_local="qwen2.5:7b",
+        option="key",
+        # name_local="qwen2.5:7b",
         temperature=0.1,
     )
 

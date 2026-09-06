@@ -1,8 +1,12 @@
+// ================================
+// ===== nơi import thư viện ======
+// ================================
 import Libraries from "../features/meals/components/Libraries"
 import Title from "../features/meals/components/Title"
 import Weekly from "../features/meals/components/Weekly"
 import { DateDetail } from "../components/Datetime"
 import { useState, useEffect, useRef } from "react"
+import { GetTotalWeekCaloriesApi } from "../features/meals/api/MealsApi";
 
 export default function Meals() {
   // chế độ
@@ -26,6 +30,23 @@ export default function Meals() {
   // =======================================================================================================================================
   const [selectedMeal, setSelectedMeal] = useState("breakfast"); // state chọn meal (UI tab), lựa chọn breakfast, lunch, dinner
 
+  // ============================================================================================================
+  // ======== chức năng hiển thị tổng lượng calories trong một tuần dựa vào week_start của người dùng =======
+  // ============================================================================================================
+  // const weekStart = FormatDate(GetStartOfWeek(currentDate));
+  const [totalWeekCalories, setTotalWeekCalories] = useState({})
+  const loadGetTotalWeekCaloriesApi = async () => {
+    try {
+      const response = await GetTotalWeekCaloriesApi(dateDetail.dateStartInWeek)
+      setTotalWeekCalories(response)
+    } catch (err) {
+      alert("Lỗi tính tổng calories: ", err)
+    }
+  }  
+  useEffect(() => {
+    loadGetTotalWeekCaloriesApi()
+  }, [dateDetail.dateStartInWeek, menuDay]) // thời gian thây đổi hoặc menu thay đổi
+  
   return (
     <div className="page-shell space-y-8 pb-24 text-white">
       <Title
@@ -33,6 +54,7 @@ export default function Meals() {
           currentDate={currentDate} setCurrentDate={setCurrentDate}
           selectedDay={selectedDay}
           setSelectedDay={setSelectedDay}
+          totalWeekCalories={totalWeekCalories} setTotalWeekCalories={setTotalWeekCalories}
       />
       
       {/* LIST DANH SÁCH MÓN ĂN */}

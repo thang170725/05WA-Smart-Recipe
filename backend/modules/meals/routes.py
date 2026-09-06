@@ -1,4 +1,12 @@
 #
+# ====== nơi setup logging =====
+#
+import logging
+from backend.config.logging import setup_logging
+setup_logging()
+logger = logging.getLogger()
+
+#
 # ====== nơi import thư viện =======
 # 
 from fastapi import APIRouter, Depends
@@ -8,7 +16,6 @@ from datetime import date
 
 from backend.modules.meals.schemas import (
     InputPostMenuSchema, 
-    InputRemoveMealSchema,
     InputInsertFoodFromLibrary,
     OutputGetListFoodLibraryByCategoryNameSchema
 )
@@ -32,18 +39,30 @@ async def post_meals(
 ):
     return await services.save_new_meal_hand_service(db, current_user.id, payload)
 
-# ==== REMOVE =====
-@router.post("/remove-meal")
+#
+# ==== API REMOVE =====
+# 
+@router.delete("/remove-meal")
 async def remove_meal(
-    payload: InputRemoveMealSchema,
+    meal_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    return await services.remove_meal_service(db, current_user.id, payload)
+    logger.debug(f"food id to remove: {meal_id}")
+    return await services.remove_meal_service(db, current_user.id, meal_id)
 
 # ================================
 # ============= GET ==============
 # ================================
+# API lấy toàn bộ thư viện món ăn 
+@router.get("/get-foods-library")
+async def get_foods_library(
+    db: AsyncSession = Depends(get_db)
+):
+    data = await services.get_foods_library_service(db)
+    
+    return data
+
 # hiển thị thực đơn 1 ngày của user bằng plan_date và meal_type
 @router.get('/get-food-by-plan_date-and-meal_type')
 async def get_food(
@@ -62,8 +81,10 @@ async def get_total_calories_week(
     week_start: date,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
-):
-    return await services.get_total_calories_week_service(db, current_user.id, week_start)
+):  
+    total = await services.get_total_calories_week_service(db, current_user.id, week_start)
+    logger.debug(f"tổng calories: {total}")
+    return total
 
 # ==============================================
 # ========== API RELATED TO LIBRARY ============
@@ -73,7 +94,7 @@ async def get_total_calories_week(
 # ============= GET ==============
 # ================================
 # hiển thị danh sách món ăn trong thư viện
-@router.get('/get-list-food-library-by-category-name', response_model=list[OutputGetListFoodLibraryByCategoryNameSchema])
+@router.get('/get-list-food-library-by-category-name')
 async def get_list_food_library_by_category_name(
     category_name: str,
     db: AsyncSession = Depends(get_db)

@@ -5,6 +5,7 @@ import { UsersPage } from "./pages/UsersPage";
 import { TransactionsPage } from "./pages/TransactionsPage";
 import { AiConfigPage } from "./pages/AiConfigPage";
 import { RecipesPage } from "./pages/RecipesPage";
+import { FoodsPage } from "./pages/FoodsPage";
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
           {/* Các Route chức năng Admin */}
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="users" element={<UsersPage />} />
+          <Route path="foods" element={<FoodsPage />} />
           <Route path="transactions" element={<TransactionsPage />} />
           <Route path="ai-config" element={<AiConfigPage />} />
           <Route path="recipes" element={<RecipesPage />} />

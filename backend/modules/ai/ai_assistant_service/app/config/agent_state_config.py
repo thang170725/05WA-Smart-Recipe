@@ -19,3 +19,6 @@ class AgentState(TypedDict):
     final_status: Optional[str]
     final_message: Optional[str]
     action_id: Optional[str]
+
+    # câu hỏi viết lại rewritting của người dùng
+    rewritten_input: Optional[str]

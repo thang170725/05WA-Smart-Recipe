@@ -1,5 +1,4 @@
 import { ChevronLeft, ChevronRight, Flame, Target } from "lucide-react";
-import { GetTotalWeekCaloriesApi } from "../api/MealsApi";
 import { useEffect, useState } from "react";
 import { FormatDate, GetStartOfWeek } from "../../../components/Datetime";
 
@@ -8,6 +7,7 @@ export default function Title({
     currentDate, setCurrentDate,
     selectedDay,
     setSelectedDay,
+    totalWeekCalories, setTotalWeekCalories
 }) {
     if (!dateDetail) return null;
 
@@ -47,19 +47,6 @@ export default function Title({
             return d;
         });
     };
-
-    // =======================================================================================================================================
-    // ========================= chức năng xem tổng lượng calories tuần của user ================================
-    // =======================================================================================================================================
-    const weekStart = FormatDate(GetStartOfWeek(currentDate));
-    const [totalWeekCalories, setTotalWeekCalories] = useState({})
-    useEffect(() => {
-        const loadApi = async () => {
-            const response = await GetTotalWeekCaloriesApi(weekStart)
-            setTotalWeekCalories(response)
-        }
-        loadApi()
-    }, [weekStart])
 
     return (
         <div className="space-y-6 pt-6">
@@ -115,7 +102,7 @@ export default function Title({
                     <div className="flex-1 w-full sm:max-w-xs">
                         <div className="flex justify-between items-end mb-2">
                             <div className="text-3xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500">
-                                {totalWeekCalories.total_week_calories || 0} <span className="text-sm font-normal text-slate-400">kcal</span>
+                            {typeof totalWeekCalories === "number" ? totalWeekCalories : 0} <span className="text-sm font-normal text-slate-400">kcal</span>
                             </div>
                             <div className="text-xs text-brand-light font-medium flex items-center gap-1">
                                 <Target size={12} /> 72%
