@@ -1,126 +1,255 @@
+"""
+Định nghĩa Tools dạng LangChain `@tool` + Pydantic args_schema.
+
+Kiến trúc tách 2 lớp:
+  1) SCHEMA / @tool  → mô tả cho LLM (bind_tools) và cho Vector DB (RAG)
+  2) EXECUTOR async  → hàm Python thật gọi service/DB (chạy ở node Tool Execution)
+
+Lý do tách: Tool cần `db` + `user_id` từ runtime context, không đưa vào args
+mà LLM điền — tránh lộ/nhầm ID và giữ schema gọn cho function calling.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Literal, Optional
+
+from langchain_core.tools import tool
 from pydantic import BaseModel, Field
-from typing import Literal
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.modules.user import services
-from sqlalchemy.orm import Session
 
-# ==================================
-# === CỤM CHỨC NĂNG ĐỌC (READ) =====
-# ==================================
+logger = logging.getLogger(__name__)
 
-class GetInfoUserInput(BaseModel):
-    """Lấy toàn bộ thông tin hồ sơ cá nhân của người dùng hiện tại bao gồm email, tên, địa chỉ, số điện thoại, ngày sinh, giới tính và mục tiêu."""
-    pass # Không cần tham số đầu vào vì lấy theo ID người dùng đang đăng nhập
 
-class GetEmailUserInput(BaseModel):
-    """Chỉ lấy địa chỉ email của người dùng hiện tại."""
-    pass
+# =============================================================================
+# 1. PYDANTIC ARGS SCHEMAS — mô tả tham số chi tiết cho từng Tool
+# =============================================================================
 
-class GetFullnameUserInput(BaseModel):
-    """Chỉ lấy tên đầy đủ của người dùng hiện tại"""
-    pass
+class GetUserInfoInput(BaseModel):
+    """Không cần tham số — lấy theo user đang đăng nhập."""
 
-class GetPhoneUserInput(BaseModel):
-    """chỉ lấy số điện thoại của người dùng hiện tại"""
-    pass
 
-class GetBirthDateUserInput(BaseModel):
-    """chỉ lấy ngày tháng năm sinh của người dùng hiện tại"""
-    pass
+class GetUserEmailInput(BaseModel):
+    """Không cần tham số — lấy email theo user đang đăng nhập."""
 
-class GetAddressUserInput(BaseModel):
-    """chỉ lấy địa chỉ của người dùng hiện tại"""
-    pass
 
-# ===================================
-# == CỤM CHỨC NĂNG CẬP NHẬT (UPDATE) ==
-# ===================================
-# cập nhật địa chỉ
+class GetUserFullnameInput(BaseModel):
+    """Không cần tham số — lấy họ tên theo user đang đăng nhập."""
+
+
+class GetUserPhoneInput(BaseModel):
+    """Không cần tham số — lấy SĐT theo user đang đăng nhập."""
+
+
+class GetUserBirthDateInput(BaseModel):
+    """Không cần tham số — lấy ngày sinh theo user đang đăng nhập."""
+
+
+class GetUserAddressInput(BaseModel):
+    """Không cần tham số — lấy địa chỉ theo user đang đăng nhập."""
+
+
 class UpdateAddressInput(BaseModel):
-    """Cập nhật hoặc thay đổi địa chỉ nơi ở của người dùng sang địa chỉ mới."""
-    new_address: str = Field(description="Địa chỉ mới cần cập nhật. Ví dụ: Đà Nẵng, Hà Nội")
-
-# cập nhật giới tính
-class UpdateGenderInput(BaseModel):
-    """Cập nhật hoặc thay đổi giới tính của người dùng."""
-    new_gender: Literal['male', 'female', 'other'] = Field(
-        description="Giới tính mới của người dùng. Bắt buộc phải là một trong ba giá trị: 'male', 'female', hoặc 'other'."
+    new_address: str = Field(
+        description="Địa chỉ mới cần cập nhật. Ví dụ: 'Hoài Đức, Hà Nội' hoặc 'Đà Nẵng'."
     )
 
-# cập nhật ngày tháng năm sinh (YY-MM-DD)
+
 class UpdateBirthDateInput(BaseModel):
-    """Cập nhật hoặc thay đổi ngày tháng năm sinh của người dùng."""
-    new_birth_date: str =  Field(
-        description="ngày tháng năm sinh của người dùng. Bắt buộc covert về định dạnh YY-MM-DD (ví dụ: 2026-06-12), nếu người dùng nhập là ngày 12, tháng 3, năm 2025 thì vẫn phải covert kết quả về dạng 2025-03-12"
+    new_birth_date: str = Field(
+        description=(
+            "Ngày sinh mới, BẮT BUỘC định dạng YYYY-MM-DD. "
+            "Ví dụ user nói '12 tháng 3 năm 2000' → chuyển thành '2000-03-12'."
+        )
     )
 
-# cập nhật chỉ số thể chất và mục tiêu
+
+class UpdateGenderInput(BaseModel):
+    new_gender: Literal["male", "female", "other"] = Field(
+        description="Giới tính mới. Chỉ nhận: 'male' | 'female' | 'other'."
+    )
+
+
 class UpdateFitnessGoalInput(BaseModel):
-    """Cập nhật các chỉ số thể chất và mục tiêu luyện tập của người dùng (Mức độ hoạt động hoặc Mục tiêu cân nặng)."""
-    activity_level: Literal['sedentary', 'light', 'moderate', 'active', 'very_active'] = Field(
+    activity_level: Optional[
+        Literal["sedentary", "light", "moderate", "active", "very_active"]
+    ] = Field(
         default=None,
-        description="Mức độ hoạt động thể chất mới."
+        description=(
+            "Mức độ hoạt động thể chất mới (optional). "
+            "sedentary=ít vận động, light=nhẹ, moderate=vừa, active=năng động, very_active=cao."
+        ),
     )
-    target_goal: Literal['lose_weight', 'gain_muscle', 'maintenance'] = Field(
+    target_goal: Optional[
+        Literal["lose_weight", "gain_muscle", "maintenance"]
+    ] = Field(
         default=None,
-        description="Mục tiêu vóc dáng mới của người dùng."
+        description=(
+            "Mục tiêu vóc dáng mới (optional). "
+            "lose_weight=giảm cân, gain_muscle=tăng cơ, maintenance=duy trì."
+        ),
     )
 
-# ==============================
-# === Thực thi Đọc thông tin ===
-# ==============================
-async def execute_get_info_user(db: Session, user_id: int):
-    data = services.get_info_user_service(db, user_id)
+
+# =============================================================================
+# 2. LANGCHAIN @tool — dùng để bind vào LLM + index vào Vector DB
+#    Thân hàm chỉ là stub; thực thi thật nằm ở EXECUTORS bên dưới.
+# =============================================================================
+
+@tool("get_user_info", args_schema=GetUserInfoInput)
+def get_user_info() -> str:
+    """
+    Chỉ dùng để lấy TOÀN BỘ hồ sơ cá nhân của người dùng hiện tại
+    (email, tên, địa chỉ, SĐT, ngày sinh, giới tính, chiều cao, cân nặng, mục tiêu).
+    Không dùng khi user chỉ hỏi một trường cụ thể.
+    """
+    raise NotImplementedError("Executed via ToolExecutor")
+
+
+@tool("get_user_email", args_schema=GetUserEmailInput)
+def get_user_email() -> str:
+    """Chỉ dùng để lấy địa chỉ EMAIL của người dùng hiện tại."""
+    raise NotImplementedError("Executed via ToolExecutor")
+
+
+@tool("get_user_fullname", args_schema=GetUserFullnameInput)
+def get_user_fullname() -> str:
+    """Chỉ dùng để lấy HỌ TÊN đầy đủ của người dùng hiện tại."""
+    raise NotImplementedError("Executed via ToolExecutor")
+
+
+@tool("get_user_phone", args_schema=GetUserPhoneInput)
+def get_user_phone() -> str:
+    """Chỉ dùng để lấy SỐ ĐIỆN THOẠI của người dùng hiện tại."""
+    raise NotImplementedError("Executed via ToolExecutor")
+
+
+@tool("get_user_birth_date", args_schema=GetUserBirthDateInput)
+def get_user_birth_date() -> str:
+    """Chỉ dùng để lấy NGÀY SINH của người dùng hiện tại."""
+    raise NotImplementedError("Executed via ToolExecutor")
+
+
+@tool("get_user_address", args_schema=GetUserAddressInput)
+def get_user_address() -> str:
+    """Chỉ dùng để lấy ĐỊA CHỈ nơi ở của người dùng hiện tại."""
+    raise NotImplementedError("Executed via ToolExecutor")
+
+
+@tool("update_address", args_schema=UpdateAddressInput)
+def update_address(new_address: str) -> str:
+    """
+    Chỉ dùng để CẬP NHẬT / ĐỔI địa chỉ nơi ở của người dùng sang địa chỉ mới.
+    Yêu cầu user phải nêu rõ địa chỉ mới. Thao tác ghi — cần xác nhận trước khi lưu.
+    """
+    raise NotImplementedError("Executed via ToolExecutor")
+
+
+@tool("update_birth_date", args_schema=UpdateBirthDateInput)
+def update_birth_date(new_birth_date: str) -> str:
+    """
+    Chỉ dùng để CẬP NHẬT ngày sinh của người dùng.
+    Tham số phải là YYYY-MM-DD. Thao tác ghi — cần xác nhận trước khi lưu.
+    """
+    raise NotImplementedError("Executed via ToolExecutor")
+
+
+# =============================================================================
+# 3. EXECUTORS — hàm async thật gọi sang user services
+# =============================================================================
+
+async def _exec_get_user_info(db: AsyncSession, user_id: int, **_kwargs):
+    data = await services.get_info_user_service(db, user_id)
     if not data:
         return {"status": "error", "message": "Không tìm thấy thông tin người dùng."}
-    
     return {"status": "success", "data": data}
 
-async def execute_get_email(db: Session, user_id: int):
-    # Dùng hàm có sẵn của bạn: get_email
-    data = services.get_email_service(db, user_id)
+
+async def _exec_get_user_email(db: AsyncSession, user_id: int, **_kwargs):
+    data = await services.get_email_service(db, user_id)
     if not data:
         return {"status": "error", "message": "Không tìm thấy email."}
     return {"status": "success", "data": data}
 
-async def execute_get_address(db: Session, user_id: int):
-    data = services.get_address_service(db, user_id)
+
+async def _exec_get_user_fullname(db: AsyncSession, user_id: int, **_kwargs):
+    data = await services.get_fullname_service(db, user_id)
     if not data:
-        return {"status": "error", "message": "Không tìm thấy email."}
+        return {"status": "error", "message": "Không tìm thấy họ tên."}
     return {"status": "success", "data": data}
 
-async def execute_get_phone(db: Session, user_id: int):
-    data = services.get_phone_service(db, user_id)
+
+async def _exec_get_user_phone(db: AsyncSession, user_id: int, **_kwargs):
+    data = await services.get_phone_service(db, user_id)
     if not data:
-        return {"status": "error", "message": "Không tìm thấy email."}
+        return {"status": "error", "message": "Không tìm thấy số điện thoại."}
     return {"status": "success", "data": data}
 
-async def execute_get_birth_date(db: Session, user_id: int):
-    data = services.get_birth_date_service(db, user_id)
+
+async def _exec_get_user_birth_date(db: AsyncSession, user_id: int, **_kwargs):
+    data = await services.get_birth_date_service(db, user_id)
     if not data:
-        return {"status": "error", "message": "Không tìm thấy email."}
+        return {"status": "error", "message": "Không tìm thấy ngày sinh."}
     return {"status": "success", "data": data}
 
-async def execute_get_fullname(db: Session, user_id: int):
-    data = services.get_fullname_service(db, user_id)
+
+async def _exec_get_user_address(db: AsyncSession, user_id: int, **_kwargs):
+    data = await services.get_address_service(db, user_id)
     if not data:
-        return {"status": "error", "message": "Không tìm thấy email."}
+        return {"status": "error", "message": "Không tìm thấy địa chỉ."}
     return {"status": "success", "data": data}
 
-# ===================================
-# === Thực thi cập nhật thông tin ===
-# ===================================
-# Thực thi Cập nhật địa chỉ
-async def execute_update_address(db: Session, user_id: int, new_address: str):
-    user = services.update_address_service(db, user_id, new_address)
-    if not user:
-        return {"status": "error", "message": "User not found"}
-    
-    return {"status": "success", "message": f"Đã cập nhật địa chỉ thành {new_address}"}
 
-# Thực thi Cập nhật ngày tháng năm sinh (YY-MM-DD)
-async def execute_update_birth_date(db: Session, user_id: int, new_birth_date: str):
-    user = services.update_birth_date_service(db, user_id, new_birth_date)
-    if (not user) or user == "failed" or user == "fail":
-        return {"status": "error", "message": "User not found"}
-    
-    return {"status": "success", "message": f"Đã cập nhật ngày-tháng-năm sinh thành {new_birth_date}"}
+async def _exec_update_address(db: AsyncSession, user_id: int, new_address: str, **_kwargs):
+    result = await services.update_address_service(db, user_id, new_address)
+    if result != "successed":
+        return {"status": "error", "message": "Cập nhật địa chỉ thất bại."}
+    return {
+        "status": "success",
+        "message": f"Đã cập nhật địa chỉ thành {new_address}",
+    }
+
+
+async def _exec_update_birth_date(
+    db: AsyncSession, user_id: int, new_birth_date: str, **_kwargs
+):
+    result = await services.update_birth_date_service(db, user_id, new_birth_date)
+    if not result or result in ("failed", "fail"):
+        return {"status": "error", "message": "Cập nhật ngày sinh thất bại."}
+    return {
+        "status": "success",
+        "message": f"Đã cập nhật ngày sinh thành {new_birth_date}",
+    }
+
+
+# Map tên tool (đúng với @tool name) → executor async
+USER_TOOL_EXECUTORS = {
+    "get_user_info": _exec_get_user_info,
+    "get_user_email": _exec_get_user_email,
+    "get_user_fullname": _exec_get_user_fullname,
+    "get_user_phone": _exec_get_user_phone,
+    "get_user_birth_date": _exec_get_user_birth_date,
+    "get_user_address": _exec_get_user_address,
+    "update_address": _exec_update_address,
+    "update_birth_date": _exec_update_birth_date,
+}
+
+# Danh sách BaseTool để bind / sync embedding
+USER_TOOLS = [
+    get_user_info,
+    get_user_email,
+    get_user_fullname,
+    get_user_phone,
+    get_user_birth_date,
+    get_user_address,
+    update_address,
+    update_birth_date,
+]
+
+# Tool ghi dữ liệu — cần xác nhận user trước khi execute thật
+USER_WRITE_TOOL_NAMES = {
+    "update_address",
+    "update_birth_date",
+}

@@ -1,77 +1,91 @@
-from dotenv import load_dotenv
-load_dotenv()
-import os
+"""
+Đồng bộ catalog Tools → bảng `ai_tool_registry` (MariaDB) kèm embedding.
 
-from google import genai
-from google.genai import types
+Chạy thủ công khi thêm/sửa/xóa tool:
+    python -m backend.modules.ai.ai_assistant_service.tools.sync_to_mysql
+"""
 
-from backend.core.database import SessionLocal
-from sqlalchemy.orm import Session
+from __future__ import annotations
 
-from backend.modules.ai.ai_assistant_service.tools import ALL_READ_TOOLS, ALL_WRITE_TOOLS
+#
+# ====== nơi setup logging ======
+#
+import logging
+from backend.config.logging import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
+#
+#
+#
+import asyncio
+
+from sqlalchemy import select
+
+from backend.config.database import SessionLocal
 from backend.modules.ai.ai_assistant_service.app.models import AIToolRegistryModel
+from backend.modules.ai.ai_assistant_service.tools.registry import ALL_TOOLS
+from backend.modules.ai.ai_assistant_service.tools.rag import embed_text
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", default=None)
-if not GOOGLE_API_KEY:
-    print("KHÔNG CÓ API KEY")
+async def sync_tools_to_mysql() -> None:
+    """
+    Duyệt ALL_TOOLS → tạo Document (name + description) → embed → upsert MariaDB.
 
-client = genai.Client(api_key=GOOGLE_API_KEY)
-
-def get_gemini_embedding(text: str):
-    """Gọi SDK mới để biến một chuỗi thành Vector 768 chiều"""
-    response = client.models.embed_content(
-        model="gemini-embedding-2",  # Không cần tiền tố models/ nữa
-        contents=text,
-        config=types.EmbedContentConfig(
-            task_type="RETRIEVAL_DOCUMENT"  # Ép kiểu enum chuẩn viết hoa
+    Embedding dùng task_type=RETRIEVAL_DOCUMENT để khớp với query RETRIEVAL_QUERY lúc RAG.
+    Đồng thời xóa các tool cũ trong DB không còn trong registry (tránh RAG trả tên lỗi thời).
+    """
+    async with SessionLocal() as db:
+        logger.info(
+            "[ToolSync] Bắt đầu đồng bộ %d tools vào MariaDB...", len(ALL_TOOLS)
         )
-    )
+        try:
+            current_names: set[str] = set()
 
-    # Cú pháp trích xuất mảng số của SDK mới: response.embeddings[0].values
-    return response.embeddings[0].values
+            for tool in ALL_TOOLS:
+                tool_name = tool.name
+                current_names.add(tool_name)
+                tool_desc = (tool.description or "").strip() or "Không có mô tả."
 
-def sync_tools_to_mysql():
-    """Quy trình nạp dữ liệu nền móng của Developer xuống MySQL"""
-    db: Session = SessionLocal()
-    print("[DEV] Khởi động tiến trình quét mã nguồn chuyển đổi Vector (google-genai SDK)...")
-
-    ALL_SYSTEMS_TOOLS = ALL_READ_TOOLS + ALL_WRITE_TOOLS
-    
-    try:
-        for tool_class in ALL_SYSTEMS_TOOLS:
-            tool_name = tool_class.__name__
-            tool_desc = tool_class.__doc__ if tool_class.__doc__ else "Không có mô tả."
-            
-            # Tạo chuỗi văn bản chứa ngữ nghĩa của tính năng
-            text_to_vector = f"Chức năng hệ thống: {tool_name}. Chi tiết công dụng: {tool_desc}"
-            
-            # Biến chuỗi text thành mảng số Vector 768 chiều
-            vector_data = get_gemini_embedding(text_to_vector)
-            
-            # Kiểm tra xem Tool này đã tồn tại dưới DB chưa
-            existing_tool = db.query(AIToolRegistryModel).filter(AIToolRegistryModel.name == tool_name).first()
-            
-            if existing_tool:
-                existing_tool.description = tool_desc
-                existing_tool.embedding = vector_data  # Ghi đè mảng Vector mới (SQLAlchemy tự serialize sang JSON)
-                print(f"-> Cập nhật Vector thành công cho Tool: {tool_name}")
-            else:
-                new_registry = AIToolRegistryModel(
-                    name=tool_name,
-                    description=tool_desc,
-                    embedding=vector_data
+                text_to_embed = (
+                    f"Chức năng hệ thống: {tool_name}. "
+                    f"Chi tiết công dụng: {tool_desc}"
                 )
-                db.add(new_registry)
-                print(f"-> Thêm mới thành công Vector cho Tool: {tool_name}")
-                
-        db.commit()
-        print("[DEV] TIẾN TRÌNH HOÀN TẤT: Toàn bộ công cụ đã được số hóa vào MySQL!")
-        
-    except Exception as e:
-        db.rollback()
-        print(f"[ERR] Lỗi khi đồng bộ dữ liệu: {e}")
-    finally:
-        db.close()
+                vector = embed_text(text_to_embed, task_type="RETRIEVAL_DOCUMENT")
+
+                result = await db.execute(
+                    select(AIToolRegistryModel).where(
+                        AIToolRegistryModel.name == tool_name
+                    )
+                )
+                existing = result.scalar_one_or_none()
+
+                if existing:
+                    existing.description = tool_desc
+                    existing.embedding = vector
+                    logger.info("[ToolSync] Cập nhật embedding: %s", tool_name)
+                else:
+                    db.add(
+                        AIToolRegistryModel(
+                            name=tool_name,
+                            description=tool_desc,
+                            embedding=vector,
+                        )
+                    )
+                    logger.info("[ToolSync] Thêm mới tool: %s", tool_name)
+
+            # Xóa tool registry lỗi thời (tên Decision Tree cũ như GetInfoUserInput...)
+            all_rows = (await db.execute(select(AIToolRegistryModel))).scalars().all()
+            for row in all_rows:
+                if row.name not in current_names:
+                    logger.info("[ToolSync] Xóa tool cũ khỏi DB: %s", row.name)
+                    await db.delete(row)
+
+            await db.commit()
+            logger.info("[ToolSync] Hoàn tất đồng bộ tools.")
+        except Exception:
+            await db.rollback()
+            logger.exception("[ToolSync] Lỗi khi đồng bộ.")
+            raise
 
 if __name__ == "__main__":
-    sync_tools_to_mysql()
+    asyncio.run(sync_tools_to_mysql())

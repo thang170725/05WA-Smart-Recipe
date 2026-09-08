@@ -18,10 +18,10 @@ async def chat(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Mặc định local (qwen2.5:7b) — đổi LLM_OPTION=key trong .env nếu muốn Gemini
     ai_assistant = AIAssistantService(
         current_user=current_user,
         db=db,
-        option="key",
     )
 
     try:
@@ -38,6 +38,12 @@ async def chat(
             if reply.get("status") == "SUCCESS":
                 return {
                     "reply": reply.get("message")
+                }
+
+            # lỗi pipeline — vẫn trả message thân thiện
+            if reply.get("status") == "ERROR":
+                return {
+                    "reply": reply.get("message") or "AI hiện đang quá tải, vui lòng thử lại sau."
                 }
             
             # Nếu AI trả về trạng thái WAIT_CONFIRM, đẩy nguyên cụm sang React bắt được status và action_id
@@ -70,10 +76,9 @@ async def confirm_action(
     ai_assistant = AIAssistantService(
         current_user=current_user,
         db=db,
-        option="key",
     )
 
-    # ĐỔI THÀNH HÀM MỚI: Gọi luồng ghi dữ liệu tự động xuống MySQL của Agent
+    # Gọi luồng ghi dữ liệu đã xác nhận xuống MySQL
     result = await ai_assistant.confirm_pending_action(action.action_id)
 
     if result.get("status") == "success":

@@ -517,6 +517,6 @@ create table ai_tool_registry (
 	id int auto_increment primary key,
 	description text not null,
 	embedding json not null,
-	name varchar(100) not null
+	name varchar(100) not null,
+	recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) engine=InnoDB;
-

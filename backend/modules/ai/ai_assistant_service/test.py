@@ -1,29 +1,36 @@
-from langgraph.graph import StateGraph, START, END
-from langgraph.graph.message import add_messages
+"""
+Smoke test tối giản cho cấu trúc graph (không gọi LLM thật).
 
-from typing import Annotated, TypedDict, List, Dict, Any, Optional
+Chạy:
+    python -m backend.modules.ai.ai_assistant_service.test
+"""
 
-from langchain_core.messages import SystemMessage, HumanMessage, AnyMessage
+from backend.modules.ai.ai_assistant_service.app.graph.builder import build_agent_graph
 
-class AgentState(TypedDict):
-    messages: Annotated[list[AnyMessage], add_messages]
-    db: Any
-    current_user: Any
-    llm: Any
-    relevant_tools: List[Any]
-    
-    # Kết quả trả ra cuối cùng cho API
-    final_status: Optional[str]
-    final_message: Optional[str]
-    action_id: Optional[str]
+EXPECTED_NODES = {
+    "rewrite",
+    "retrieve",
+    "agent",
+    "execute",
+    "decision_validator",
+    "result_evaluator",
+}
 
-def print_ai_agent(state: AgentState):
-    return state
 
-workflow = StateGraph(AgentState)
-workflow.add_node("print_ai_agent", print_ai_agent)
+def main():
+    graph = build_agent_graph()
+    nodes = set(graph.get_graph().nodes.keys()) - {"__start__", "__end__"}
+    print("Compiled graph OK.")
+    print("Nodes:", sorted(nodes))
 
-workflow.add_edge(START, 'print_ai_agent')
-workflow.add_edge("print_ai_agent", END)
+    missing = EXPECTED_NODES - nodes
+    extra = nodes - EXPECTED_NODES
+    if missing:
+        raise SystemExit(f"MISSING nodes: {sorted(missing)}")
+    if extra:
+        print("Note — extra nodes:", sorted(extra))
+    print("Architecture nodes match description.md ✓")
 
-print(workflow.edges)
+
+if __name__ == "__main__":
+    main()

@@ -1,44 +1,17 @@
 #
-# ===== nơi setup logging =====
+# ===== CLI test (giữ file cũ, ủy quyền sang scripts/run_agent_cli) =====
 #
-import logging
-from backend.config.logging import setup_logging
-from backend.modules.platform.schemas import InputCreatePostSchema
-setup_logging()
-logger = logging.getLogger(__name__)
-
+# Chạy:
+#   ./sr/bin/python -m tests.test_llm_local
+#   ./sr/bin/python -m tests.test_llm_local --cases
+#   ./sr/bin/python -m tests.test_llm_local -q "Protein là gì?"
 #
-# ===== nơi import thư viện =======
-#
-import asyncio
+from backend.modules.ai.ai_assistant_service.scripts.run_agent_cli import main
 import sys
 
-from backend.modules.ai.ai_assistant_service.app.ai import AIAssistantService
-from backend.modules.ai.ai_assistant_service.app.config.settings import get_llm
-from backend.modules.user.services import get_user_by_email_service
-from backend.config.database import SessionLocal
-
-#
-#
-#
-async def main():
-    sys.stdin.reconfigure(encoding='utf-8')
-    sys.stdout.reconfigure(encoding='utf-8')
-    
-    ai_service = AIAssistantService(
-        option="key",
-        # name_local="qwen2.5:7b",
-        temperature=0.1,
-    )
-
-    user_input = input("Câu hỏi: ")
-
-    result = await ai_service.run_pipline(
-        user_input
-    )
-
-    logger.info(result)
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stdin, "reconfigure"):
+        sys.stdin.reconfigure(encoding="utf-8")
+    main()
