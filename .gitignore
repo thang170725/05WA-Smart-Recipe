@@ -3,6 +3,7 @@
 sr/
 .env
 .env.*
+.venv/
 .vscode/
 .idea/
 *.log
@@ -14,7 +15,6 @@ backend/database-dataset/*.csv
 backend/modules/ai/*.txt
 *.pyc
 *.pyo
-backend/config/
 
 # frontend
 frontend/dist/
@@ -23,3 +23,6 @@ frontend/node_modules/
 # OS
 .DS_Store
 Thumbs.db
+
+# audio
+audio/
