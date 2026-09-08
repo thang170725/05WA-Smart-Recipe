@@ -7,20 +7,23 @@ Bật bằng LOG_LEVEL=INFO hoặc DEBUG trong .env
 
 from __future__ import annotations
 
+#
+# ====== nơi setup logging ======
+#
 import logging
+from backend.config.logging import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
 from typing import Any
-
-logger = logging.getLogger("smart_recipe.agent")
-
 
 def banner(title: str, **fields: Any) -> None:
     """In khung bước lớn — dễ nhìn khi debug pipeline."""
     extra = " | ".join(f"{k}={v!r}" for k, v in fields.items() if v is not None)
-    line = f"{'=' * 12} {title} {'=' * 12}"
+    line = f"{'=' * 40} {title} {'=' * 40}"
     logger.info(line)
     if extra:
         logger.info("  → %s", extra)
-
 
 def step(msg: str, *args: Any) -> None:
     """Log 1 dòng chi tiết trong bước hiện tại."""

@@ -12,13 +12,23 @@ Bên trong: LangGraph
 
 from __future__ import annotations
 
+#
+# ===== nơi setup logging ======
+#
 import logging
-from typing import Any, Optional
+from backend.config.logging import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
+#
+#
+#
+from typing import Any, Optional, final
 
 from langchain_core.messages import HumanMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.config.logging import setup_logging
+
 from backend.modules.ai.ai_assistant_service.app.config.settings import (
     get_llm,
     DEFAULT_MAX_ITERATIONS,
@@ -34,8 +44,7 @@ from backend.modules.ai.ai_assistant_service.app.graph.nodes.execute import (
 )
 from backend.modules.ai.ai_assistant_service.app.utils import trace
 
-setup_logging()
-logger = logging.getLogger(__name__)
+
 
 __all__ = ["AIAssistantService", "PENDING_ACTIONS"]
 
@@ -59,6 +68,11 @@ class AIAssistantService:
         self.max_iterations = max_iterations
         self.max_retrieval_retries = max_retrieval_retries
         self.max_execution_steps = max_execution_steps
+        self.option = option
+        if self.option == "local":
+            self.name_local = name_local
+        else:
+            self.name_local = "model API key"
 
         self.llm = get_llm(
             option=option,
@@ -70,10 +84,7 @@ class AIAssistantService:
     async def run_pipline(self, input_text: str) -> dict:
         text = (input_text or "").strip()
         if not text:
-            return {
-                "status": "SUCCESS",
-                "message": "Bạn muốn hỏi gì về dinh dưỡng hoặc luyện tập?",
-            }
+            return {"status": "SUCCESS", "message": "Bạn muốn hỏi gì về dinh dưỡng hoặc luyện tập?"}
 
         user_label = getattr(self.current_user, "email", None) or getattr(
             self.current_user, "id", None
@@ -85,6 +96,8 @@ class AIAssistantService:
             max_iterations=self.max_iterations,
             max_retrieval=self.max_retrieval_retries,
             max_execution=self.max_execution_steps,
+            option=self.option,
+            llm=self.name_local,
         )
 
         initial_state = {
@@ -95,20 +108,25 @@ class AIAssistantService:
             "retrieved_tools": [],
             "active_tools": [],
             "retrieval_history": [],
+
             # Conversation
             "messages": [HumanMessage(content=text)],
+
             # Runtime
             "db": self.db,
             "current_user": self.current_user,
             "llm": self.llm,
+
             # Decisions / validations
             "decision": None,
             "decision_validation": None,
             "result_validation": None,
+
             # Tool history
             "tool_calls": [],
             "tool_results": [],
             "used_tools": [],
+
             # Loop control
             "iteration": 0,
             "retrieval_iteration": 0,
@@ -116,15 +134,18 @@ class AIAssistantService:
             "max_iterations": self.max_iterations,
             "max_retrieval_retries": self.max_retrieval_retries,
             "max_execution_steps": self.max_execution_steps,
+
             # Progress / output
             "progress": "Đang phân tích yêu cầu...",
             "final_status": None,
             "final_message": None,
             "action_id": None,
         }
+        logger.debug(f"INITIAL STATE:\n {initial_state}")
 
         try:
             final_state = await self.graph.ainvoke(initial_state)
+            logger.debug(f"FINAL STATE:\n {final_state}")
         except Exception:
             logger.exception("[AIAssistant] Graph lỗi.")
             trace.error("Graph exception — xem stacktrace phía trên.")

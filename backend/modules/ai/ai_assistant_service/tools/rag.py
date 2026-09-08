@@ -49,7 +49,7 @@ load_dotenv()
 # ===== Config =================
 # ==============================
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", default=None) 
-EMBEDDING_PROVIDER = os.getenv( "EMBEDDING_PROVIDER", "gemini", ).lower() 
+EMBEDDING_PROVIDER = os.getenv( "EMBEDDING_PROVIDER", "local", ).lower() 
 MODEL_EMBEDDING_LOCAL_NAME = os.getenv( "MODEL_EMBEDDING_LOCAL_NAME", "AITeamVN/Vietnamese_Embedding_v2", ) 
 EMBEDDING_MODEL = "gemini-embedding-2" 
 
@@ -90,6 +90,7 @@ def embed_text( text: str, *, task_type: str = "RETRIEVAL_QUERY", ) -> list[floa
         model = _get_local_embedding_model() 
         embedding = model.encode( text, normalize_embeddings=True, ) 
         return embedding.tolist()  
+    
     raise ValueError( f"EMBEDDING_PROVIDER không hợp lệ: " f"{EMBEDDING_PROVIDER}. " f"Chỉ hỗ trợ 'gemini' hoặc 'local'." )
 
 
@@ -100,9 +101,8 @@ def cosine_similarity(v1: np.ndarray, v2: np.ndarray) -> float:
         return 0.0
     return float(np.dot(v1, v2) / denom)
 
-
 def _score_tools_from_rows(
-    query_vector: np.ndarray,
+    query_vector: np.ndarray, 
     rows: Sequence[AIToolRegistryModel],
 ) -> list[tuple[str, float]]:
     '''

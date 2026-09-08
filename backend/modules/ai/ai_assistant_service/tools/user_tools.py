@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # 1. PYDANTIC ARGS SCHEMAS — mô tả tham số chi tiết cho từng Tool
 # =============================================================================
-
 class GetUserInfoInput(BaseModel):
     """Không cần tham số — lấy theo user đang đăng nhập."""
 
@@ -101,40 +100,82 @@ class UpdateFitnessGoalInput(BaseModel):
 @tool("get_user_info", args_schema=GetUserInfoInput)
 def get_user_info() -> str:
     """
-    Chỉ dùng để lấy TOÀN BỘ hồ sơ cá nhân của người dùng hiện tại
-    (email, tên, địa chỉ, SĐT, ngày sinh, giới tính, chiều cao, cân nặng, mục tiêu).
-    Không dùng khi user chỉ hỏi một trường cụ thể.
+    Lấy toàn bộ thông tin cá nhân / hồ sơ tài khoản của người dùng hiện tại.
+
+    Dùng khi người dùng muốn:
+    - xem thông tin tài khoản
+    - xem hồ sơ cá nhân
+    - xem thông tin cá nhân của mình
+    - biết tài khoản của tôi có những thông tin gì
+    - xem toàn bộ thông tin tôi đã đăng ký
+
+    Thông tin có thể bao gồm:
+    email, tên đầy đủ, địa chỉ, số điện thoại, ngày sinh, 
+    giới tính, chiều cao, cân nặng và mục tiêu.
     """
     raise NotImplementedError("Executed via ToolExecutor")
 
 
 @tool("get_user_email", args_schema=GetUserEmailInput)
 def get_user_email() -> str:
-    """Chỉ dùng để lấy địa chỉ EMAIL của người dùng hiện tại."""
+    """
+    Lấy địa chỉ email của người dùng hiện tại.
+
+    Dùng khi người dùng muốn:
+    - xem email của mình
+    - biết email tài khoản
+    - lấy địa chỉ email đã đăng ký
+    """
     raise NotImplementedError("Executed via ToolExecutor")
 
 
 @tool("get_user_fullname", args_schema=GetUserFullnameInput)
 def get_user_fullname() -> str:
-    """Chỉ dùng để lấy HỌ TÊN đầy đủ của người dùng hiện tại."""
+    """
+    Lấy họ và tên đầy đủ của người dùng hiện tại.
+
+    Dùng khi người dùng muốn:
+    - xem tên của mình
+    - biết họ tên tài khoản
+    - lấy tên đầy đủ đã đăng ký
+    """
     raise NotImplementedError("Executed via ToolExecutor")
 
 
 @tool("get_user_phone", args_schema=GetUserPhoneInput)
 def get_user_phone() -> str:
-    """Chỉ dùng để lấy SỐ ĐIỆN THOẠI của người dùng hiện tại."""
+    """
+    Lấy số điện thoại của người dùng hiện tại.
+
+    Dùng khi người dùng muốn:
+    - xem số điện thoại của mình
+    - biết số điện thoại tài khoản
+    - lấy số điện thoại đã đăng ký
+    """
     raise NotImplementedError("Executed via ToolExecutor")
 
 
 @tool("get_user_birth_date", args_schema=GetUserBirthDateInput)
 def get_user_birth_date() -> str:
-    """Chỉ dùng để lấy NGÀY SINH của người dùng hiện tại."""
+    """
+    Lấy ngày sinh của người dùng hiện tại.
+
+    Dùng khi người dùng muốn:
+    - xem ngày sinh của mình
+    - muốn biết ngày sinh đã đăng ký trên tài khoản 
+    """
     raise NotImplementedError("Executed via ToolExecutor")
 
 
 @tool("get_user_address", args_schema=GetUserAddressInput)
 def get_user_address() -> str:
-    """Chỉ dùng để lấy ĐỊA CHỈ nơi ở của người dùng hiện tại."""
+    """
+    Lấy địa chỉ của người dùng hiện tại
+
+    Dùng khi người dùng muốn:
+    - xem địa chỉ của mình
+    - muốn biết địa chỉ của mình đã đăng ký ở tài khoản
+    """
     raise NotImplementedError("Executed via ToolExecutor")
 
 

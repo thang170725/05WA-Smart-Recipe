@@ -83,11 +83,10 @@ KHÔNG dự đoán câu trả lời. KHÔNG thêm yêu cầu mới.
 - Gốc: "Cập nhật địa chỉ thành Hà Nội" → "tool cập nhật địa chỉ hồ sơ người dùng"
 
 ## Output BẮT BUỘC (chỉ JSON, không markdown):
-{{"current_query": "query đã rewrite bằng tiếng Việt hoặc Anh ngắn gọn", "changed": true}}
+{{"current_query": "query đã rewrite bằng tiếng Việt ngắn gọn", "changed": true}}
 Hoặc nếu query hiện tại đã đủ tốt:
 {{"current_query": "{current_query}", "changed": false}}
 """
-
 
 # ---------------------------------------------------------------------------
 # DECISION VALIDATOR — khi Agent chọn FINAL_ANSWER / NO_TOOL

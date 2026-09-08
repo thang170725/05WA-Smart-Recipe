@@ -7,8 +7,17 @@ Lần đầu (chưa có feedback): pass-through user_query.
 
 from __future__ import annotations
 
+#
+# ====== nơi setup logging ======
+#
 import logging
+from backend.config.logging import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
+#
+#
+#
 from langchain_core.messages import HumanMessage
 
 from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
@@ -20,21 +29,22 @@ from backend.modules.ai.ai_assistant_service.app.utils.helpers import (
 )
 from backend.modules.ai.ai_assistant_service.app.utils import trace
 
-logger = logging.getLogger(__name__)
-
 
 def _collect_validation_feedback(state: AgentState) -> str:
     parts: list[str] = []
+
     dv = state.get("decision_validation") or {}
     if dv.get("status") == "INVALID" and dv.get("feedback"):
         parts.append(f"[decision] {dv['feedback']}")
     rv = state.get("result_validation") or {}
+
     if rv.get("should_retrieve_again") and rv.get("feedback"):
         parts.append(f"[result] {rv['feedback']}")
     decision = state.get("decision") or {}
     if str(decision.get("action") or "").upper() == "NEED_RETRIEVAL":
         reason = decision.get("reason") or "Agent yêu cầu retrieve tool khác."
         parts.append(f"[need_retrieval] {reason}")
+        
     return "\n".join(parts)
 
 
@@ -53,11 +63,11 @@ async def rewrite_query_node(state: AgentState) -> dict:
     feedback = _collect_validation_feedback(state)
 
     trace.banner(
-        "NODE · QUERY_REWRITER",
+        "NODE 1 · QUERY_REWRITER",
         user_query=user_query,
         current_query=current_query,
         retrieval_iteration=f"{retrieval_iteration}/{max_retrieval}",
-        has_feedback=bool(feedback),
+        has_feedback=feedback,
     )
 
     # Pass-through lần đầu

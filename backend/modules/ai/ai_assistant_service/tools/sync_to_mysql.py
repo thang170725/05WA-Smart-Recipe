@@ -50,7 +50,9 @@ async def sync_tools_to_mysql() -> None:
                     f"Chức năng hệ thống: {tool_name}. "
                     f"Chi tiết công dụng: {tool_desc}"
                 )
+                logger.debug(f"{tool.name}:\n{text_to_embed}")
                 vector = embed_text(text_to_embed, task_type="RETRIEVAL_DOCUMENT")
+                logger.debug(f"{tool.name} shape:\n{vector.shape}")
 
                 result = await db.execute(
                     select(AIToolRegistryModel).where(

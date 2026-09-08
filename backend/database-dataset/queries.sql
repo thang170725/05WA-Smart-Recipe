@@ -1,3 +1,7 @@
+-- 
+-- ---- tạo database -----
+-- 
+create database SmartRecipe character set utf8mb4 collate utf8mb4_unicode_ci;
 use SmartRecipe;
 
 select * from users;
@@ -117,26 +121,9 @@ FROM
 ORDER BY week DESC
 LIMIT 8;
 
-CREATE TABLE weight_history (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    weight FLOAT NOT NULL,
-    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (user_id)
-        REFERENCES users(id)
-        ON DELETE CASCADE
-);
-Query Weight Progress
-SELECT
-    DATE(recorded_at) AS date,
-    ROUND(AVG(weight),1) AS weight
-FROM weight_history
-WHERE user_id = :user_id
-GROUP BY DATE(recorded_at)
-ORDER BY date;
-
--- tạo bảng --
+-- 
+-- ----- tạo bảng ------ 
+-- 
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email varchar(50) not null,
@@ -153,10 +140,21 @@ CREATE TABLE users (
 	target_goal enum('lose_weight', 'gain_muscle', 'maintenance'),
 	avatar_url varchar(255),
 	current_height float not null,
-	current_weight float not null;
+	current_weight float not null,
 	
 	unique key uq_users_email (email)
 ) ENGINE=InnoDB;
+
+CREATE TABLE weight_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    weight FLOAT NOT NULL,
+    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
 
 CREATE TABLE otp (
     id INT AUTO_INCREMENT PRIMARY KEY,

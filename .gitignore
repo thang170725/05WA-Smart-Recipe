@@ -2,7 +2,6 @@
 **/__pycache__/
 sr/
 .env
-.env.*
 .venv/
 .vscode/
 .idea/
