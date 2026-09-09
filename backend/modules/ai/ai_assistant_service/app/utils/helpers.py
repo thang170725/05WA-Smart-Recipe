@@ -16,6 +16,8 @@ def extract_text_from_response(response: Any) -> str:
     Tương thích:
       - Ollama / đa số provider: content = str
       - Gemini: content có thể là list[{text: ...}] hoặc parts
+    
+    Output=str: khi AI trả fuwx liệu nó sẽ có nhiều định dạng, hàm này sẽ cố format lại thành str
     """
     if response is None:
         return ""
@@ -46,6 +48,11 @@ def safe_json_loads(text: str) -> dict | None:
     """
     Parse JSON từ output LLM; chịu được markdown fence ```json ... ```.
     Trả về None nếu không parse được.
+
+    Nhận một chuỗi text từ LLM và cố gắng lấy JSON object (dict) ra khỏi đó một cách an toàn.
+
+    Input
+        + text=str:
     """
     if not text:
         return None

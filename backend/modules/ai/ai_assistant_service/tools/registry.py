@@ -18,13 +18,17 @@ from backend.modules.ai.ai_assistant_service.tools.user_tools import (
     USER_TOOL_EXECUTORS,
     USER_WRITE_TOOL_NAMES,
 )
+from backend.modules.ai.ai_assistant_service.tools.food_tools import (
+    FOOD_TOOL_EXECUTORS,
+    FOOD_TOOLS
+)
 
 # ---------------------------------------------------------------------------
 # Catalog toàn hệ thống
 # ---------------------------------------------------------------------------
 ALL_TOOLS: list[BaseTool] = [
     *USER_TOOLS,
-    # *FOOD_TOOLS,   # mở rộng sau
+    *FOOD_TOOLS, 
     # *WORKOUT_TOOLS,
 ]
 
@@ -34,6 +38,7 @@ TOOL_BY_NAME: dict[str, BaseTool] = {t.name: t for t in ALL_TOOLS}
 # name → async executor(db, user_id, **args)
 TOOL_EXECUTORS: dict[str, Callable[..., Awaitable[Any]]] = {
     **USER_TOOL_EXECUTORS,
+    **FOOD_TOOL_EXECUTORS,
 }
 
 # Tập tên tool ghi dữ liệu (cần WAIT_CONFIRM)

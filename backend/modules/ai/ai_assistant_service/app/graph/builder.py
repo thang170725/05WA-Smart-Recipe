@@ -10,6 +10,9 @@ Flow:
 
 from __future__ import annotations
 
+#
+#
+#
 from langgraph.graph import StateGraph, START, END
 
 from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
@@ -30,7 +33,9 @@ from backend.modules.ai.ai_assistant_service.app.graph.edges import (
     route_after_result_evaluator,
 )
 
-
+#
+#
+#
 def build_agent_graph():
     """
     Compile LangGraph workflow.
@@ -44,9 +49,9 @@ def build_agent_graph():
     workflow.add_node("rewrite", rewrite_query_node)
     workflow.add_node("retrieve", retrieve_tools_node)
     workflow.add_node("agent", agent_node)
-    workflow.add_node("execute", execute_tools_node)
-    workflow.add_node("decision_validator", decision_validator_node)
-    workflow.add_node("result_evaluator", result_evaluator_node)
+    # workflow.add_node("execute", execute_tools_node)
+    # workflow.add_node("decision_validator", decision_validator_node)
+    # workflow.add_node("result_evaluator", result_evaluator_node)
 
     # ---- Edges cố định ----
     workflow.add_edge(START, "rewrite")

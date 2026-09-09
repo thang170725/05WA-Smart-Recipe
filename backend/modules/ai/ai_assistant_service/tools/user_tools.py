@@ -11,7 +11,17 @@ mà LLM điền — tránh lộ/nhầm ID và giữ schema gọn cho function ca
 
 from __future__ import annotations
 
+#
+#
+#
 import logging
+from backend.config.logging import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
+#
+#
+#
 from typing import Literal, Optional
 
 from langchain_core.tools import tool
@@ -19,8 +29,6 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.modules.user import services
-
-logger = logging.getLogger(__name__)
 
 
 # =============================================================================

@@ -36,10 +36,6 @@ from sentence_transformers import SentenceTransformer
 
 from backend.config.database import SessionLocal
 from backend.modules.ai.ai_assistant_service.app.models import AIToolRegistryModel
-from backend.modules.ai.ai_assistant_service.app.config.settings import (
-    DEFAULT_TOOL_TOP_K,
-    DEFAULT_RAG_SCORE_THRESHOLD,
-)
 from backend.modules.ai.ai_assistant_service.tools.registry import TOOL_BY_NAME
 
 load_dotenv()
@@ -48,6 +44,8 @@ load_dotenv()
 # ==============================
 # ===== Config =================
 # ==============================
+DEFAULT_TOOL_TOP_K=os.getenv("DEFAULT_TOOL_TOP_K", default=5)
+DEFAULT_RAG_SCORE_THRESHOLD=os.getenv("DEFAULT_RAG_SCORE_THRESHOLD", default=0.45)
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", default=None) 
 EMBEDDING_PROVIDER = os.getenv( "EMBEDDING_PROVIDER", "local", ).lower() 
 MODEL_EMBEDDING_LOCAL_NAME = os.getenv( "MODEL_EMBEDDING_LOCAL_NAME", "AITeamVN/Vietnamese_Embedding_v2", ) 

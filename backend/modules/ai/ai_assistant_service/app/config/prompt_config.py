@@ -22,7 +22,7 @@ AGENT_SYSTEM_PROMPT = """Bạn là trợ lý AI của Smart-Recipe — chuyên v
    - FINAL_ANSWER: trả lời trực tiếp bằng tiếng Việt khi đã đủ evidence (kiến thức chung hoặc đã có ToolMessage hợp lệ).
    - NEED_RETRIEVAL: khi câu hỏi CẦN tool nhưng danh sách tool hiện tại không phù hợp.
      → Trả về ĐÚNG một dòng JSON (không markdown):
-       {"action":"NEED_RETRIEVAL","reason":"lý do ngắn"}
+       {"action":"NEED_RETRIEVAL","reason":"tôi nghĩ là câu hỏi này cần tool nhưng không tìm thấy tool phù hợp trong danh sách"}
 
 ## Ưu tiên evidence
 - Thông tin cá nhân / hồ sơ / email / BMI / dữ liệu DB → BẮT BUỘC dùng Tool, không đoán.

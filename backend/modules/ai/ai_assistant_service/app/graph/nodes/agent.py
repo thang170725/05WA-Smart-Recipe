@@ -11,11 +11,19 @@ Nhận feedback từ result_validation / decision_validation để self-correct.
 
 from __future__ import annotations
 
+# =================================
+# ======== nơi setup logging ======
+# =================================
 import logging
+from backend.config.logging import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
+# =====================================
+# ======== nơi import thư viện ========
+# =====================================
 from langchain_core.messages import SystemMessage
 
-from backend.config.logging import setup_logging
 from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
 from backend.modules.ai.ai_assistant_service.app.config.prompt_config import (
     AGENT_SYSTEM_PROMPT,
@@ -29,10 +37,9 @@ from backend.modules.ai.ai_assistant_service.app.utils.helpers import (
 )
 from backend.modules.ai.ai_assistant_service.app.utils import trace
 
-setup_logging()
-logger = logging.getLogger(__name__)
-
-
+#
+#
+#
 def _build_feedback_system_messages(state: AgentState) -> list[SystemMessage]:
     """Đưa validation feedback vào context Agent (không expose CoT dài)."""
     msgs: list[SystemMessage] = []
@@ -66,6 +73,7 @@ def _build_feedback_system_messages(state: AgentState) -> list[SystemMessage]:
 
 async def agent_node(state: AgentState) -> dict:
     """Gọi LLM (bind_tools) để suy luận bước tiếp theo."""
+    # 1. tạo các biến lấy dữ liệu
     llm = state["llm"]
     tools = state.get("active_tools") or []
     messages = list(state.get("messages") or [])
@@ -73,14 +81,10 @@ async def agent_node(state: AgentState) -> dict:
     max_iterations = int(state.get("max_iterations") or 6)
     execution_iteration = int(state.get("execution_iteration") or 0)
     max_execution = int(state.get("max_execution_steps") or 4)
-
-    force_final = (
-        iteration >= max_iterations
-        or execution_iteration >= max_execution
-    )
+    force_final = (iteration >= max_iterations or execution_iteration >= max_execution)
 
     trace.banner(
-        "NODE · AGENT (Reasoning)",
+        "NODE 3 · AGENT (Reasoning)",
         iteration=f"{iteration}/{max_iterations}",
         execution=f"{execution_iteration}/{max_execution}",
         force_final=force_final,
@@ -108,6 +112,7 @@ async def agent_node(state: AgentState) -> dict:
 
     trace.step("Đang gọi LLM suy luận...")
     ai_msg = await runnable.ainvoke(invoke_messages)
+    logger.debug(f"AI suy luận:\n{ai_msg}")
 
     tool_calls = getattr(ai_msg, "tool_calls", None) or []
     if tool_calls and not force_final:
@@ -133,10 +138,12 @@ async def agent_node(state: AgentState) -> dict:
         }
 
     final_text = extract_text_from_response(ai_msg)
+    logger.debug(f"FINAL TEXT:\n{final_text}")
 
     # NEED_RETRIEVAL — discovery lại
     if not force_final:
         need = parse_need_retrieval(final_text)
+        logger.debug(f"NEED:\n{need}")
         if need:
             trace.step("NEED_RETRIEVAL: %s", need.get("reason"))
             return {
@@ -147,9 +154,6 @@ async def agent_node(state: AgentState) -> dict:
                 "final_message": None,
                 "progress": "Kết quả chưa đủ, đang thử phương án khác...",
             }
-
-    preview = (final_text[:160] + "...") if len(final_text) > 160 else final_text
-    trace.step("FINAL_ANSWER (chờ Decision Validator): %s", preview)
 
     return {
         "messages": [ai_msg],

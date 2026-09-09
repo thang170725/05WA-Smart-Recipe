@@ -46,13 +46,16 @@ async def sync_tools_to_mysql() -> None:
                 current_names.add(tool_name)
                 tool_desc = (tool.description or "").strip() or "Không có mô tả."
 
+                # 1. tổng hợp bản mô tả cho từng tool
                 text_to_embed = (
                     f"Chức năng hệ thống: {tool_name}. "
                     f"Chi tiết công dụng: {tool_desc}"
                 )
                 logger.debug(f"{tool.name}:\n{text_to_embed}")
+
+                # 2. embedding
                 vector = embed_text(text_to_embed, task_type="RETRIEVAL_DOCUMENT")
-                logger.debug(f"{tool.name} shape:\n{vector.shape}")
+                logger.debug(f"{tool.name} shape:\n{len(vector)}")
 
                 result = await db.execute(
                     select(AIToolRegistryModel).where(

@@ -40,7 +40,7 @@ from backend.modules.ai.ai_assistant_service.app.config.settings import (
 from backend.modules.ai.ai_assistant_service.app.graph.builder import build_agent_graph
 from backend.modules.ai.ai_assistant_service.app.graph.nodes.execute import (
     PENDING_ACTIONS,
-    run_pending_write_action,
+    # run_pending_write_action,
 )
 from backend.modules.ai.ai_assistant_service.app.utils import trace
 
@@ -186,6 +186,6 @@ class AIAssistantService:
         )
         return response
 
-    async def confirm_pending_action(self, action_id: str) -> dict:
-        """Thực thi thao tác ghi đã được user xác nhận."""
-        return await run_pending_write_action(db=self.db, action_id=action_id)
+    # async def confirm_pending_action(self, action_id: str) -> dict:
+    #     """Thực thi thao tác ghi đã được user xác nhận."""
+    #     return await run_pending_write_action(db=self.db, action_id=action_id)
