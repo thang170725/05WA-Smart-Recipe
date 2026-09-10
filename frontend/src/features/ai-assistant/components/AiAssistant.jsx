@@ -1,10 +1,85 @@
 import { Sparkles, Send } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { AiAssistantApi, ConfirmAiActionApi } from "../api/AIAssistantApi";
+// ===== Progress UI (default export) =====
+import WorkflowProgress from "../../../components/AiAssistant/WorkflowProgress";
 
 export default function AiAssistant({ devMode }) {
   // ==== USESTATE  ====
   const [loading, setLoading] = useState(false);
+
+  // ===============================================================================
+  // ======== chức năng hiển thị tiến trình AI Agent suy nghĩ câu trả lời =======
+  // ===============================================================================
+  const [workflow, setWorkflow] = useState([]);
+
+  /**
+   * Cập nhật timeline workflow từ SSE event.
+   * - running  → append bước mới (đóng bước running cũ nếu còn)
+   * - completed/error → cập nhật bước cùng node gần nhất
+   * Hỗ trợ loop (agent chạy nhiều lần) bằng cách append thay vì ghi đè toàn bộ.
+   */
+  const handleWorkflowEvent = (event) => {
+    if (event.type !== "workflow") {
+      return;
+    }
+
+    setWorkflow((prev) => {
+      const nextItem = {
+        node: event.node,
+        status: event.status,
+        label: event.label,
+        message: event.message,
+      };
+
+      // ---- status = running: thêm bước đang chạy ----
+      if (event.status === "running") {
+        // Nếu bước cuối đã là cùng node + running → chỉ cập nhật message
+        const last = prev[prev.length - 1];
+        if (
+          last &&
+          last.node === event.node &&
+          last.status === "running"
+        ) {
+          const next = [...prev];
+          next[next.length - 1] = {
+            ...last,
+            message: event.message || last.message,
+            label: event.label || last.label,
+          };
+          return next;
+        }
+
+        // Đóng các bước running còn treo → completed (phòng backend miss)
+        const closed = prev.map((item) =>
+          item.status === "running"
+            ? { ...item, status: "completed" }
+            : item
+        );
+
+        return [...closed, nextItem];
+      }
+
+      // ---- completed / error: cập nhật bước cùng node gần nhất ----
+      const reverseIdx = [...prev]
+        .reverse()
+        .findIndex((item) => item.node === event.node);
+
+      if (reverseIdx === -1) {
+        return [...prev, nextItem];
+      }
+
+      const realIdx = prev.length - 1 - reverseIdx;
+      const next = [...prev];
+      next[realIdx] = {
+        ...next[realIdx],
+        status: event.status,
+        label: event.label || next[realIdx].label,
+        message: event.message || next[realIdx].message,
+      };
+      return next;
+    });
+  };
 
   const [messages, setMessages] = useState([
     {
@@ -23,7 +98,7 @@ export default function AiAssistant({ devMode }) {
     if (container) {
       container.scrollTop = container.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, workflow, loading]);
 
   /* ================= Auto Resize Textarea ================= */
   const handleInput = (e) => {
@@ -70,33 +145,50 @@ export default function AiAssistant({ devMode }) {
     }
 
     setLoading(true);
+    setWorkflow([]); // reset timeline mỗi lần hỏi mới
 
     try {
-      const res = await AiAssistantApi(devMode, { prompt: message });
+      await AiAssistantApi(
+        devMode,
+        { prompt: message },
+        (event) => {
+          console.log("AI EVENT:", event);
 
-      // ===== tránh crash nếu res undefined =====
-      if (!res) return;
+          // ---- Workflow progress (timeline) ----
+          if (event.type === "workflow") {
+            handleWorkflowEvent(event);
+            return;
+          }
 
-      if (res.status === "WAIT_CONFIRM") {
-        setPendingAction(res.action_id);
+          // ---- Answer cuối cùng ----
+          if (event.type === "answer") {
+            if (event.status === "WAIT_CONFIRM") {
+              setPendingAction(event.action_id);
 
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: res.message,
-            type: "confirm",
-          },
-        ]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: res.reply || "Không có phản hồi.",
-          },
-        ]);
-      }
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "assistant",
+                  content: event.reply,
+                  type: "confirm",
+                },
+              ]);
+
+              return;
+            }
+
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                content:
+                  event.reply ||
+                  "Không có phản hồi.",
+              },
+            ]);
+          }
+        }
+      );
     } catch (err) {
       console.error(err);
 
@@ -104,11 +196,14 @@ export default function AiAssistant({ devMode }) {
         ...prev,
         {
           role: "assistant",
-          content: "⚠️ Something went wrong. Please try again.",
+          content:
+            "⚠️ Something went wrong. Please try again.",
         },
       ]);
     } finally {
       setLoading(false);
+      // Giữ timeline một nhịp ngắn rồi ẩn (UX mượt hơn)
+      setTimeout(() => setWorkflow([]), 800);
     }
   };
 
@@ -208,7 +303,7 @@ export default function AiAssistant({ devMode }) {
         </div>
       </div>
 
-            {/* ================= Messages ================= */}
+      {/* ================= Messages ================= */}
       <div
         className="
           flex-1
@@ -268,6 +363,7 @@ export default function AiAssistant({ devMode }) {
                 {msg.content}
               </div>
 
+              {/* ===== Nút xác nhận thao tác ghi DB ===== */}
               {msg.type === "confirm" && (
                 <div
                   className={`
@@ -283,14 +379,14 @@ export default function AiAssistant({ devMode }) {
                 >
                   <button
                     onClick={() => handleConfirm()}
-                    className="px-3 py-2 rounded bg-green-600 text-black"
+                    className="px-3 py-2 rounded bg-green-600 text-white text-sm"
                   >
                     Xác nhận
                   </button>
 
                   <button
                     onClick={() => handleCancel()}
-                    className="px-3 py-2 rounded bg-gray-300"
+                    className="px-3 py-2 rounded bg-gray-300 text-sm"
                   >
                     Hủy
                   </button>
@@ -300,10 +396,20 @@ export default function AiAssistant({ devMode }) {
           </div>
         ))}
 
-        {loading && (
+        {/* ================= Workflow progress (khi đang suy luận) ================= */}
+        {loading && workflow.length > 0 && (
           <div className="flex justify-start">
-            <div className="text-xs text-gray-500 animate-pulse">
-              AI is thinking...
+            <div className="w-full max-w-[92%]">
+              <WorkflowProgress workflow={workflow} />
+            </div>
+          </div>
+        )}
+
+        {/* ===== Fallback khi chưa có event workflow nào ===== */}
+        {loading && workflow.length === 0 && (
+          <div className="flex justify-start">
+            <div className="text-xs text-gray-500 animate-pulse px-2">
+              AI đang kết nối...
             </div>
           </div>
         )}

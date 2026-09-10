@@ -34,7 +34,8 @@ class GetCaloriesInWeek(BaseModel):
 #
 # ======= LANGCHAIN TOOL ======
 #
-def get_calories_in_week():
+@tool("get_calories_in_week", args_schema=GetCaloriesInWeek)
+def get_calories_in_week() -> str:
     """
     Lấy tổng cộng lượng calo đã được tính toán từ lượng đồ ăn trong thực đơn một tuần của user tính từ thứ 2 đến chủ nhật
 
@@ -44,7 +45,7 @@ def get_calories_in_week():
 
     Thông tin có thể bao gồm 1 số duy nhất hoặc 1 dict chứa cặp key value
     """
-
+    raise NotImplementedError("Executed via ToolExecutor")
 #
 # ====== EXECUTION =======
 #

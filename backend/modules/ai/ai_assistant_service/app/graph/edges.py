@@ -15,10 +15,16 @@ from backend.modules.ai.ai_assistant_service.app.utils import trace
 
 def route_after_agent(state: AgentState) -> str:
     """
-    CALL_TOOL       → execute
-    NEED_RETRIEVAL  → rewrite
-    FINAL_ANSWER    → validate_no_tool
+    ERROR          → end (LLM crash — đã có final_message)
+    CALL_TOOL      → execute
+    NEED_RETRIEVAL → rewrite
+    FINAL_ANSWER   → validate_no_tool
     """
+    # ---- LLM / pipeline đã set ERROR ở agent_node ----
+    if state.get("final_status") == "ERROR":
+        trace.route("agent", "ERROR", "END")
+        return "end"
+
     decision = state.get("decision") or {}
     action = str(decision.get("action") or "").upper()
 

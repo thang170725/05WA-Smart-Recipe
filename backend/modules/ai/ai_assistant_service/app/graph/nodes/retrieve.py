@@ -31,7 +31,7 @@ from backend.modules.ai.ai_assistant_service.tools.rag import retrieve_tools
 # ======== nơi setup constraint ========
 #
 DEFAULT_TOOL_TOP_K = os.getenv('DEFAULT_TOOL_TOP_K', default=5)
-DEFAULT_RAG_SCORE_THRESHOLD = os.gêtnv('DEFAULT_RAG_SCORE_THRESHOLD', default=0.5)
+DEFAULT_RAG_SCORE_THRESHOLD = os.getenv('DEFAULT_RAG_SCORE_THRESHOLD', default=0.5)
 
 #
 #

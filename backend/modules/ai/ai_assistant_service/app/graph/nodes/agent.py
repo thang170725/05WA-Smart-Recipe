@@ -111,8 +111,29 @@ async def agent_node(state: AgentState) -> dict:
     )
 
     trace.step("Đang gọi LLM suy luận...")
-    ai_msg = await runnable.ainvoke(invoke_messages)
-    logger.debug(f"AI suy luận:\n{ai_msg}")
+    try:
+        ai_msg = await runnable.ainvoke(invoke_messages)
+    except Exception as exc:
+        # Ollama crash / OOM / timeout — kết thúc an toàn thay vì làm sập cả graph
+        logger.exception("[Node:Agent] LLM lỗi: %s", exc)
+        from backend.modules.ai.ai_assistant_service.app.config.settings import (
+            format_llm_error,
+        )
+
+        err_text = format_llm_error(exc)
+        trace.error("Agent LLM fail: %s", err_text)
+        return {
+            "iteration": iteration,
+            "decision": {
+                "action": "FINAL_ANSWER",
+                "answer": err_text,
+            },
+            "final_status": "ERROR",
+            "final_message": err_text,
+            "progress": "Gặp lỗi khi gọi model...",
+        }
+
+    logger.debug("AI suy luận:\n%s", ai_msg)
 
     tool_calls = getattr(ai_msg, "tool_calls", None) or []
     if tool_calls and not force_final:

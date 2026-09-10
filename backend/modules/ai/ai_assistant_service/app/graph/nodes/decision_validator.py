@@ -67,14 +67,49 @@ async def decision_validator_node(state: AgentState) -> dict:
 
     needs_evidence, heuristic_hint = heuristic_needs_external_evidence(user_query)
 
-    # Deterministic: cần evidence + còn tool khả dụng + còn lượt retrieve
-    # → INVALID sớm (không cần LLM khi tín hiệu rõ)
-    if needs_evidence and active_tools and retrieval_iteration < max_retrieval:
+    tool_results = state.get("tool_results") or []
+    used_tools = state.get("used_tools") or []
+    result_validation = state.get("result_validation") or {}
+    
+    has_used_tool = bool(tool_results or used_tools)
+    tool_success = result_validation.get("status") == "SUCCESS"
+    
+    # Nếu câu hỏi cần evidence và Agent đã gọi tool thành công
+    # thì FINAL_ANSWER là hợp lệ → không cần retrieve lại.
+    if needs_evidence and has_used_tool and tool_success:
+        trace.step(
+            "Evidence đã được đáp ứng bằng tool thành công — VALID."
+        )
+    
+        return {
+            "decision_validation": {
+                "status": "VALID",
+                "feedback": (
+                    "Agent đã sử dụng tool và Result Evaluator "
+                    "xác nhận kết quả SUCCESS."
+                ),
+                "reason": "successful_tool_result",
+            },
+            "final_status": "SUCCESS",
+            "final_message": answer or "Xin lỗi, mình chưa có câu trả lời phù hợp.",
+            "progress": "Đã tìm được thông tin phù hợp.",
+        }
+    
+    # Nếu câu hỏi cần evidence, có tool khả dụng,
+    # nhưng Agent chưa gọi tool → bắt buộc retrieve/rewrite lại.
+    if (
+        needs_evidence
+        and active_tools
+        and not has_used_tool
+        and retrieval_iteration < max_retrieval
+    ):
         feedback = (
             f"{heuristic_hint}. Có tool khả dụng nhưng Agent không gọi. "
             "Cần dùng tool thay vì đoán."
         )
+    
         trace.warn("Heuristic INVALID: %s", feedback)
+    
         return {
             "decision_validation": {
                 "status": "INVALID",
@@ -82,7 +117,6 @@ async def decision_validator_node(state: AgentState) -> dict:
                 "reason": "heuristic_needs_tool",
             },
             "final_status": None,
-            # giữ final_message tạm để Agent/rewriter tham chiếu, nhưng chưa END
             "progress": "Kết quả chưa đủ, đang thử phương án khác...",
         }
 

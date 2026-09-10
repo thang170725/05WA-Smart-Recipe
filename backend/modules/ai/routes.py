@@ -2,63 +2,80 @@
 # ===== nơi import thư viện ======= 
 # 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
+import json
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.modules.user.models import User
-from backend.config.database import get_db
+from backend.config.database import get_db, SessionLocal
 from backend.modules.ai.ai_assistant_service.app.ai import AIAssistantService, PENDING_ACTIONS
 from backend.modules.ai.ai_assistant_service.app.schemas import InputAiAssistantSchema, ConfirmSchema
 from backend.modules.account.dependencies import get_current_user
 
 router = APIRouter(prefix="/ai", tags=["AIAssistant"])
 
+
+# =========================================================================
+# ===== POST /ai/chat — SSE stream tiến trình Agent + câu trả lời =========
+# =========================================================================
 @router.post("/chat")
 async def chat(
     message: InputAiAssistantSchema,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
 ):
-    # Mặc định local (qwen2.5:7b) — đổi LLM_OPTION=key trong .env nếu muốn Gemini
-    ai_assistant = AIAssistantService(
-        current_user=current_user,
-        db=db,
+    """
+    StreamingResponse + Depends(get_db) dễ đóng session TRƯỚC khi stream xong.
+    → Mở SessionLocal bên trong event_generator để DB sống suốt pipeline.
+    """
+
+    async def event_generator():
+        """
+        Bọc stream_pipeline → SSE format:
+          data: {...}\n\n
+        """
+        # ===== Session DB sống đến khi stream kết thúc =====
+        async with SessionLocal() as db:
+            # Mặc định local (qwen2.5:7b) — đổi LLM_OPTION=key trong .env nếu muốn Gemini
+            ai_assistant = AIAssistantService(
+                current_user=current_user,
+                db=db,
+            )
+
+            try:
+                async for event in ai_assistant.stream_pipeline(
+                    message.prompt
+                ):
+                    # ensure_ascii=False để tiếng Việt không bị escape
+                    payload = json.dumps(
+                        event,
+                        ensure_ascii=False,
+                        default=str,
+                    )
+                    yield f"data: {payload}\n\n"
+            except Exception as exc:
+                # Lỗi ngoài pipeline — vẫn trả SSE để frontend không treo
+                print("AI STREAM ERROR:", exc)
+                error_event = {
+                    "type": "answer",
+                    "status": "ERROR",
+                    "reply": "AI hiện đang quá tải, vui lòng thử lại sau.",
+                }
+                yield f"data: {json.dumps(error_event, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # tắt buffer nginx nếu có
+        },
     )
 
-    try:
-        reply = await ai_assistant.run_pipline(message.prompt)
 
-        if isinstance(reply, dict):
-            # nếu AI trả về trạng thái chat thông thường
-            if reply.get("status") == "CHAT":
-                return {
-                    "reply": reply.get("message")
-                }
-            
-            # nếu AI trả về trạng thái success (đọc thông tin từ RAG thành công)
-            if reply.get("status") == "SUCCESS":
-                return {
-                    "reply": reply.get("message")
-                }
-
-            # lỗi pipeline — vẫn trả message thân thiện
-            if reply.get("status") == "ERROR":
-                return {
-                    "reply": reply.get("message") or "AI hiện đang quá tải, vui lòng thử lại sau."
-                }
-            
-            # Nếu AI trả về trạng thái WAIT_CONFIRM, đẩy nguyên cụm sang React bắt được status và action_id
-            return reply
-
-        return {
-            "reply": str(reply)
-        }
-    except Exception as e:
-        print("AI ERROR: ", e)
-        return {
-            "reply": "AI hiện đang quá tải, vui lòng thử lại sau."
-        }
-
-# Endpoint confirm data - Khớp 100% với ConfirmAiActionApi từ React
+# =========================================================================
+# ===== POST /ai/confirm — xác nhận thao tác ghi DB =======================
+# =========================================================================
 @router.post("/confirm")
 async def confirm_action(
     action: ConfirmSchema,

@@ -55,7 +55,7 @@ async def sync_tools_to_mysql() -> None:
 
                 # 2. embedding
                 vector = embed_text(text_to_embed, task_type="RETRIEVAL_DOCUMENT")
-                logger.debug(f"{tool.name} shape:\n{len(vector)}")
+                logger.debug(f"{tool.name} shape: {len(vector)}")
 
                 result = await db.execute(
                     select(AIToolRegistryModel).where(

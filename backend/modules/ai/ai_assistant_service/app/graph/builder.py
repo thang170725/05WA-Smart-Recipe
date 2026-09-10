@@ -49,16 +49,16 @@ def build_agent_graph():
     workflow.add_node("rewrite", rewrite_query_node)
     workflow.add_node("retrieve", retrieve_tools_node)
     workflow.add_node("agent", agent_node)
-    # workflow.add_node("execute", execute_tools_node)
-    # workflow.add_node("decision_validator", decision_validator_node)
-    # workflow.add_node("result_evaluator", result_evaluator_node)
+    workflow.add_node("execute", execute_tools_node)
+    workflow.add_node("decision_validator", decision_validator_node)
+    workflow.add_node("result_evaluator", result_evaluator_node)
 
     # ---- Edges cố định ----
     workflow.add_edge(START, "rewrite")
     workflow.add_edge("rewrite", "retrieve")
     workflow.add_edge("retrieve", "agent")
 
-    # ---- Agent → execute | validate_no_tool | rewrite ----
+    # ---- Agent → execute | validate_no_tool | rewrite | END ----
     workflow.add_conditional_edges(
         "agent",
         route_after_agent,
@@ -66,6 +66,7 @@ def build_agent_graph():
             "execute": "execute",
             "validate_no_tool": "decision_validator",
             "rewrite": "rewrite",
+            "end": END,
         },
     )
 

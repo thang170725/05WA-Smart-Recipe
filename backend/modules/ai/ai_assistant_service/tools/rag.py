@@ -44,8 +44,8 @@ load_dotenv()
 # ==============================
 # ===== Config =================
 # ==============================
-DEFAULT_TOOL_TOP_K=os.getenv("DEFAULT_TOOL_TOP_K", default=5)
-DEFAULT_RAG_SCORE_THRESHOLD=os.getenv("DEFAULT_RAG_SCORE_THRESHOLD", default=0.45)
+DEFAULT_TOOL_TOP_K=float(os.getenv("DEFAULT_TOOL_TOP_K", default=5))
+DEFAULT_RAG_SCORE_THRESHOLD=float(os.getenv("DEFAULT_RAG_SCORE_THRESHOLD", default=0.45))
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", default=None) 
 EMBEDDING_PROVIDER = os.getenv( "EMBEDDING_PROVIDER", "local", ).lower() 
 MODEL_EMBEDDING_LOCAL_NAME = os.getenv( "MODEL_EMBEDDING_LOCAL_NAME", "AITeamVN/Vietnamese_Embedding_v2", ) 
@@ -59,13 +59,27 @@ _client = ( genai.Client(api_key=GOOGLE_API_KEY) if GOOGLE_API_KEY else None )
 # ====================================
 # ======= Local embedding model ======
 # ====================================
-_local_embedding_model = None 
-def _get_local_embedding_model() -> SentenceTransformer: 
-    """ Lazy load local embedding model. Model chỉ được load khi EMBEDDING_PROVIDER=local. """ 
-    global _local_embedding_model 
-    if _local_embedding_model is None: 
-        _local_embedding_model = SentenceTransformer( MODEL_EMBEDDING_LOCAL_NAME ) 
-    
+# Quan trọng (GPU ~4GB): Ollama qwen2.5:7b cần VRAM.
+# Nếu embedding cũng lên CUDA → OOM → "llama runner process has terminated".
+# Mặc định ép embedding chạy CPU (đổi bằng EMBEDDING_DEVICE=cuda nếu GPU dư).
+EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE", "cpu").lower()
+
+_local_embedding_model = None
+
+
+def _get_local_embedding_model() -> SentenceTransformer:
+    """Lazy load local embedding model — mặc định device=cpu để tránh tranh VRAM với Ollama."""
+    global _local_embedding_model
+    if _local_embedding_model is None:
+        logger.info(
+            "[ToolRAG] Load embedding model=%s device=%s",
+            MODEL_EMBEDDING_LOCAL_NAME,
+            EMBEDDING_DEVICE,
+        )
+        _local_embedding_model = SentenceTransformer(
+            MODEL_EMBEDDING_LOCAL_NAME,
+            device=EMBEDDING_DEVICE,
+        )
     return _local_embedding_model 
     
 # ==============================================
@@ -139,7 +153,7 @@ def _pick_tools(
     '''
     selected: list[BaseTool] = []
     for name, score in scored[:top_k]:
-        if score < threshold:
+        if float(score) < float(threshold):
             continue
         tool = TOOL_BY_NAME.get(name)
         if tool is None:
