@@ -39,6 +39,13 @@ DEFAULT_RAG_SCORE_THRESHOLD = os.getenv('DEFAULT_RAG_SCORE_THRESHOLD', default=0
 async def retrieve_tools_node(state: AgentState) -> dict:
     """
     Trạm RAG: embed current_query → cosine similarity → Top-K BaseTool.
+    Output:
+    {
+        "active_tools"=list: [get_user_info, ...],
+        "retrieved_tools": [get_user_info, ...],
+        "retrieval_history": history,
+        "progress": "Đang xác định phương án xử lý...",
+    }
     """
     current_query = (state.get("current_query") or state.get("user_query")or "").strip()
     db = state["db"]

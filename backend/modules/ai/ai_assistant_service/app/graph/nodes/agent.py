@@ -94,7 +94,7 @@ async def agent_node(state: AgentState) -> dict:
 
     if tools and not force_final:
         runnable = llm.bind_tools(tools)
-        trace.step("Đã bind %d tools vào LLM", len(tools))
+        trace.log_step("Đã bind %d tools vào LLM", len(tools))
     else:
         runnable = llm
         if force_final:
@@ -110,7 +110,7 @@ async def agent_node(state: AgentState) -> dict:
         + messages
     )
 
-    trace.step("Đang gọi LLM suy luận...")
+    trace.log_step("Đang gọi LLM suy luận...")
     try:
         ai_msg = await runnable.ainvoke(invoke_messages)
     except Exception as exc:
@@ -138,7 +138,7 @@ async def agent_node(state: AgentState) -> dict:
     tool_calls = getattr(ai_msg, "tool_calls", None) or []
     if tool_calls and not force_final:
         for tc in tool_calls:
-            trace.step(
+            trace.log_step(
                 "CALL_TOOL: name=%s args=%s",
                 tc.get("name"),
                 tc.get("args"),
@@ -166,7 +166,7 @@ async def agent_node(state: AgentState) -> dict:
         need = parse_need_retrieval(final_text)
         logger.debug(f"NEED:\n{need}")
         if need:
-            trace.step("NEED_RETRIEVAL: %s", need.get("reason"))
+            trace.log_step("NEED_RETRIEVAL: %s", need.get("reason"))
             return {
                 "messages": [ai_msg],
                 "iteration": iteration,
@@ -175,6 +175,24 @@ async def agent_node(state: AgentState) -> dict:
                 "final_message": None,
                 "progress": "Kết quả chưa đủ, đang thử phương án khác...",
             }
+    
+    result = {
+        "messages": [ai_msg],
+        "iteration": iteration,
+        "decision": {
+            "action": "FINAL_ANSWER",
+            "answer": final_text,
+        },
+        # Chưa END — Decision Validator sẽ chốt VALID/INVALID
+        "final_status": None,
+        "final_message": final_text or "Xin lỗi, mình chưa có câu trả lời phù hợp.",
+        "progress": "Đang kiểm tra kết quả...",
+    }
+    
+    logger.debug(
+        "[RESULT] kết quả sau node 3:\n%s",
+        result,
+    )
 
     return {
         "messages": [ai_msg],

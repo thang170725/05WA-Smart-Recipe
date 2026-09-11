@@ -4,10 +4,33 @@ Helpers dùng chung cho các node trong graph (không chứa business logic).
 
 from __future__ import annotations
 
+#
+# ========= nơi import thư viện =======
+#
 import json
 import re
 from typing import Any
+from dataclasses import dataclass, field
 
+#
+# ======== CONSTRAINT ========
+#
+@dataclass
+class EvidenceSignals:
+    realtime: bool = False
+    personal: bool = False
+    external_lookup: bool = False
+    state_change: bool = False
+    knowledge_question: bool = False
+
+    realtime_hits: list[str] = field(default_factory=list)
+    personal_hits: list[str] = field(default_factory=list)
+    external_lookup_hits: list[str] = field(default_factory=list)
+    state_change_hits: list[str] = field(default_factory=list)
+    knowledge_hits: list[str] = field(default_factory=list)
+    domain_hits: list[str] = field(default_factory=list)
+
+    reasons: list[str] = field(default_factory=list)
 
 def extract_text_from_response(response: Any) -> str:
     """
@@ -127,27 +150,210 @@ def parse_need_retrieval(text: str) -> dict | None:
         }
     return None
 
-
-# Từ khóa gợi ý cần evidence bên ngoài / dữ liệu user (deterministic)
-REALTIME_OR_PERSONAL_KEYWORDS = (
-    # realtime / current
-    "hiện tại", "hôm nay", "bây giờ", "mới nhất", "realtime", "real-time",
-    "current", "today", "latest", "now",
-    # personal / DB
-    "của tôi", "của mình", "hồ sơ", "tài khoản", "email của",
-    "bmi", "bmr", "tdee", "cân nặng", "chiều cao", "địa chỉ",
-    "cập nhật", "sửa", "đổi", "thay đổi",
-    "profile", "my email", "my info", "my profile",
+REALTIME_SIGNALS = (
+    "hiện tại",
+    "hôm nay",
+    "bây giờ",
+    "mới nhất",
+    "realtime",
+    "real-time",
+    "giá hiện tại",
+    "latest",
+    "current",
+    "today",
+    "now",
 )
 
+PERSONAL_REFERENCE_SIGNALS = (
+    "của tôi",
+    "của mình",
+    "tài khoản của tôi",
+    "hồ sơ của tôi",
+    "thông tin của tôi",
+    "email của tôi",
+    "dữ liệu của tôi",
+    "my profile",
+    "my account",
+    "my email",
+    "my info",
+    "my data",
+)
 
-def heuristic_needs_external_evidence(user_query: str) -> tuple[bool, str]:
-    """
-    Deterministic check: query có dấu hiệu cần tool / evidence ngoài model knowledge?
-    Trả về (needs_evidence, hint_text).
-    """
+EXTERNAL_LOOKUP_SIGNALS = (
+    "tra cứu",
+    "tìm kiếm",
+    "tìm giúp",
+    "tra giúp",
+    "kiểm tra",
+    "xem giúp",
+    "lấy thông tin",
+    "search",
+    "lookup",
+    "fetch",
+)
+
+STATE_CHANGE_SIGNALS = (
+    "cập nhật",
+    "sửa",
+    "đổi",
+    "thay đổi",
+    "lưu",
+    "xóa",
+    "thêm",
+    "tạo",
+)
+
+KNOWLEDGE_INTENT_SIGNALS = (
+    "là gì",
+    "nghĩa là gì",
+    "công thức",
+    "cách tính",
+    "giải thích",
+    "tại sao",
+    "vì sao",
+    "như thế nào",
+    "khác nhau thế nào",
+    "so sánh",
+)
+
+DOMAIN_KEYWORDS = (
+    "bmi",
+    "bmr",
+    "tdee",
+    "cân nặng",
+    "chiều cao",
+    "địa chỉ",
+    "email",
+    "hồ sơ",
+    "profile",
+)
+
+def _find_keyword_hits(
+    query: str,
+    keywords: tuple[str, ...],
+) -> list[str]:
+    q = (query or "").lower()
+
+    return [
+        keyword
+        for keyword in keywords
+        if keyword in q
+    ]
+
+def analyze_evidence_signals(
+    user_query: str,
+) -> EvidenceSignals:
+
     q = (user_query or "").lower()
-    hits = [kw for kw in REALTIME_OR_PERSONAL_KEYWORDS if kw in q]
-    if hits:
-        return True, f"Query chứa tín hiệu cần evidence/tool: {hits}"
-    return False, "Không thấy từ khóa realtime/cá nhân rõ ràng."
+
+    realtime_hits = _find_keyword_hits(
+        q,
+        REALTIME_SIGNALS,
+    )
+
+    personal_hits = _find_keyword_hits(
+        q,
+        PERSONAL_REFERENCE_SIGNALS,
+    )
+
+    external_lookup_hits = _find_keyword_hits(
+        q,
+        EXTERNAL_LOOKUP_SIGNALS,
+    )
+
+    state_change_hits = _find_keyword_hits(
+        q,
+        STATE_CHANGE_SIGNALS,
+    )
+
+    knowledge_hits = _find_keyword_hits(
+        q,
+        KNOWLEDGE_INTENT_SIGNALS,
+    )
+
+    domain_hits = _find_keyword_hits(
+        q,
+        DOMAIN_KEYWORDS,
+    )
+
+    signals = EvidenceSignals(
+        realtime=bool(realtime_hits),
+        personal=bool(personal_hits),
+        external_lookup=bool(external_lookup_hits),
+        state_change=bool(state_change_hits),
+
+        # Có dấu hiệu đang hỏi kiến thức chung
+        knowledge_question=bool(knowledge_hits),
+
+        realtime_hits=realtime_hits,
+        personal_hits=personal_hits,
+        external_lookup_hits=external_lookup_hits,
+        state_change_hits=state_change_hits,
+        knowledge_hits=knowledge_hits,
+        domain_hits=domain_hits,
+    )
+
+    if realtime_hits:
+        signals.reasons.append(
+            f"realtime={realtime_hits}"
+        )
+
+    if personal_hits:
+        signals.reasons.append(
+            f"personal={personal_hits}"
+        )
+
+    if external_lookup_hits:
+        signals.reasons.append(
+            f"external_lookup={external_lookup_hits}"
+        )
+
+    if state_change_hits:
+        signals.reasons.append(
+            f"state_change={state_change_hits}"
+        )
+
+    if knowledge_hits:
+        signals.reasons.append(
+            f"knowledge_question={knowledge_hits}"
+        )
+
+    return signals
+
+def evidence_required(
+    signals: EvidenceSignals,
+) -> bool:
+
+    if signals.personal:
+        return True
+
+    if signals.realtime:
+        return True
+
+    if signals.external_lookup:
+        return True
+
+    if signals.state_change:
+        return True
+
+    return False
+
+def heuristic_needs_external_evidence(
+    user_query: str,
+) -> tuple[bool, str]:
+
+    signals = analyze_evidence_signals(user_query)
+
+    needs_evidence = evidence_required(signals)
+
+    hint_text = (
+        f"realtime={signals.realtime}; "
+        f"personal={signals.personal}; "
+        f"external_lookup={signals.external_lookup}; "
+        f"state_change={signals.state_change}; "
+        f"knowledge_question={signals.knowledge_question}; "
+        f"domain={signals.domain_hits}; "
+        f"reasons={signals.reasons}"
+    )
+
+    return needs_evidence, hint_text

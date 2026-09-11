@@ -31,13 +31,22 @@ def banner(title: str, **fields: Any) -> None:
     if extra:
         logger.info("  → %s", extra)
 
-def step(msg: str, *args: Any) -> None:
-    """Log 1 dòng chi tiết trong bước hiện tại."""
+def log_step(msg: str, *args: Any) -> None:
+    """
+    In ra log 1 dòng chi tiết trong bước hiện tại.
+    """
     logger.info("  • " + msg, *args)
 
 
-def route(from_node: str, decision: str, to_node: str) -> None:
-    """Log quyết định điều hướng của conditional edge."""
+def log_route(from_node: str, decision: str, to_node: str) -> None:
+    """
+    In ra quyết định điều hướng từ node nào sang node nào
+
+    Input:
+    - from_node: Node bắt đầu của việc điều hướng  (agent đang đứng ở node này)
+    - decision: trả lời cho câu hỏi, hệ thông chọn nhánh nào
+    - to_node: Node đích mà graph sẽ đi tới
+    """
     logger.info("  ➜ ROUTE: %s --[%s]--> %s", from_node, decision, to_node)
 
 

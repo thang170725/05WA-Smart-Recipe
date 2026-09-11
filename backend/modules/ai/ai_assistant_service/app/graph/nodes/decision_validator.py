@@ -7,8 +7,17 @@ Kết hợp deterministic rules + LLM semantic check (description.md §16–17).
 
 from __future__ import annotations
 
+#
+# ======== nơi setup logging ==========
+#
 import logging
+from backend.config.logging import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
+#
+#
+#
 from langchain_core.messages import HumanMessage
 
 from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
@@ -23,9 +32,9 @@ from backend.modules.ai.ai_assistant_service.app.utils.helpers import (
 from backend.modules.ai.ai_assistant_service.app.utils import trace
 from backend.modules.ai.ai_assistant_service.tools.registry import summarize_tools
 
-logger = logging.getLogger(__name__)
-
-
+#
+#
+#
 async def decision_validator_node(state: AgentState) -> dict:
     """
     Validate quyết định không dùng tool.
@@ -46,13 +55,14 @@ async def decision_validator_node(state: AgentState) -> dict:
     force_end = iteration >= max_iterations
 
     trace.banner(
-        "NODE · DECISION_VALIDATOR",
+        "NODE 4.2· DECISION_VALIDATOR",
         action=decision.get("action"),
         force_end=force_end,
         retrieval_iteration=f"{retrieval_iteration}/{max_retrieval}",
         n_tools=len(active_tools),
     )
 
+    # nê
     if force_end:
         trace.warn("Force end — chấp nhận FINAL_ANSWER.")
         return {
@@ -77,9 +87,7 @@ async def decision_validator_node(state: AgentState) -> dict:
     # Nếu câu hỏi cần evidence và Agent đã gọi tool thành công
     # thì FINAL_ANSWER là hợp lệ → không cần retrieve lại.
     if needs_evidence and has_used_tool and tool_success:
-        trace.step(
-            "Evidence đã được đáp ứng bằng tool thành công — VALID."
-        )
+        trace.log_step("Evidence đã được đáp ứng bằng tool thành công — VALID.")
     
         return {
             "decision_validation": {
@@ -131,7 +139,7 @@ async def decision_validator_node(state: AgentState) -> dict:
     status = "VALID"
     feedback = "OK"
     try:
-        trace.step("Đang gọi LLM Decision Validator...")
+        trace.log_step("Đang gọi LLM Decision Validator...")
         response = await state["llm"].ainvoke([HumanMessage(content=prompt)])
         raw = extract_text_from_response(response)
         parsed = safe_json_loads(raw) or {}
@@ -152,7 +160,7 @@ async def decision_validator_node(state: AgentState) -> dict:
         feedback = "Hết lượt retrieve — chấp nhận câu trả lời hiện tại. " + feedback
 
     if status == "VALID":
-        trace.step("VALID — END. feedback=%s", feedback)
+        trace.log_step("VALID — END. feedback=%s", feedback)
         return {
             "decision_validation": {"status": "VALID", "feedback": feedback},
             "final_status": "SUCCESS",

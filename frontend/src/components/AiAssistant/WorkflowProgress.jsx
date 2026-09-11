@@ -12,12 +12,23 @@ const WORKFLOW_LABELS = {
     done: "Hoàn thành",
 };
 
-/**
- * Thanh tiến trình AI Agent — timeline dọc, animated.
- *
- * workflow item shape:
- *   { node, status: "running"|"completed"|"error", label?, message? }
- */
+/* ====================================================
+ * React Component dùng để hiển thị "tiến trình AI Agent" theo dạng timeline dọc có animation
+ * Backend / SSE
+ *      ↓
+ * nhận event workflow
+ *      ↓
+ * FE cập nhật state workflow
+ *      ↓
+ * <WorkflowProgress workflow={workflow} />
+ *      ↓
+ * component tính:
+ * - bước nào đang chạy
+ * - bước nào hoàn thành
+ * - % tiến độ
+ *      ↓
+ * render timeline + progress bar + icon
+ * ==================================================== */
 export default function WorkflowProgress({
     workflow,
 }) {
@@ -48,27 +59,27 @@ export default function WorkflowProgress({
                 overflow-hidden
                 rounded-2xl
                 border
-                border-teal-200/70
+                border-orange-200/60
                 bg-gradient-to-br
-                from-slate-900
-                via-slate-900
-                to-teal-950
+                from-white
+                via-white
+                to-orange-50
                 p-4
-                shadow-lg
-                shadow-teal-900/20
+                shadow-sm
+                shadow-orange-900/5
             "
         >
             {/* ================= Header ================= */}
             <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-500/20">
-                        <Sparkles className="h-3.5 w-3.5 text-teal-300" />
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100">
+                        <Sparkles className="h-3.5 w-3.5 text-orange-500" />
                     </div>
                     <div>
-                        <div className="text-xs font-semibold text-white">
+                        <div className="text-xs font-bold text-slate-800">
                             AI đang suy luận
                         </div>
-                        <div className="text-[11px] text-teal-300/80 truncate max-w-[220px]">
+                        <div className="text-[11px] text-orange-600/90 truncate max-w-[220px]">
                             {current?.message ||
                                 current?.label ||
                                 WORKFLOW_LABELS[current?.node] ||
@@ -77,15 +88,15 @@ export default function WorkflowProgress({
                     </div>
                 </div>
 
-                <div className="text-[11px] font-medium tabular-nums text-teal-200/90">
+                <div className="text-[11px] font-bold tabular-nums text-orange-600">
                     {progressPct}%
                 </div>
             </div>
 
             {/* ================= Progress bar ================= */}
-            <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-orange-100/60">
                 <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-teal-400 to-emerald-400"
+                    className="h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-400"
                     initial={{ width: 0 }}
                     animate={{ width: `${progressPct}%` }}
                     transition={{ duration: 0.35, ease: "easeOut" }}
@@ -123,7 +134,7 @@ export default function WorkflowProgress({
                                             top-5
                                             bottom-0
                                             w-px
-                                            bg-white/10
+                                            bg-orange-200/60
                                         "
                                     />
                                 )}
@@ -131,16 +142,16 @@ export default function WorkflowProgress({
                                 {/* ---- Status icon ---- */}
                                 <div className="relative z-10 mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center">
                                     {isError ? (
-                                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500/20">
-                                            <AlertCircle className="h-3 w-3 text-red-400" />
+                                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100">
+                                            <AlertCircle className="h-3 w-3 text-red-500" />
                                         </div>
                                     ) : isDone ? (
-                                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/25">
-                                            <Check className="h-3 w-3 text-emerald-400" />
+                                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-100">
+                                            <Check className="h-3 w-3 text-green-600" />
                                         </div>
                                     ) : (
-                                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-teal-400/20 ring-2 ring-teal-400/40">
-                                            <Loader2 className="h-3 w-3 animate-spin text-teal-300" />
+                                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 ring-2 ring-orange-200/50">
+                                            <Loader2 className="h-3 w-3 animate-spin text-orange-500" />
                                         </div>
                                     )}
                                 </div>
@@ -151,9 +162,9 @@ export default function WorkflowProgress({
                                         className={[
                                             "text-xs leading-tight",
                                             isRunning
-                                                ? "font-semibold text-white"
+                                                ? "font-semibold text-slate-800"
                                                 : isDone
-                                                ? "text-slate-300"
+                                                ? "text-slate-500"
                                                 : "text-slate-400",
                                         ].join(" ")}
                                     >
@@ -161,7 +172,7 @@ export default function WorkflowProgress({
                                     </div>
 
                                     {item.message && isRunning && (
-                                        <div className="mt-0.5 text-[11px] text-teal-300/70 truncate">
+                                        <div className="mt-0.5 text-[11px] text-orange-600/80 truncate">
                                             {item.message}
                                         </div>
                                     )}

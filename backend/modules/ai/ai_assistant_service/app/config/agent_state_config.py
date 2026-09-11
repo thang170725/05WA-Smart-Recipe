@@ -21,7 +21,9 @@ class AgentState(TypedDict, total=False):
     Input:
     - total=False: tất cả các field đều có optional về mặt typing
     Output:
-    - retrieval_history: lịch sử retrieve
+    - active_tools=list: LLM hiện tại được phép dùng những tool nào?
+    - retrieved_tools=list: rag tìm thấy những tool nào
+    - retrieval_history: lịch sử retrieve\n
       [
           {
               "query": "Email của tôi là gì?",
@@ -42,11 +44,12 @@ class AgentState(TypedDict, total=False):
         AIMessage(content="Email của bạn là user@example.com")
       ]
     - max_retrieval_retries: dùng để giới hạn số lần Agent quay lại bước Retrieval/rewrite khi lần tìm kiếm trước không đạt yêu cầu
+    - max_iterations=int: giới hạn tổng số vòng agent
+    - user_query=str: câu hỏi gốc của người dùng (không đổi trong quá trình suy luận AI Agent)
 
     ┌──────────────────────────────────────────────────────────┐
     │                      AgentState                          │
     ├──────────────────────────────────────────────────────────┤
-    │ user_query          → câu hỏi gốc (không đổi)            │
     │ current_query       → query dùng cho retrieval           │
     │ query_history       → các query đã rewrite               │
     │ retrieved_tools     → Top-K tools vòng hiện tại          │

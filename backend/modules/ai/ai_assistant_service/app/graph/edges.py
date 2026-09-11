@@ -22,14 +22,14 @@ def route_after_agent(state: AgentState) -> str:
     """
     # ---- LLM / pipeline đã set ERROR ở agent_node ----
     if state.get("final_status") == "ERROR":
-        trace.route("agent", "ERROR", "END")
+        trace.log_route("agent", "ERROR", "END")
         return "end"
 
     decision = state.get("decision") or {}
     action = str(decision.get("action") or "").upper()
 
     if action == "CALL_TOOL":
-        trace.route("agent", "CALL_TOOL", "execute")
+        trace.log_route("agent", "CALL_TOOL", "execute")
         return "execute"
 
     if action == "NEED_RETRIEVAL":
@@ -37,13 +37,13 @@ def route_after_agent(state: AgentState) -> str:
         max_retrieval = int(state.get("max_retrieval_retries") or 2)
         if retrieval_iteration >= max_retrieval:
             # Hết discovery → ép validate câu trả lời (nếu có) hoặc end
-            trace.route("agent", "NEED_RETRIEVAL_exhausted", "validate_no_tool")
+            trace.log_route("agent", "NEED_RETRIEVAL_exhausted", "validate_no_tool")
             return "validate_no_tool"
-        trace.route("agent", "NEED_RETRIEVAL", "rewrite")
+        trace.log_routeroute("agent", "NEED_RETRIEVAL", "rewrite")
         return "rewrite"
 
     # FINAL_ANSWER / NO_TOOL / mặc định
-    trace.route("agent", "FINAL_ANSWER", "validate_no_tool")
+    trace.log_route("agent", "FINAL_ANSWER", "validate_no_tool")
     return "validate_no_tool"
 
 
@@ -52,16 +52,16 @@ def route_after_decision_validator(state: AgentState) -> str:
     status = str(validation.get("status") or "VALID").upper()
 
     if status == "VALID":
-        trace.route("decision_validator", "VALID", "END")
+        trace.log_route("decision_validator", "VALID", "END")
         return "end"
 
     retrieval_iteration = int(state.get("retrieval_iteration") or 0)
     max_retrieval = int(state.get("max_retrieval_retries") or 2)
     if retrieval_iteration >= max_retrieval:
-        trace.route("decision_validator", "INVALID_but_exhausted", "END")
+        trace.log_route("decision_validator", "INVALID_but_exhausted", "END")
         return "end"
 
-    trace.route("decision_validator", "INVALID", "rewrite")
+    trace.log_route("decision_validator", "INVALID", "rewrite")
     return "rewrite"
 
 
@@ -72,10 +72,10 @@ def route_after_execute(state: AgentState) -> str:
     """
     status = state.get("final_status")
     if status in ("WAIT_CONFIRM", "ERROR"):
-        trace.route("execute", status or "stop", "END")
+        trace.log_route("execute", status or "stop", "END")
         return "end"
 
-    trace.route("execute", "tool_results_ready", "result_evaluator")
+    trace.log_route("execute", "tool_results_ready", "result_evaluator")
     return "result_evaluator"
 
 
@@ -93,11 +93,11 @@ def route_after_result_evaluator(state: AgentState) -> str:
 
     if should_retrieve or category == "WRONG_TOOL":
         if retrieval_iteration < max_retrieval:
-            trace.route("result_evaluator", "WRONG_TOOL", "rewrite")
+            trace.log_route("result_evaluator", "WRONG_TOOL", "rewrite")
             return "rewrite"
-        trace.route("result_evaluator", "WRONG_TOOL_exhausted", "agent")
+        trace.log_route("result_evaluator", "WRONG_TOOL_exhausted", "agent")
         return "agent"
 
     status = str(validation.get("status") or "SUCCESS").upper()
-    trace.route("result_evaluator", status, "agent")
+    trace.log_route("result_evaluator", status, "agent")
     return "agent"
