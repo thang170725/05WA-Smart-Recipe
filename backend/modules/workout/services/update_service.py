@@ -195,6 +195,9 @@ async def insert_exercises_service(
 
         await db.commit()
 
+        return "success"
+
+
     except Exception as e:
         await db.rollback()
         raise e

@@ -3,7 +3,7 @@
 #
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.modules.user.models import User, OTP
-from backend.modules.health.models import HealthMetric
+from backend.modules.meals.models import HealthMetric
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
 
@@ -45,7 +45,12 @@ async def get_info_user_repo(db: AsyncSession, user_id: int):
     }
 
 async def get_by_id(db: AsyncSession, user_id: int) -> User | None:
-        return db.query(User).filter(User.id == user_id).first()
+    user = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+    user = user.scalar_one_or_none()
+
+    return user
 
 async def update_user_repository(
     db: AsyncSession, 

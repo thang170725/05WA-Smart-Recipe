@@ -4,7 +4,7 @@ from backend.modules.dashboard import repositories
 
 from backend.modules.user import services as user_services
 
-from backend.modules.health import services as health_services
+from backend.modules.meals import services as meals_services
 
 from backend.modules.ai_ml import services as ai_ml_services
 
@@ -21,19 +21,13 @@ async def get_user_infor_service(
     user_id: int
 ):
     try:
-        user = await user_services.get_profile(
-            db,
-            user_id
-        )
+        user = await user_services.get_profile(db, user_id)
 
-        health_metric = await health_services.get_health_metrics_info_service(
-            db,
-            user_id
-        )
+        health_metric = await meals_services.get_health_metrics_info_service(db, user_id)
 
         bmi, label = ai_ml_services._calc_bmi(
-            health_metric.weight,
-            health_metric.height
+            user.current_weight,
+            user.current_height,
         )
 
         birth_date = date.fromisoformat(
@@ -48,8 +42,8 @@ async def get_user_infor_service(
         )
 
         bmr = ai_ml_services._calc_bmr(
-            health_metric.weight,
-            health_metric.height,
+            user.current_weight,
+            user.current_height,
             age,
             user.gender
         )
@@ -64,8 +58,8 @@ async def get_user_infor_service(
             "target_goal": user.target_goal,
             "activity_level": user.activity_level,
             "health_status": health_metric.health_status,
-            "height": health_metric.height,
-            "weight": health_metric.weight,
+            "height": user.current_weight,
+            "weight": user.current_weight,
             "bmi": bmi,
             "bmr": bmr,
             "tdee": tdee

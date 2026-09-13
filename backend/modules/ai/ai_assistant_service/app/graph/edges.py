@@ -1,10 +1,19 @@
 """
-Conditional edges — routing theo kiến trúc mới (description.md §30–33).
+Conditional edges — routing theo kiến trúc Multi-Agent LangGraph Pipeline.
 
-  agent → execute | validate_no_tool | rewrite
-  decision_validator → end | rewrite
-  result_evaluator → agent | rewrite
-  execute → result_evaluator | end (WAIT_CONFIRM / ERROR)
+Routing flow:
+  1. agent_choose_branch (Router Agent)
+     ├─ TOOL    → execute_tool
+     └─ NO_TOOL → eval_no_tool
+
+  2. eval_tool (Result Evaluator)
+     ├─ DATA_COMPLETE       → agent_return_result
+     ├─ NEED_MORE_TOOLS     → agent_choose_branch (hoặc agent_return_result nếu đạt limit)
+     └─ FAILED              → rewrite (hoặc agent_return_result nếu hết lượt retry)
+
+  3. eval_no_tool (No-Tool Evaluator)
+     ├─ Valid (YES)         → agent_return_result
+     └─ Invalid (NO)        → rewrite (hoặc agent_return_result nếu hết lượt retry)
 """
 
 from __future__ import annotations
@@ -13,91 +22,100 @@ from backend.modules.ai.ai_assistant_service.app.config.agent_state_config impor
 from backend.modules.ai.ai_assistant_service.app.utils import trace
 
 
-def route_after_agent(state: AgentState) -> str:
+def route_after_router_agent(state: AgentState) -> str:
     """
-    ERROR          → end (LLM crash — đã có final_message)
-    CALL_TOOL      → execute
-    NEED_RETRIEVAL → rewrite
-    FINAL_ANSWER   → validate_no_tool
+    Router Agent Edge:
+      "TOOL"    → execute_tool
+      "NO_TOOL" → eval_no_tool
     """
-    # ---- LLM / pipeline đã set ERROR ở agent_node ----
-    if state.get("final_status") == "ERROR":
-        trace.log_route("agent", "ERROR", "END")
-        return "end"
-
     decision = state.get("decision") or {}
     action = str(decision.get("action") or "").upper()
 
-    if action == "CALL_TOOL":
-        trace.log_route("agent", "CALL_TOOL", "execute")
-        return "execute"
+    if action == "TOOL":
+        trace.log_route("agent_choose_branch", "TOOL", "execute_tool")
+        return "execute_tool"
 
-    if action == "NEED_RETRIEVAL":
-        retrieval_iteration = int(state.get("retrieval_iteration") or 0)
-        max_retrieval = int(state.get("max_retrieval_retries") or 2)
-        if retrieval_iteration >= max_retrieval:
-            # Hết discovery → ép validate câu trả lời (nếu có) hoặc end
-            trace.log_route("agent", "NEED_RETRIEVAL_exhausted", "validate_no_tool")
-            return "validate_no_tool"
-        trace.log_routeroute("agent", "NEED_RETRIEVAL", "rewrite")
-        return "rewrite"
-
-    # FINAL_ANSWER / NO_TOOL / mặc định
-    trace.log_route("agent", "FINAL_ANSWER", "validate_no_tool")
-    return "validate_no_tool"
+    trace.log_route("agent_choose_branch", "NO_TOOL", "eval_no_tool")
+    return "eval_no_tool"
 
 
-def route_after_decision_validator(state: AgentState) -> str:
-    validation = state.get("decision_validation") or {}
-    status = str(validation.get("status") or "VALID").upper()
+def route_after_tool_eval(state: AgentState) -> str:
+    """
+    Tool Evaluation Edge:
+      "DATA_COMPLETE"   → agent_return_result
+      "NEED_MORE_TOOLS" → agent_choose_branch (nếu còn lượt) hoặc agent_return_result (nếu hết lượt)
+      "FAILED"          → rewrite (nếu còn lượt) hoặc agent_return_result (nếu hết lượt)
+    """
+    validation = state.get("result_validation") or {}
+    status = str(validation.get("status") or "DATA_COMPLETE").upper()
 
-    if status == "VALID":
-        trace.log_route("decision_validator", "VALID", "END")
-        return "end"
-
+    iteration = int(state.get("iteration") or 0)
+    max_iterations = int(state.get("max_iterations") or 6)
     retrieval_iteration = int(state.get("retrieval_iteration") or 0)
     max_retrieval = int(state.get("max_retrieval_retries") or 2)
-    if retrieval_iteration >= max_retrieval:
-        trace.log_route("decision_validator", "INVALID_but_exhausted", "END")
-        return "end"
+    execution_iteration = int(state.get("execution_iteration") or 0)
+    max_execution = int(state.get("max_execution_steps") or 4)
 
-    trace.log_route("decision_validator", "INVALID", "rewrite")
+    if status in {"DATA_COMPLETE", "SUCCESS"}:
+        trace.log_route("eval_tool", "DATA_COMPLETE", "agent_return_result")
+        return "agent_return_result"
+
+    if status in {"NEED_MORE_TOOLS", "INSUFFICIENT"}:
+        if iteration >= max_iterations or execution_iteration >= max_execution:
+            trace.log_route("eval_tool", "NEED_MORE_TOOLS_exhausted", "agent_return_result")
+            return "agent_return_result"
+        trace.log_route("eval_tool", "NEED_MORE_TOOLS", "agent_choose_branch")
+        return "agent_choose_branch"
+
+    # FAILED / ERROR / WRONG_TOOL
+    if retrieval_iteration >= max_retrieval or iteration >= max_iterations:
+        trace.log_route("eval_tool", "FAILED_exhausted", "agent_return_result")
+        return "agent_return_result"
+
+    trace.log_route("eval_tool", "FAILED", "rewrite")
     return "rewrite"
 
 
-def route_after_execute(state: AgentState) -> str:
+def route_after_no_tool_eval(state: AgentState) -> str:
     """
-    WAIT_CONFIRM / ERROR → END
-    còn lại → result_evaluator
+    No-Tool Evaluation Edge:
+      True  (Valid)   → agent_return_result
+      False (Invalid) → rewrite (nếu còn lượt) hoặc agent_return_result (nếu hết lượt)
     """
-    status = state.get("final_status")
-    if status in ("WAIT_CONFIRM", "ERROR"):
-        trace.log_route("execute", status or "stop", "END")
-        return "end"
-
-    trace.log_route("execute", "tool_results_ready", "result_evaluator")
-    return "result_evaluator"
-
-
-def route_after_result_evaluator(state: AgentState) -> str:
-    """
-    WRONG_TOOL / should_retrieve_again → rewrite (nếu còn lượt)
-    còn lại → agent (Agent tự quyết định bước tiếp)
-    """
-    validation = state.get("result_validation") or {}
-    should_retrieve = bool(validation.get("should_retrieve_again"))
+    validation = state.get("decision_validation") or {}
+    is_valid = validation.get("valid", True)
     category = str(validation.get("category") or "").upper()
 
+    iteration = int(state.get("iteration") or 0)
+    max_iterations = int(state.get("max_iterations") or 6)
     retrieval_iteration = int(state.get("retrieval_iteration") or 0)
     max_retrieval = int(state.get("max_retrieval_retries") or 2)
 
-    if should_retrieve or category == "WRONG_TOOL":
-        if retrieval_iteration < max_retrieval:
-            trace.log_route("result_evaluator", "WRONG_TOOL", "rewrite")
-            return "rewrite"
-        trace.log_route("result_evaluator", "WRONG_TOOL_exhausted", "agent")
-        return "agent"
+    # Nếu hợp lệ hoặc không phải INVALID_BYPASS
+    if is_valid and category != "INVALID_BYPASS":
+        trace.log_route("eval_no_tool", "VALID", "agent_return_result")
+        return "agent_return_result"
 
-    status = str(validation.get("status") or "SUCCESS").upper()
-    trace.log_route("result_evaluator", status, "agent")
-    return "agent"
+    # Không hợp lệ (cần gọi tool mà bị bỏ qua)
+    if retrieval_iteration >= max_retrieval or iteration >= max_iterations:
+        trace.log_route("eval_no_tool", "INVALID_exhausted", "agent_return_result")
+        return "agent_return_result"
+
+    trace.log_route("eval_no_tool", "INVALID", "rewrite")
+    return "rewrite"
+
+
+# ---------------------------------------------------------------------------
+# Backward-compatibility wrappers
+# ---------------------------------------------------------------------------
+def route_after_agent(state: AgentState) -> str:
+    return route_after_router_agent(state)
+
+def route_after_decision_validator(state: AgentState) -> str:
+    return route_after_no_tool_eval(state)
+
+def route_after_execute(state: AgentState) -> str:
+    return "eval_tool"
+
+def route_after_result_evaluator(state: AgentState) -> str:
+    return route_after_tool_eval(state)

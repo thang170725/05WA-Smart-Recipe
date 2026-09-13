@@ -4,9 +4,7 @@ from sqlalchemy import func, select
 
 from backend.modules.user.models import User
 
-from backend.modules.health.models import HealthMetric, HealthHistory
-
-from backend.modules.meals.models import MealPlan, MealPlanItem, Meal
+from backend.modules.meals.models import MealPlan, MealPlanItem, Meal, HealthHistory, HealthMetric
 
 from backend.modules.workout.models import WorkoutPlan, WorkoutPlanItem, Exercise
 

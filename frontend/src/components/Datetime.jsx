@@ -96,8 +96,7 @@ export function DateDetail(baseDate) {
   }
 
   return {
-    // Format YY-MM-DD
-    currentDate: FormatDate(date),
+    currentDate: FormatDate(date), // Format YY-MM-DD
 
     dateInMonth: date.getDate(),
 

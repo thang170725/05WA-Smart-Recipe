@@ -1,103 +1,88 @@
 """
-LangGraph builder — lắp node + edge theo kiến trúc mới (description.md).
+LangGraph builder — Kiến trúc Multi-Agent LangGraph Pipeline.
 
-Flow:
-  START → rewrite → retrieve → agent
-    ├─ CALL_TOOL      → execute → result_evaluator → agent | rewrite
-    ├─ NEED_RETRIEVAL → rewrite → retrieve → agent
-    └─ FINAL_ANSWER   → decision_validator → END | rewrite
+Nodes:
+  1. rewrite: Query Rewriter
+  2. retrieve: Tool Retrieval (Cosine Similarity)
+  3. agent_choose_branch: Router Agent (TOOL vs NO_TOOL)
+  4. execute_tool: Execute Tool Calls
+  5. eval_tool: Evaluate Tool Result (DATA_COMPLETE | NEED_MORE_TOOLS | FAILED)
+  6. eval_no_tool: No-Tool Evaluator (ASKANDANSWER | OUTSIDE | UNKNOWN | INVALID_BYPASS)
+  7. agent_return_result: Generative Result / Response Writer
 """
 
 from __future__ import annotations
 
-#
-#
-#
 from langgraph.graph import StateGraph, START, END
 
 from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
 from backend.modules.ai.ai_assistant_service.app.graph.nodes.rewrite import rewrite_query_node
 from backend.modules.ai.ai_assistant_service.app.graph.nodes.retrieve import retrieve_tools_node
-from backend.modules.ai.ai_assistant_service.app.graph.nodes.agent import agent_node
+from backend.modules.ai.ai_assistant_service.app.graph.nodes.router_agent import router_agent_node
 from backend.modules.ai.ai_assistant_service.app.graph.nodes.execute import execute_tools_node
-from backend.modules.ai.ai_assistant_service.app.graph.nodes.decision_validator import (
-    decision_validator_node,
-)
-from backend.modules.ai.ai_assistant_service.app.graph.nodes.result_evaluator import (
-    result_evaluator_node,
-)
+from backend.modules.ai.ai_assistant_service.app.graph.nodes.result_evaluator import result_evaluator_node
+from backend.modules.ai.ai_assistant_service.app.graph.nodes.no_tool_evaluator import no_tool_evaluator_node
+from backend.modules.ai.ai_assistant_service.app.graph.nodes.response_writer import response_writer_node
 from backend.modules.ai.ai_assistant_service.app.graph.edges import (
-    route_after_agent,
-    route_after_decision_validator,
-    route_after_execute,
-    route_after_result_evaluator,
+    route_after_router_agent,
+    route_after_tool_eval,
+    route_after_no_tool_eval,
 )
 
-#
-#
-#
+
 def build_agent_graph():
     """
-    Compile LangGraph workflow.
-
-    Returns:
-        CompiledGraph — gọi `.ainvoke(initial_state)` để chạy pipeline.
+    Compile LangGraph workflow theo kiến trúc Multi-Agent Pipeline.
     """
     workflow = StateGraph(AgentState)
 
-    # ---- Đăng ký nodes ----
+    # 1. Register Nodes
     workflow.add_node("rewrite", rewrite_query_node)
     workflow.add_node("retrieve", retrieve_tools_node)
-    workflow.add_node("agent", agent_node)
-    workflow.add_node("execute", execute_tools_node)
-    workflow.add_node("decision_validator", decision_validator_node)
-    workflow.add_node("result_evaluator", result_evaluator_node)
+    workflow.add_node("agent_choose_branch", router_agent_node)
+    workflow.add_node("execute_tool", execute_tools_node)
+    workflow.add_node("eval_tool", result_evaluator_node)
+    workflow.add_node("eval_no_tool", no_tool_evaluator_node)
+    workflow.add_node("agent_return_result", response_writer_node)
 
-    # ---- Edges cố định ----
+    # 2. Linear Entry Pipeline
     workflow.add_edge(START, "rewrite")
     workflow.add_edge("rewrite", "retrieve")
-    workflow.add_edge("retrieve", "agent")
+    workflow.add_edge("retrieve", "agent_choose_branch")
 
-    # ---- Agent → execute | validate_no_tool | rewrite | END ----
+    # 3. Router Edge (Tool vs No-Tool)
     workflow.add_conditional_edges(
-        "agent",
-        route_after_agent,
+        "agent_choose_branch",
+        route_after_router_agent,
         {
-            "execute": "execute",
-            "validate_no_tool": "decision_validator",
-            "rewrite": "rewrite",
-            "end": END,
+            "execute_tool": "execute_tool",
+            "eval_no_tool": "eval_no_tool",
         },
     )
 
-    # ---- Decision Validator → END | rewrite ----
+    # 4. Tool Execution & Evaluation Branch
+    workflow.add_edge("execute_tool", "eval_tool")
     workflow.add_conditional_edges(
-        "decision_validator",
-        route_after_decision_validator,
+        "eval_tool",
+        route_after_tool_eval,
         {
-            "end": END,
-            "rewrite": "rewrite",
-        },
-    )
-
-    # ---- Execute → result_evaluator | END ----
-    workflow.add_conditional_edges(
-        "execute",
-        route_after_execute,
-        {
-            "result_evaluator": "result_evaluator",
-            "end": END,
-        },
-    )
-
-    # ---- Result Evaluator → agent | rewrite ----
-    workflow.add_conditional_edges(
-        "result_evaluator",
-        route_after_result_evaluator,
-        {
-            "agent": "agent",
+            "agent_return_result": "agent_return_result",
+            "agent_choose_branch": "agent_choose_branch",
             "rewrite": "rewrite",
         },
     )
+
+    # 5. No-Tool Evaluation Branch
+    workflow.add_conditional_edges(
+        "eval_no_tool",
+        route_after_no_tool_eval,
+        {
+            "agent_return_result": "agent_return_result",
+            "rewrite": "rewrite",
+        },
+    )
+
+    # 6. Terminal Edge
+    workflow.add_edge("agent_return_result", END)
 
     return workflow.compile()

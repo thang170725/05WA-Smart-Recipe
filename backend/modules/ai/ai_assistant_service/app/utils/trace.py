@@ -37,6 +37,8 @@ def log_step(msg: str, *args: Any) -> None:
     """
     logger.info("  • " + msg, *args)
 
+step = log_step  # Alias for trace.step
+
 
 def log_route(from_node: str, decision: str, to_node: str) -> None:
     """

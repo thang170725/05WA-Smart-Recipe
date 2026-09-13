@@ -27,8 +27,10 @@ PENDING_ACTIONS: dict[str, dict[str, Any]] = {}
 
 
 async def execute_tools_node(state: AgentState) -> dict:
-    last_msg = state["messages"][-1]
-    tool_calls = getattr(last_msg, "tool_calls", None) or []
+    last_msg = state["messages"][-1] if state.get("messages") else None
+    tool_calls = (getattr(last_msg, "tool_calls", None) or []) if last_msg else []
+    if not tool_calls and state.get("decision"):
+        tool_calls = state["decision"].get("tool_calls") or []
 
     execution_iteration = int(state.get("execution_iteration") or 0) + 1
     history_calls = list(state.get("tool_calls") or [])
@@ -36,7 +38,7 @@ async def execute_tools_node(state: AgentState) -> dict:
     used_tools = list(state.get("used_tools") or [])
 
     trace.banner(
-        "NODE · EXECUTE",
+        "NODE 4.1 · EXECUTE (execute_tool)",
         n_calls=len(tool_calls),
         execution_iteration=execution_iteration,
     )

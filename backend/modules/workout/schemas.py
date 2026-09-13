@@ -87,18 +87,17 @@ class OutputGetWeekProgram(BaseModel):
     week_start: str
     week_menu: WeekMenuSchema
 
-# Input
 # để ghi vào db lịch tập của 1 user
 class InputPostWorkoutProgramTemplateDetailToWeekSchema(BaseModel):
     current_date: str
     week_start: str
     workout_program_template_detail: OutputGetWorkoutProgramTemplateDetailSchema
 
+# thêm một bài tập vào lịch trình của user
 class ExerciseInput(BaseModel):
     exercise_id: int
     sets: int
     reps: List[int]
-
 class InputInsertExercisesRequest(BaseModel):
     plan_date: date
     week_start: date

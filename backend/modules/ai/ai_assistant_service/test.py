@@ -1,8 +1,8 @@
 """
-Smoke test tối giản cho cấu trúc graph (không gọi LLM thật).
+Smoke test cho cấu trúc graph mới (Multi-Agent LangGraph Pipeline).
 
 Chạy:
-    python -m backend.modules.ai.ai_assistant_service.test
+    /home/thang/workspace/Smart-Recipe/sr/bin/python -m backend.modules.ai.ai_assistant_service.test
 """
 
 from backend.modules.ai.ai_assistant_service.app.graph.builder import build_agent_graph
@@ -10,10 +10,11 @@ from backend.modules.ai.ai_assistant_service.app.graph.builder import build_agen
 EXPECTED_NODES = {
     "rewrite",
     "retrieve",
-    "agent",
-    "execute",
-    "decision_validator",
-    "result_evaluator",
+    "agent_choose_branch",
+    "execute_tool",
+    "eval_tool",
+    "eval_no_tool",
+    "agent_return_result",
 }
 
 
@@ -21,7 +22,7 @@ def main():
     graph = build_agent_graph()
     nodes = set(graph.get_graph().nodes.keys()) - {"__start__", "__end__"}
     print("Compiled graph OK.")
-    print("Nodes:", sorted(nodes))
+    print("Nodes in compiled graph:", sorted(nodes))
 
     missing = EXPECTED_NODES - nodes
     extra = nodes - EXPECTED_NODES
@@ -29,7 +30,7 @@ def main():
         raise SystemExit(f"MISSING nodes: {sorted(missing)}")
     if extra:
         print("Note — extra nodes:", sorted(extra))
-    print("Architecture nodes match description.md ✓")
+    print("Architecture nodes match Multi-Agent LangGraph Pipeline specification ✓")
 
 
 if __name__ == "__main__":

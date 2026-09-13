@@ -6,17 +6,11 @@ trong `tools/registry.py`. Hiện để trống để tránh trùng lặp với 
 """
 from __future__ import annotations
 
-#
-#
-#
 import logging
 from backend.config.logging import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
-#
-#
-#
 from typing import Literal, Optional
 
 from langchain_core.tools import tool
@@ -25,11 +19,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.modules.meals.services import get_total_calories_week_service
 
-#
-#
-#
 class GetCaloriesInWeek(BaseModel):
-    """không cần tham số - lấy tổng lượng calo đã được tính toán từ thực đơn đồ ăn mà người dùng đã nhập vào trong vòng 1 tuần từ thứ 2 đến chủ nhật"""
+    """
+    không cần tham số - lấy tổng lượng calo đã được tính toán từ thực đơn đồ ăn mà người dùng đã nhập vào trong vòng 1 tuần từ thứ 2 đến chủ nhật
+    """
+
+class SuggestTopKMealInLibrary(BaseModel):
+    top_k: int | str = Field(
+        description=(
+            "lấy ra top k món ăn được cho là phù hợp với người dùng nhất dựa vào danh sách món ăn trong thư viện. "
+            "Ví dụ: top_k = 10 thì là lấy ra 10 món ăn phù hợp nhất với mục đích của người dùng."
+        )
+    )
 
 #
 # ======= LANGCHAIN TOOL ======

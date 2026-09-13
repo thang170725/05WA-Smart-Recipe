@@ -277,3 +277,12 @@ async def insert_food_from_library_service(
         await db.rollback()
 
         raise
+
+
+# get all info in health_metrics
+async def get_health_metrics_info_service(db: AsyncSession, user_id: int):
+    try:
+        health_metric = await get_repository.get_health_metrics_info_repo(db, user_id)
+        return health_metric
+    except Exception as e:
+        raise ValueError(e)

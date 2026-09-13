@@ -16,7 +16,8 @@ from backend.modules.meals.models import (
     MealPlan,
     MealPlanItem,
     FoodLibraryCategory,
-    Category
+    Category,
+    HealthMetric, HealthHistory
 )
 
 from backend.modules.meals.queries import get_meals_to_day
@@ -250,3 +251,13 @@ async def get_total_week_calories_repository(db: AsyncSession, user_id: int, wee
     return float(
         result.scalar() or 0
     )
+
+# get all infor in helth_metrics table
+async def get_health_metrics_info_repo(db: AsyncSession, user_id: int):
+    health_metric = await db.execute(
+        select(HealthMetric).where(HealthMetric.user_id == user_id)
+    )
+    health_metric = health_metric.scalars().first()
+
+    return health_metric
+

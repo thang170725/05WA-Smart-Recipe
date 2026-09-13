@@ -6,7 +6,7 @@ from sqlalchemy import select, exists
 from backend.modules.user import models 
 
 from backend.modules.user.models import User, OTP
-from backend.modules.health.models import HealthMetric
+from backend.modules.meals.models import HealthMetric
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import select
 

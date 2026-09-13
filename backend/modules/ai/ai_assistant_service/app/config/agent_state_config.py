@@ -80,22 +80,23 @@ class AgentState(TypedDict, total=False):
     current_user: Any # user hiện tại đang thực hiện query
     llm: Any
 
-    # ---- Agent decision (structured) ----
-    # {"action": "CALL_TOOL"|"FINAL_ANSWER"|"NEED_RETRIEVAL", ...}
+    # ---- Agent decision (structured from router_agent) ----
+    # {"action": "TOOL" | "NO_TOOL", "tool_calls": [{"name": ..., "args": ...}]}
     decision: Optional[Dict[str, Any]]
 
-    # ---- Decision Validator (khi NO_TOOL / FINAL_ANSWER) ----
-    decision_validation: Optional[Dict[str, Any]] # Sau khi Agent đưa ra decision, bạn có một node khác kiểm tra decision đó. {"status": "VALID"|"INVALID", "feedback": "...", "reason": "..."}
+    # ---- No-Tool Evaluator (khi NO_TOOL) ----
+    # {"valid": bool, "category": "ASKANDANSWER" | "OUTSIDE" | "UNKNOWN" | "INVALID_BYPASS", "reason": "...", "feedback": "..."}
+    decision_validation: Optional[Dict[str, Any]]
 
     # ---- Tool execution history ----
-    tool_calls: List[Dict[str, Any]] # lưu lịch sử những took mà agent yêu cầu gọi
+    tool_calls: List[Dict[str, Any]] # lưu lịch sử những tool mà agent yêu cầu gọi
     tool_results: List[Dict[str, Any]] # đây là kết quả thực tế sau khi execute tool
     used_tools: List[str] # danh sách tool đã sử dụng
 
     # ---- Result Evaluator (sau EXECUTE) ----
-    # {"status": "SUCCESS"|"INSUFFICIENT"|"INVALID"|"RETRY",
+    # {"status": "DATA_COMPLETE" | "NEED_MORE_TOOLS" | "FAILED",
     #  "category": "...", "feedback": "...", "should_retrieve_again": bool}
-    result_validation: Optional[Dict[str, Any]] # đây là kết quả của result evaluator. nó kiểm tra tool vừa chạy có đủ để trả lời user chưa
+    result_validation: Optional[Dict[str, Any]]
 
     # ---- Loop control ----
     iteration: int                      # tổng vòng Agent

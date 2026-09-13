@@ -6,18 +6,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Search, Plus, Dumbbell, Filter, Info } from "lucide-react";
 import { GetExcercisesLibraryApi } from "../api/LibraryProgramApi"
 import { BASE_URL } from "../../../services/JsonApi";
-// import { GetExercisesApi, AddExerciseToPlanApi } from "../api/WorkoutProgramsApi";
+import { GetExercisesListApi, InsertWorkoutExercisesApi } from "../api/WorkoutProgramsApi";
 
 const CATEGORIES = JSON.parse(import.meta.env.VITE_EXERCISE_CATEGORIES || "[]");
 
 export default function LibraryProgram({
   devMode,
-  showLibrary,
-  setShowLibrary,
+  showLibrary, setShowLibrary,
   setExercisesList,
-  selectedDay,
-  planDate,
-  weekStart,
+  dateDetail
 }) {
   const [exercises, setExercises] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -49,16 +46,64 @@ export default function LibraryProgram({
     }
   }, [showLibrary, categoryName]);
 
+  //
+  // ========== chức năng insert một bài tập vào lịch trình tập luyện của một user =====
+  //
+  // Thêm state lưu bài tập đang mở Popup cấu hình Sets/Reps
+  const [selectedConfigExercise, setSelectedConfigExercise] = useState(null);
+  const [setsCount, setSetsCount] = useState(3);
+  const [repsList, setRepsList] = useState([10, 10, 10]);
+
+  // Khi bấm nút Plus (+), chỉ mở Popup lên chứ chưa gọi API
   const handleAddExercise = async (exercise) => {
-    // Logic thêm bài tập vào ngày đang chọn
-    // const newEx = await AddExerciseToPlanApi(...);
-    // setExercisesList(prev => [...prev, newEx]);
-    setShowLibrary(false);
+    setSelectedConfigExercise(exercise)
+    setSetsCount(3)
+    setRepsList([10,10,10]) // mặc định 3 sets, mỗi set 10 reps 
+  }
+
+  // hàm này sẽ gọi API thực sự khi bấm nút "xác nhận" trong Popup
+  const handleConfirmAdd = async () => {
+    if (!selectedConfigExercise) return;
+  
+    try {
+      const exercisePayload = [
+        {
+          exercise_id: selectedConfigExercise.id,
+          sets: Number(setsCount),
+          reps: repsList.map(Number)
+        }
+      ];
+  
+      // 1. Gọi API thêm bài tập
+      const newEx = await InsertWorkoutExercisesApi(
+        devMode, 
+        dateDetail.currentDate, 
+        dateDetail.dateStartInWeek, 
+        exercisePayload
+      );
+  
+      if (newEx) {
+        const exerciseListAgain = await GetExercisesListApi(devMode, dateDetail.currentDate);
+        
+        // Đảm bảo dữ liệu nhận về luôn là mảng hợp lệ trước khi render[cite: 3]
+        if (Array.isArray(exerciseListAgain)) {
+          setExercisesList(exerciseListAgain);
+        }
+      }
+    } catch (error) {
+      console.error("Lỗi khi thêm bài tập:", error);
+    } finally {
+      // Luôn đóng thư viện dù thành công hay có lỗi
+      setShowLibrary(false);
+      setSelectedConfigExercise(null)
+    }
   };
 
   const filteredExercises = exercises.filter((ex) =>
     ex.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+
 
   return (
     <AnimatePresence>
@@ -149,13 +194,11 @@ export default function LibraryProgram({
       </motion.div>
     )}
   </AnimatePresence>
-</div>
-                
+                </div>              
               </div>
 
-              {/* Thanh lọc Category */}
               {/* Thanh lọc Category ngang */}
-<div className="flex gap-2 mt-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-zinc-800 hover:scrollbar-thumb-zinc-700">
+              <div className="flex gap-2 mt-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-zinc-800 hover:scrollbar-thumb-zinc-700">
   {CATEGORIES.map((cat) => {
     const isActive = categoryName === cat.key;
     return (
@@ -172,7 +215,7 @@ export default function LibraryProgram({
       </button>
     );
   })}
-</div>
+              </div>
             </div>
 
             {/* Grid bài tập */}
@@ -256,8 +299,8 @@ export default function LibraryProgram({
       )}
 
       {/* Modal Chi Tiết Bài Tập */}
-{selectedDetailExercise && (
-  <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+      {selectedDetailExercise && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -313,6 +356,101 @@ export default function LibraryProgram({
       >
         Thêm bài tập này vào lịch
       </button>
+    </motion.div>
+        </div>
+      )}
+
+      {/* Modal Cấu hình Sets & Reps */}
+{selectedConfigExercise && (
+  <div className="fixed inset-0 z-70 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl p-6 shadow-2xl relative space-y-5"
+    >
+      <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+        <h3 className="text-xl font-bold text-zinc-100 capitalize">
+          Cấu hình: {selectedConfigExercise.name}
+        </h3>
+        <button
+          onClick={() => setSelectedConfigExercise(null)}
+          className="p-1.5 rounded-full bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      {/* Cấu hình Số Sets */}
+      <div>
+        <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block mb-2">
+          Số Sets (Hiệp)
+        </label>
+        <input
+          type="number"
+          min="1"
+          max="20"
+          value={setsCount}
+          onChange={(e) => {
+            const count = Math.max(1, parseInt(e.target.value) || 1);
+            setSetsCount(count);
+            // Tự động điều chỉnh độ dài mảng repsList tương ứng với số set
+            setRepsList((prev) => {
+              const updated = [...prev];
+              if (count > updated.length) {
+                while (updated.length < count) updated.push(10);
+              } else {
+                return updated.slice(0, count);
+              }
+              return updated;
+            });
+          }}
+          className="w-full bg-zinc-950 border border-zinc-700 text-emerald-400 font-bold rounded-xl py-2.5 px-4 focus:outline-none focus:border-emerald-500"
+        />
+      </div>
+
+      {/* Cấu hình Reps cho từng Set */}
+      <div className="space-y-2 max-h-48 overflow-y-auto pr-1 no-scrollbar">
+        <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
+          Số Reps Cho Từng Set
+        </label>
+        {repsList.map((rep, idx) => (
+          <div key={idx} className="flex items-center gap-3 bg-zinc-950 p-2.5 rounded-xl border border-zinc-800">
+            <span className="text-xs font-medium text-zinc-400 w-16">Set {idx + 1}:</span>
+            <input
+              type="number"
+              min="1"
+              value={rep}
+              onChange={(e) => {
+                const val = parseInt(e.target.value) || 0;
+                setRepsList((prev) => {
+                  const newArr = [...prev];
+                  newArr[idx] = val;
+                  return newArr;
+                });
+              }}
+              className="flex-1 bg-zinc-900 border border-zinc-700 text-zinc-100 rounded-lg py-1.5 px-3 text-sm focus:border-emerald-500 focus:outline-none"
+            />
+            <span className="text-xs text-zinc-500">reps</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Buttons */}
+      <div className="flex gap-3 pt-2">
+        <button
+          onClick={() => setSelectedConfigExercise(null)}
+          className="flex-1 py-3 bg-zinc-800 text-zinc-300 font-semibold rounded-xl hover:bg-zinc-700 transition-colors cursor-pointer"
+        >
+          Hủy
+        </button>
+        <button
+          onClick={handleConfirmAdd}
+          className="flex-1 py-3 bg-emerald-500 text-zinc-950 font-bold rounded-xl hover:bg-emerald-400 transition-colors cursor-pointer shadow-lg shadow-emerald-500/20"
+        >
+          Lưu bài tập
+        </button>
+      </div>
     </motion.div>
   </div>
 )}

@@ -3,7 +3,7 @@ import WorkoutPanel from "../features/workout/components/WorkoutPanel";
 import Header from "../features/workout/components/Header";
 import WeeklyNavigator from "../features/workout/components/WeeklyNavigator"
 import ProgramFilter from "../features/workout/components/ProgramFilter"
-import { FormatDate, GetStartOfWeek } from "../components/Datetime"
+import { FormatDate, GetStartOfWeek, DateDetail } from "../components/Datetime"
 import { GetExercisesListApi } from "../features/workout/api/WorkoutProgramsApi"
 
 export default function WorkoutRoadmap() {
@@ -23,6 +23,7 @@ export default function WorkoutRoadmap() {
   // =======================================================================================================================================
   const [exercisesList, setExercisesList] = useState([]) // biến chính lưu danh sách các bài tập
   const [currentDate, setCurrentDate] = useState(new Date()) // ngày hiện tại hoặc ngày mà website focus
+  const dateDetail = DateDetail(currentDate)
   const weekStart = FormatDate(GetStartOfWeek(currentDate)) // ngày đầu tiên trong tuần dạng YY-MM-DD
   // API load lịch tập trong 1 ngày
   useEffect(() => {
@@ -72,10 +73,8 @@ export default function WorkoutRoadmap() {
           <WorkoutPanel
             devMode={devMode}
             exercisesList={exercisesList} setExercisesList={setExercisesList} // biến quản lý danh sách các bài tập trong 1 tuần
-            selectedDay={selectedDay}
             showLibrary={showLibrary} setShowLibrary={setShowLibrary}
-            planDate={currentDate}
-            weekStart={weekStart}
+            dateDetail={dateDetail}
           />
         </div>
       </div>

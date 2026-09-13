@@ -93,7 +93,7 @@ export async function UpdateActiveDurationSecondsApi (payload) {
 export async function UpdateWorkoutSetCompletedApi (payload) {
     console.log("UpdateWorkoutSetCompletedApi: ", payload)
 
-    return await JsonApi("workout/update-workout-set-completed", {
+    return await JsonApi("/workout/update-workout-set-completed", {
         method: "POST",
         body: payload
     })

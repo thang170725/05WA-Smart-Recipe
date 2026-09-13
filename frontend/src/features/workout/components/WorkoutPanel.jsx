@@ -89,13 +89,9 @@ function TimerPopup({ exercise, setIndex, onDone, onClose }) {
 // ─────────────────────────────────────────────
 export default function WorkoutPanel({
   devMode,
-  exercisesList,
-  setExercisesList,
-  selectedDay,
-  showLibrary,
-  setShowLibrary,
-  planDate,
-  weekStart,
+  exercisesList, setExercisesList,
+  showLibrary, setShowLibrary,
+  dateDetail
 }) {
   const [activeSession, setActiveSession] = useState(null);
   const [waitingNextSet, setWaitingNextSet] = useState(null);
@@ -227,7 +223,10 @@ export default function WorkoutPanel({
           {exercisesList.length > 0 ? (
             <div className="space-y-5">
               {exercisesList.map((exercise, exerciseIndex) => {
-                const completedSets = exercise.sets.filter(
+                if (!exercise) return null
+
+                const sets = exercise?.sets || []
+                const completedSets = sets.filter(
                   (s) => s.completed_reps != null
                 ).length;
                 const totalSets = exercise.sets.length;
@@ -310,7 +309,7 @@ export default function WorkoutPanel({
                             <p className={`font-bold text-sm sm:text-base ${isSetDone ? "text-emerald-400" : "text-zinc-200"}`}>
                               {isSetDone
                                 ? `✓ ${set.completed_reps}`
-                                : `${set.target_reps} reps`}
+                                : `${set.target_reps || set.reps || 0} reps`}
                             </p>
                           </div>
                         )
@@ -420,9 +419,7 @@ export default function WorkoutPanel({
         showLibrary={showLibrary}
         setShowLibrary={setShowLibrary}
         setExercisesList={setExercisesList}
-        selectedDay={selectedDay}
-        planDate={planDate}
-        weekStart={weekStart}
+        dateDetail={dateDetail}
       />
     </>
   );

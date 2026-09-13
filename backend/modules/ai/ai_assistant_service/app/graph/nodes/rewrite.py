@@ -1,23 +1,18 @@
 """
-Node — QUERY_REWRITER (Discovery loop).
+Node 1: QUERY_REWRITER (rewrite).
 
-Nhiệm vụ: tối ưu current_query cho Tool RAG mà không đổi user intent.
-Lần đầu (chưa có feedback): pass-through user_query.
+Nhiệm vụ:
+- retrieval_iteration == 0: Passes user_query directly to current_query.
+- retrieval_iteration > 0: Generates optimized query based on feedback from evaluators.
 """
 
 from __future__ import annotations
 
-#
-# ====== nơi setup logging ======
-#
 import logging
 from backend.config.logging import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
-#
-#
-#
 from langchain_core.messages import HumanMessage
 
 from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
@@ -34,26 +29,26 @@ def _collect_validation_feedback(state: AgentState) -> str:
     parts: list[str] = []
 
     dv = state.get("decision_validation") or {}
-    if dv.get("status") == "INVALID" and dv.get("feedback"):
-        parts.append(f"[decision] {dv['feedback']}")
-    rv = state.get("result_validation") or {}
+    if dv.get("valid") is False or dv.get("category") == "INVALID_BYPASS":
+        feedback = dv.get("feedback") or dv.get("reason")
+        if feedback:
+            parts.append(f"[No-Tool Evaluator]: {feedback}")
 
-    if rv.get("should_retrieve_again") and rv.get("feedback"):
-        parts.append(f"[result] {rv['feedback']}")
-    decision = state.get("decision") or {}
-    if str(decision.get("action") or "").upper() == "NEED_RETRIEVAL":
-        reason = decision.get("reason") or "Agent yêu cầu retrieve tool khác."
-        parts.append(f"[need_retrieval] {reason}")
-        
+    rv = state.get("result_validation") or {}
+    if rv.get("status") == "FAILED" or rv.get("should_retrieve_again"):
+        feedback = rv.get("feedback")
+        if feedback:
+            parts.append(f"[Tool Evaluator]: {feedback}")
+
     return "\n".join(parts)
 
 
 async def rewrite_query_node(state: AgentState) -> dict:
     """
-    Rewrite current_query cho retrieval.
+    Rewrite current_query cho tool retrieval.
 
-    - Lần đầu / không feedback → giữ nguyên user_query.
-    - Có INVALID / WRONG_TOOL → gọi LLM rewrite, tránh trùng query_history.
+    - Lần đầu (retrieval_iteration == 0): pass-through user_query.
+    - Retry (retrieval_iteration > 0): rewrite query dựa trên feedback từ evaluators.
     """
     user_query = (state.get("user_query") or "").strip()
     current_query = (state.get("current_query") or user_query).strip()
@@ -63,30 +58,32 @@ async def rewrite_query_node(state: AgentState) -> dict:
     feedback = _collect_validation_feedback(state)
 
     trace.banner(
-        "NODE 1 · QUERY_REWRITER",
+        "NODE 1 · REWRITING (rewrite)",
         user_query=user_query,
         current_query=current_query,
         retrieval_iteration=f"{retrieval_iteration}/{max_retrieval}",
-        has_feedback=feedback,
+        has_feedback=bool(feedback),
     )
 
-    # Pass-through lần đầu
-    if not feedback and not query_history:
-        trace.step("Lần đầu — giữ nguyên user_query cho retrieval.")
+    # 1. First run pass-through
+    if retrieval_iteration == 0 and not feedback:
+        trace.step("Lần đầu (retrieval_iteration=0) — giữ nguyên user_query.")
         return {
             "current_query": user_query,
-            "query_history": [user_query],
+            "query_history": [user_query] if not query_history else query_history,
+            "retrieval_iteration": 0,
             "progress": "Đang phân tích yêu cầu...",
         }
 
-    # Hết lượt discovery → giữ query hiện tại
+    # 2. Reached max discovery limit -> do not rewrite
     if retrieval_iteration >= max_retrieval:
-        trace.warn("Đã hết MAX_RETRIEVAL_RETRIES — không rewrite thêm.")
+        trace.warn("Đã đạt giới hạn MAX_RETRIEVAL_RETRIES — giữ current_query hiện tại.")
         return {
             "current_query": current_query,
-            "progress": "Đang tìm công cụ phù hợp...",
+            "progress": "Đang tìm kiếm công cụ phù hợp...",
         }
 
+    # 3. Rewrite query on retry
     prompt = build_rewrite_prompt(
         user_query=user_query,
         current_query=current_query,
@@ -111,7 +108,7 @@ async def rewrite_query_node(state: AgentState) -> dict:
         logger.exception("[Node:Rewriter] LLM lỗi — giữ current_query.")
         trace.warn("Rewriter lỗi — giữ query cũ.")
 
-    # Chống loop A→B→A
+    # Avoid A -> B -> A loop
     if new_query in query_history:
         trace.warn("Query trùng history — giữ current_query, không lặp.")
         new_query = current_query
@@ -125,7 +122,6 @@ async def rewrite_query_node(state: AgentState) -> dict:
         "query_history": updated_history,
         "retrieval_iteration": retrieval_iteration + 1,
         "progress": "Đang tìm công cụ phù hợp...",
-        # Clear final flags nếu đang ở discovery lại
         "final_status": None,
         "final_message": None,
     }

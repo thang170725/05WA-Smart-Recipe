@@ -5,6 +5,12 @@ import { Check, Loader2, Sparkles, AlertCircle } from "lucide-react";
 const WORKFLOW_LABELS = {
     rewrite: "Phân tích câu hỏi",
     retrieve: "Tìm công cụ phù hợp",
+    agent_choose_branch: "Định tuyến xử lý",
+    execute_tool: "Thực thi công cụ",
+    eval_tool: "Đánh giá kết quả công cụ",
+    eval_no_tool: "Xác thực yêu cầu",
+    agent_return_result: "Tổng hợp câu trả lời",
+    // Legacy fallback
     agent: "AI suy luận",
     execute: "Thực thi công cụ",
     result_evaluator: "Kiểm tra kết quả",

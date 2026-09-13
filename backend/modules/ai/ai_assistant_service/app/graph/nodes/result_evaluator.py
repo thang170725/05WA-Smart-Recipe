@@ -1,10 +1,10 @@
 """
-Node — RESULT_EVALUATOR.
+Node 5.1: RESULT_EVALUATOR (eval_tool).
 
-Chạy SAU EXECUTE. Đánh giá tool result (không thay Agent quyết định bước tiếp).
-Trả structured:
-  status: SUCCESS | INSUFFICIENT | INVALID | RETRY
-  category, feedback, should_retrieve_again
+Chạy SAU EXECUTE_TOOL. Đánh giá kết quả thực thi công cụ:
+  - DATA_COMPLETE: Dữ liệu đã đủ để tổng hợp câu trả lời -> agent_return_result
+  - NEED_MORE_TOOLS: Cần gọi thêm công cụ khác -> agent_choose_branch
+  - FAILED: Lỗi thực thi / sai tool / thiếu dữ liệu nghiêm trọng -> rewrite
 """
 
 from __future__ import annotations
@@ -27,23 +27,19 @@ from backend.modules.ai.ai_assistant_service.app.utils import trace
 
 logger = logging.getLogger(__name__)
 
-_VALID_STATUSES = {"SUCCESS", "INSUFFICIENT", "INVALID", "RETRY"}
+_VALID_STATUSES = {"DATA_COMPLETE", "NEED_MORE_TOOLS", "FAILED"}
 
 
 def _heuristic_from_results(tool_results: list[dict]) -> dict | None:
-    """
-    Heuristic nhanh từ kết quả execute gần nhất.
-    Trả None nếu chưa đủ để kết luận → nhờ LLM.
-    """
+    """Heuristic nhanh từ kết quả execute gần nhất."""
     if not tool_results:
         return {
-            "status": "INVALID",
+            "status": "FAILED",
             "category": "EXECUTION_ERROR",
             "feedback": "Không có tool result nào sau khi execute.",
-            "should_retrieve_again": False,
+            "should_retrieve_again": True,
         }
 
-    # Chỉ xét batch mới nhất (cùng execution_iteration)
     latest_iter = tool_results[-1].get("execution_iteration")
     latest = [r for r in tool_results if r.get("execution_iteration") == latest_iter]
 
@@ -54,48 +50,58 @@ def _heuristic_from_results(tool_results: list[dict]) -> dict | None:
             status = str(result.get("status") or "").lower()
             msg = str(result.get("message") or "").lower()
             if status == "error":
-                if any(x in msg for x in ("timeout", "timed out", "connection", "network")):
-                    hard_errors.append(("RETRY", result.get("message")))
-                else:
-                    hard_errors.append(("INVALID", result.get("message")))
+                hard_errors.append(result.get("message"))
 
     if hard_errors:
-        kind, msg = hard_errors[0]
         return {
-            "status": kind,
+            "status": "FAILED",
             "category": "EXECUTION_ERROR",
-            "feedback": str(msg or "Tool trả lỗi."),
-            "should_retrieve_again": False,
+            "feedback": str(hard_errors[0] or "Tool trả lỗi."),
+            "should_retrieve_again": True,
         }
     return None
 
 
 async def result_evaluator_node(state: AgentState) -> dict:
+    """
+    Đánh giá kết quả từ tool:
+    Trạng thái: DATA_COMPLETE | NEED_MORE_TOOLS | FAILED
+    """
+    # Nếu đang chờ user confirm thao tác ghi -> DATA_COMPLETE để tới agent_return_result giữ nguyên trạng thái
+    if state.get("final_status") == "WAIT_CONFIRM":
+        trace.banner("NODE 5.1 · RESULT EVALUATOR (eval_tool)", status="WAIT_CONFIRM")
+        validation = {
+            "status": "DATA_COMPLETE",
+            "category": "WAIT_CONFIRM",
+            "feedback": "Thao tác ghi đang chờ người dùng xác nhận.",
+            "should_retrieve_again": False,
+        }
+        return {
+            "result_validation": validation,
+            "progress": "Chờ xác nhận từ người dùng...",
+        }
+
     user_query = state.get("user_query") or ""
     tool_results = list(state.get("tool_results") or [])
     decision = state.get("decision") or {}
 
     trace.banner(
-        "NODE · RESULT_EVALUATOR",
+        "NODE 5.1 · RESULT EVALUATOR (eval_tool)",
         n_results=len(tool_results),
         last_action=decision.get("action"),
     )
 
-    # Heuristic trước
+    # 1. Kiểm tra Heuristic trước
     heuristic = _heuristic_from_results(tool_results)
-    if heuristic and heuristic["status"] in {"RETRY", "INVALID"}:
-        # Với INVALID do execution error — hỏi LLM nếu muốn phân biệt WRONG_TOOL
-        # nhưng execution error rõ thì dùng heuristic luôn
-        if heuristic["status"] == "RETRY" or heuristic["category"] == "EXECUTION_ERROR":
-            trace.step("Heuristic: %s — %s", heuristic["status"], heuristic["feedback"])
-            validation = heuristic
-            return {
-                "result_validation": validation,
-                "messages": [SystemMessage(content=build_result_feedback_message(validation))],
-                "progress": "Đang kiểm tra kết quả...",
-            }
+    if heuristic and heuristic["status"] == "FAILED":
+        trace.step("Heuristic FAILED: %s", heuristic["feedback"])
+        return {
+            "result_validation": heuristic,
+            "messages": [SystemMessage(content=build_result_feedback_message(heuristic))],
+            "progress": "Kết quả chưa đủ, đang chuẩn bị thử lại...",
+        }
 
-    # Tóm tắt batch mới nhất cho LLM
+    # 2. Tóm tắt kết quả tool cho LLM
     latest_iter = tool_results[-1].get("execution_iteration") if tool_results else None
     latest = (
         [r for r in tool_results if r.get("execution_iteration") == latest_iter]
@@ -119,9 +125,9 @@ async def result_evaluator_node(state: AgentState) -> dict:
     )
 
     validation = {
-        "status": "SUCCESS",
+        "status": "DATA_COMPLETE",
         "category": "OK",
-        "feedback": "Tool result hợp lệ.",
+        "feedback": "Dữ liệu tool trả về đầy đủ và hợp lệ.",
         "should_retrieve_again": False,
     }
 
@@ -130,24 +136,32 @@ async def result_evaluator_node(state: AgentState) -> dict:
         response = await state["llm"].ainvoke([HumanMessage(content=prompt)])
         raw = extract_text_from_response(response)
         parsed = safe_json_loads(raw) or {}
-        status = str(parsed.get("status") or "SUCCESS").upper()
-        if status not in _VALID_STATUSES:
-            status = "SUCCESS"
+        raw_status = str(parsed.get("status") or "DATA_COMPLETE").upper()
+
+        # Map legacy or synonym statuses
+        if raw_status in {"SUCCESS", "COMPLETE", "DATA_COMPLETE"}:
+            status = "DATA_COMPLETE"
+        elif raw_status in {"INSUFFICIENT", "NEED_MORE_TOOLS", "MORE_TOOLS"}:
+            status = "NEED_MORE_TOOLS"
+        else:
+            status = "FAILED"
+
         validation = {
             "status": status,
             "category": str(parsed.get("category") or "OK"),
             "feedback": str(parsed.get("feedback") or "").strip() or validation["feedback"],
             "should_retrieve_again": bool(parsed.get("should_retrieve_again", False)),
         }
-        # WRONG_TOOL → bắt buộc should_retrieve_again
         if validation["category"].upper() == "WRONG_TOOL":
             validation["should_retrieve_again"] = True
+            validation["status"] = "FAILED"
+
     except Exception:
-        logger.exception("[Node:ResultEvaluator] LLM lỗi — fallback SUCCESS.")
-        trace.warn("Result Evaluator lỗi — fallback SUCCESS.")
+        logger.exception("[Node:ResultEvaluator] LLM lỗi — fallback DATA_COMPLETE.")
+        trace.warn("Result Evaluator lỗi — fallback DATA_COMPLETE.")
 
     trace.step(
-        "Result: status=%s category=%s retrieve_again=%s | %s",
+        "Result Eval: status=%s category=%s retrieve_again=%s | %s",
         validation["status"],
         validation["category"],
         validation["should_retrieve_again"],
@@ -158,8 +172,8 @@ async def result_evaluator_node(state: AgentState) -> dict:
         "result_validation": validation,
         "messages": [SystemMessage(content=build_result_feedback_message(validation))],
         "progress": (
-            "Kết quả chưa đủ, đang thử phương án khác..."
-            if validation["status"] != "SUCCESS"
-            else "Đang xác định phương án xử lý..."
+            "Đang chuẩn bị câu trả lời..."
+            if validation["status"] == "DATA_COMPLETE"
+            else "Đang xử lý các bước tiếp theo..."
         ),
     }
