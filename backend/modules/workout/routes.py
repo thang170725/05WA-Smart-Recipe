@@ -17,7 +17,7 @@ from backend.modules.account.dependencies import get_current_user
 from backend.config.database import get_db
 from backend.modules.user.models import User
 from backend.modules.workout.services import (
-    get_service, update_service
+    get_service, update_service, remove_service
 )
 
 router = APIRouter(prefix="/workout", tags=["Workout"])
@@ -56,6 +56,14 @@ async def get_exercises_list(
     db: AsyncSession = Depends(get_db)
 ):
     return await get_service.get_exercises_list_service(db, current_user.id, plan_date)
+
+@router.get("/get-total-calories-in-week")
+async def get_total_calories_in_week(
+    week_start: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    return await get_service.get_total_exercise_calories_service(db, current_user.id, week_start)
 
 # ========= POST ===========
 @router.post("/post-workout-program-template-detail-to-week")
@@ -110,3 +118,14 @@ async def update_workout_set_completed(
         payload.workout_set_id,
         payload.completed_reps
     )
+
+# 
+# ========= REMOVE =========
+#
+@router.delete("/delete-workout")
+async def delete_workout(
+    workout_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return await remove_service.remove_workout_servie(db, current_user.id, workout_id)

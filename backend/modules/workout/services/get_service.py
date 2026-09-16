@@ -1,6 +1,8 @@
-#
-# ===== nơi import thư viện =====
-#
+import logging
+from backend.config.logging import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
 from math import e
 
 from fastapi import HTTPException
@@ -10,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.modules.workout.repositories import get_repository
 
 from datetime import datetime, timedelta, date
+
+from backend.config.formula import calc_calories_by_met
 
 #
 #
@@ -167,20 +171,20 @@ async def get_exercises_list_service(
         raise e
 
 
-async def get_total_exercise_calories_service(
-    db,
-    user_id,
-    weight,
-    week_start
-):
+async def get_total_exercise_calories_service(db, user_id, week_start):
     try:
-        return await get_repository.get_total_exercise_calories_repo(
-            db,
-            user_id,
-            weight,
-            week_start
-        )
+        workout_plans = await get_repository.get_total_exercise_calories_repository(db, user_id, week_start)
+        total_calories = 0
+        for workout_plan in workout_plans:
+            met = float(workout_plan['met'] or 0)
+            total_active_duration_seconds = float(workout_plan['total_active_duration_seconds'] or 0)
+            weight = float(workout_plan['current_weight'])
+
+            total_calories += calc_calories_by_met(met, weight, total_active_duration_seconds)
+        
+        return {'total_calories': total_calories}
 
     except Exception as e:
+        logger.debug(f"get_total_exercise_calories_service: {e}")
         await db.rollback()
         raise e

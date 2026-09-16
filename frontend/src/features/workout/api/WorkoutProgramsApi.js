@@ -46,6 +46,18 @@ export async function GetWorkoutProgramTemplatesDetailApi (devMode, program_id) 
     });
 }
 
+export async function GetToTalCaloriesInWeekApi(devMode, weekStart){
+    if (devMode == "dev") return;
+    return await JsonApi(
+        "/workout/get-total-calories-in-week", {
+            method: "GET",
+            params: {
+                week_start: weekStart
+            }
+        }
+    )
+}
+
 // ===================================
 // ======= API POST / INSERT =========
 // ===================================

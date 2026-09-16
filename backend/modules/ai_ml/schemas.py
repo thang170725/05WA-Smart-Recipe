@@ -13,4 +13,4 @@ class InputPostHealthFormSchema(BaseModel):
     target_goal: str
     weight: int | float
 
-    week_start: date
+    week_start: date | str

@@ -7,6 +7,7 @@ from backend.modules.user import services as user_services
 from backend.modules.meals import services as meals_services
 
 from backend.modules.ai_ml import services as ai_ml_services
+from backend.config import formula
 
 from datetime import date
 
@@ -25,7 +26,7 @@ async def get_user_infor_service(
 
         health_metric = await meals_services.get_health_metrics_info_service(db, user_id)
 
-        bmi, label = ai_ml_services._calc_bmi(
+        bmi, label = formula.calc_bmi(
             user.current_weight,
             user.current_height,
         )
@@ -41,14 +42,14 @@ async def get_user_infor_service(
             < (birth_date.month, birth_date.day)
         )
 
-        bmr = ai_ml_services._calc_bmr(
+        bmr = formula.calc_bmr(
             user.current_weight,
             user.current_height,
             age,
             user.gender
         )
 
-        tdee = ai_ml_services._calc_tdee(
+        tdee = formula.calc_tdee(
             bmr,
             user.activity_level
         )

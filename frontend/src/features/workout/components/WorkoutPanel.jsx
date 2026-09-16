@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Dumbbell, CheckCircle2, PlayCircle, X, Timer, ChevronRight } from "lucide-react";
+import { Dumbbell, CheckCircle2, PlayCircle, X, Timer, ChevronRight, Trash2 } from "lucide-react";
 import LibraryProgram from "./LibraryProgram";
 import {
   UpdateActiveDurationSecondsApi,
-  UpdateWorkoutSetCompletedApi,
+  UpdateWorkoutSetCompletedApi, GetToTalCaloriesInWeekApi
 } from "../api/WorkoutProgramsApi";
 
 // ─────────────────────────────────────────────
@@ -195,6 +195,36 @@ export default function WorkoutPanel({
     setActiveSession(null);
   };
 
+  //
+  // ======== chức năng xóa một bài tập ra khỏi danh sách của user ========
+  //
+  const [exerciseToDelete, setExerciseToDelete] = useState(null);
+  const confirmDelete = () => {
+    if (exerciseToDelete !== null) {
+      setExercisesList((prev) => prev.filter((_, idx) => idx !== exerciseToDelete));
+      // Lưu ý: Thêm API gọi xóa ở database tại đây nếu cần thiết
+      setExerciseToDelete(null);
+    }
+  };
+
+  //
+  // ====== chức năng hiển thị tổng lượng calories đốt cháy khi tập luyện các bài tập đó
+  //
+  const [totalCalories, setTotalCalories] = useState(0);
+  useEffect(() => {
+    const fetchTotalCalories = async () => {
+      // Lưu ý: Đảm bảo truyền đúng weekStart dạng chuỗi (VD: "2026-09-15")
+      const weekStart = dateDetail.dateStartInWeek ; 
+      
+      const res = await GetToTalCaloriesInWeekApi(devMode, weekStart);
+      if (res && res.total_calories !== undefined) {
+        setTotalCalories(res.total_calories);
+      }
+    };
+  
+    fetchTotalCalories();
+  }, [devMode, dateDetail]);
+
   return (
     <>
       <div className="w-full">
@@ -211,12 +241,21 @@ export default function WorkoutPanel({
               </span>
               Buổi tập hôm nay
             </h2>
-            <button
-              className="bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 hover:text-white px-4 py-2.5 rounded-xl font-medium transition-all cursor-pointer text-sm shadow-sm"
-              onClick={() => setShowLibrary(true)}
-            >
-              + Thêm bài tập
-            </button>
+
+            <div className="flex gap-3">
+              {/* Bổ sung thẻ hiển thị Calories tại đây */}
+              <div className="bg-orange-500/10 border border-orange-500/20 text-orange-400 px-3 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5">
+                🔥 {totalCalories.toFixed(1)} kcal / tuần
+              </div>
+
+              <button
+                className="bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 hover:text-white px-4 py-2.5 rounded-xl font-medium transition-all cursor-pointer text-sm shadow-sm"
+                onClick={() => setShowLibrary(true)}
+              >
+                + Thêm bài tập
+              </button>
+            </div>
+            
           </div>
 
           {/* ── DANH SÁCH BÀI TẬP ── */}
@@ -283,9 +322,20 @@ export default function WorkoutPanel({
                           </span>
                         </div>
                       </div>
-                      {isCompleted && (
-                        <CheckCircle2 size={32} className="text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-                      )}
+
+                      <div>
+                        {isCompleted && (
+                          <CheckCircle2 size={32} className="text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+                        )}
+                        <button
+                          onClick={() => setExerciseToDelete(exerciseIndex)}
+                          className="text-zinc-500 hover:text-red-500 transition-colors p-2.5 bg-zinc-900/50 hover:bg-red-500/10 rounded-xl border border-transparent hover:border-red-500/20 cursor-pointer"
+                          title="Xóa bài tập"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      </div>
+                      
                     </div>
 
                     {/* Ô hiển thị từng set */}
@@ -410,6 +460,39 @@ export default function WorkoutPanel({
             onDone={handleDoneSet}
             onClose={handleCloseTimer}
           />
+        )}
+      </AnimatePresence>
+
+      {/* ── POPUP XÁC NHẬN XÓA ── */}
+      <AnimatePresence>
+        {exerciseToDelete !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 w-full max-w-sm shadow-2xl relative"
+            >
+              <h3 className="text-xl font-bold text-zinc-100 mb-2">Xác nhận xóa</h3>
+              <p className="text-zinc-400 mb-6 text-sm">
+                Bạn có chắc chắn muốn xóa bài tập <strong className="text-zinc-200">{exercisesList[exerciseToDelete]?.exercise_name}</strong> khỏi lịch hôm nay không?
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setExerciseToDelete(null)}
+                  className="px-4 py-2.5 rounded-xl font-medium text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 transition-colors cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2.5 rounded-xl font-medium text-white bg-red-600 hover:bg-red-500 transition-colors cursor-pointer shadow-lg shadow-red-900/20"
+                >
+                  Xóa bài tập
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

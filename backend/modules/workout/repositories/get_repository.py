@@ -1,6 +1,3 @@
-#
-# ======= nơi import thư viện ======
-# 
 from backend.modules.workout.queries import get_loc_exercises_query
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +18,7 @@ from backend.modules.workout.models import (
     WorkoutSet
 )
 from backend.modules.meals.models import Category
+from backend.modules.user.models import User
 
 #
 #
@@ -279,44 +277,37 @@ async def get_active_program_of_user(
 
 
 # tổng lượng calo đốt cháy theo tuần
-async def get_total_exercise_calories_repo(
-    db: AsyncSession,
-    user_id: int,
-    weight,
-    week_start
-):
-    stmt = (
+async def get_total_exercise_calories_repository(db: AsyncSession, user_id: int, week_start):
+    '''
+    [
+        {
+            'name': 'decline push up', 
+            'total_active_duration_seconds': None, 
+            'met': 7.0, 
+            'current_weight': 51.0
+        }, 
+        ...
+    ]
+    '''
+    info = await db.execute(
         select(
-            func.coalesce(
-                func.sum(
-                    Exercise.met *
-                    weight *
-                    (WorkoutPlanItem.active_duration_seconds / 3600.0)
-                ),
-                0
-            ).label("calories")
-        )
-        .select_from(WorkoutPlan)
-        .join(
+            Exercise.name, func.sum(WorkoutPlanItem.active_duration_seconds).label('total_active_duration_seconds'), Exercise.tracking_type, Exercise.met, User.current_weight
+        ).where(WorkoutPlan.week_start == week_start, WorkoutPlan.user_id == user_id
+        ).select_from(
+            WorkoutPlan
+        ).join(
             WorkoutPlanItem,
             WorkoutPlanItem.workout_plan_id == WorkoutPlan.id
-        )
-        .join(
+        ).join(
             Exercise,
-            Exercise.id == WorkoutPlanItem.exercise_id
-        )
-        .where(
-            WorkoutPlan.user_id == user_id,
-            WorkoutPlan.week_start == week_start,
-            WorkoutPlanItem.active_duration_seconds.isnot(None)
-        )
+            WorkoutPlanItem.exercise_id == Exercise.id
+        ).join(
+            User,
+            WorkoutPlan.user_id == User.id
+        ).group_by(Exercise.name, )
     )
-
-    result = await db.execute(stmt)
-
-    total_calories = result.scalar()
-
-    return round(total_calories, 2)
+    info = info.mappings().all()
+    return info
 
 async def get_program_by_id(db: AsyncSession, program_id: int):
     program = await db.execute(WorkoutProgram).where(WorkoutProgram.id == program_id)

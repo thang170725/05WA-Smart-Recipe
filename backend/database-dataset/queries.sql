@@ -46,20 +46,6 @@ WHERE wp.user_id = :user_id
 GROUP BY e.muscle_group
 ORDER BY value DESC;
 
--- 5. CALORIES WEEKLY: tính calo đốt khi tập luyện
-SELECT
-    YEARWEEK(wp.plan_date,1) AS week,
-    ROUND(SUM(e.calories_per_minute * IFNULL(wpi.duration_minutes,10)),0) AS calories
-FROM workout_plan_items wpi
-JOIN workout_plans wp
-    ON wp.id = wpi.workout_plan_id
-JOIN exercises e
-    ON e.id = wpi.exercise_id
-WHERE wp.user_id = :user_id
-GROUP BY week
-ORDER BY week DESC
-LIMIT 8;
-
 -- 6. WORKOUT WEEKLY: đếm số buổi tập mỗi tuần
 SELECT
     YEARWEEK(plan_date,1) AS week,
