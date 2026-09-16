@@ -12,6 +12,7 @@ import PlatformScreen from '../screens/PlatformScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import DocsScreen from '../screens/DocsScreen';
 import AIChatScreen from '../screens/AIChatScreen';
+import AIHealthAssessmentScreen from '../screens/AIHealthAssessmentScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -21,6 +22,7 @@ function HealthStack({ initialRouteName = 'HealthCenter' }) {
     <Stack.Navigator initialRouteName={initialRouteName} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="HealthCenter" component={HealthScreen} />
       <Stack.Screen name="Workout" component={WorkoutScreen} />
+      <Stack.Screen name="AIHealthAssessment" component={AIHealthAssessmentScreen} />
     </Stack.Navigator>
   );
 }

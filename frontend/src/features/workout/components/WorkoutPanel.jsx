@@ -4,7 +4,8 @@ import { Dumbbell, CheckCircle2, PlayCircle, X, Timer, ChevronRight, Trash2 } fr
 import LibraryProgram from "./LibraryProgram";
 import {
   UpdateActiveDurationSecondsApi,
-  UpdateWorkoutSetCompletedApi, GetToTalCaloriesInWeekApi
+  UpdateWorkoutSetCompletedApi, GetToTalCaloriesInWeekApi,
+  DeleteWorkoutApi
 } from "../api/WorkoutProgramsApi";
 
 // ─────────────────────────────────────────────
@@ -199,10 +200,11 @@ export default function WorkoutPanel({
   // ======== chức năng xóa một bài tập ra khỏi danh sách của user ========
   //
   const [exerciseToDelete, setExerciseToDelete] = useState(null);
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (exerciseToDelete !== null) {
-      setExercisesList((prev) => prev.filter((_, idx) => idx !== exerciseToDelete));
+      setExercisesList((prev) => prev.filter((exercise, idx) => exercise.workout_plan_id !== exerciseToDelete));
       // Lưu ý: Thêm API gọi xóa ở database tại đây nếu cần thiết
+      const response = await DeleteWorkoutApi(devMode, exerciseToDelete)
       setExerciseToDelete(null);
     }
   };
@@ -328,7 +330,7 @@ export default function WorkoutPanel({
                           <CheckCircle2 size={32} className="text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
                         )}
                         <button
-                          onClick={() => setExerciseToDelete(exerciseIndex)}
+                          onClick={() => setExerciseToDelete(exercise.workout_plan_id)}
                           className="text-zinc-500 hover:text-red-500 transition-colors p-2.5 bg-zinc-900/50 hover:bg-red-500/10 rounded-xl border border-transparent hover:border-red-500/20 cursor-pointer"
                           title="Xóa bài tập"
                         >

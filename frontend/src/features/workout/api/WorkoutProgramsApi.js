@@ -110,3 +110,12 @@ export async function UpdateWorkoutSetCompletedApi (payload) {
         body: payload
     })
 }
+
+export async function DeleteWorkoutApi(devMode, workoutId){
+    return await JsonApi("/workout/delete-workout", {
+        method: "DELETE",
+        params: {
+            workout_id: workoutId,
+        }
+    })
+}

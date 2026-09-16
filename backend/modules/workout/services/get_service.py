@@ -129,6 +129,7 @@ async def get_exercises_list_service(
         exercises = {}
 
         for row in rows:
+            workout_plan_id = row["workout_plan_id"]
             workout_plan_item_id = row["workout_plan_item_id"]
 
             exercise = exercises.get(
@@ -137,6 +138,7 @@ async def get_exercises_list_service(
 
             if exercise is None:
                 exercise = {
+                    "workout_plan_id": workout_plan_id,
                     "workout_plan_item_id": workout_plan_item_id,
                     "exercise_id": row["exercise_id"],
                     "exercise_name": row["exercise_name"],

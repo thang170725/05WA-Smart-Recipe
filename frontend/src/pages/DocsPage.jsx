@@ -1,5 +1,6 @@
 import { BMIDocs } from "../features/docs/components/BMIDocs";
 import { FoodsDocs } from "../features/docs/components/FoodsDocs";
+import { METDocs } from "../features/docs/components/MetDocs";
 import { BookOpen } from "lucide-react";
 
 export default function Docs() {
@@ -29,6 +30,7 @@ export default function Docs() {
       {/* Nội dung Docs */}
       <div className="space-y-24">
         <BMIDocs />
+        <METDocs />
         <FoodsDocs />
       </div>
     </div>

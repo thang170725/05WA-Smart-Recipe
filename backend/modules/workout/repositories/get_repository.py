@@ -113,6 +113,7 @@ async def get_exercises_list_repo(
 ):
     stmt = (
         select(
+            WorkoutPlan.id.label("workout_plan_id"),
             Exercise.id.label("exercise_id"),
             Exercise.name.label("exercise_name"),
             Exercise.difficulty,
