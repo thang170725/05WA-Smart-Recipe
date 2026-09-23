@@ -68,4 +68,12 @@ async def insert_otp_repo(db: AsyncSession, email, generate_otp):
     await db.flush()
     return otp
 
+async def create_account(db: AsyncSession, user_data: dict) -> User:
+    new_user = User(**user_data)
+    db.add(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    return new_user
+
+
     

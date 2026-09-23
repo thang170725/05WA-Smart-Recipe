@@ -3,10 +3,10 @@ import { useState } from "react"
 import SuccessPopup from "../../../components/SuccessPopup"
 import LoginApi from "../api/LoginApi"
 import { GoogleLogin } from '@react-oauth/google'
-import { LoginGoogleApi } from "../api/LoginGoogleApi"
+import { LoginGoogleApi, CompleteGoogleRegisterApi } from "../api/LoginGoogleApi"
 import { useAuth } from "../../../context/AuthContext"
 
-export function LoginForm({ onCancel, onLoginSuccess, onSwitchToRegister, onSwitchToForgotPassword}) {
+export function LoginForm({ onCancel, onLoginSuccess, onSwitchToRegister, onSwitchToForgotPassword, onNeedGoogleRegister }) {
   // STATE
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -118,30 +118,34 @@ export function LoginForm({ onCancel, onLoginSuccess, onSwitchToRegister, onSwit
 
         <div className="flex justify-center gap-2">
           <div className="flex justify-center">
-            <GoogleLogin
-              onSuccess={async (credentialResponse) => {
-                try {
-                  setLoading(true)
-                
-                  const res = await LoginGoogleApi({
-                    token: credentialResponse.credential
-                  })
-                
-                  localStorage.setItem("token", res.access_token)
-                
-                  setUser(res.user) 
-                  setSuccess(true)
-                } catch (err) {
-                  console.error("GOOGLE LOGIN ERROR:", err)
-                  alert("Google login failed")
-                } finally {
-                  setLoading(false)
-                }
-              }}
-              onError={() => {
-                console.log("Google Login Failed")
-              }}
-            />
+          <GoogleLogin
+    onSuccess={async (credentialResponse) => {
+      try {
+        setLoading(true)
+
+        const res = await LoginGoogleApi({ token: credentialResponse.credential })
+
+        if (res.status === "need_register") {
+          onNeedGoogleRegister({
+            registrationToken: res.registration_token,
+            email: res.email,
+            name: res.name,
+          })
+          return
+        }
+
+        localStorage.setItem("token", res.access_token)
+        setUser(res.user)
+        setSuccess(true)
+      } catch (err) {
+        console.error("GOOGLE LOGIN ERROR:", err)
+        alert("Google login failed")
+      } finally {
+        setLoading(false)
+      }
+    }}
+    onError={() => console.log("Google Login Failed")}
+  />
           </div>
         </div>
 

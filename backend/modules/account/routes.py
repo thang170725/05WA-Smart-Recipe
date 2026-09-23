@@ -11,12 +11,14 @@ logger = logging.getLogger(__name__)
 #
 from backend.config.database import get_db
 from backend.modules.account import services
-from backend.core.security import create_access_token
+from backend.core.security import create_access_token, create_registration_token, verify_registration_token
 from backend.modules.user.schemas import (
     InputSendEmailSchema,
     InputVerifyOtpSchema,
     InputResetPasswordSchema
 )
+from backend.modules.account.schemas import GoogleCompleteRegister
+from backend.modules.account import repositories
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,50 +68,28 @@ async def login(
 
 # LOGIN AS GOOGLE CLIENT 
 @router.post("/login/google")
-async def login_google(
-    payload: dict,
-    db: AsyncSession = Depends(get_db)
-):
-    user = await services.authenticate_google(db, payload["token"])
+async def login_google(payload: dict, db: AsyncSession = Depends(get_db)):
+    result = await services.authenticate_google(db, payload["token"])
 
-    if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid Google token"
-        )
+    if result["status"] == "login":
+        user = result["user"]
+        access_token = create_access_token(data={"sub": str(user.id)})
+        return {
+            "status": "login",
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": user
+        }
 
-    access_token = create_access_token(
-        data={"sub": str(user.id)}
+    # status == "need_register"
+    registration_token = create_registration_token(
+        result["google_id"], result["email"], result["name"]
     )
-
     return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": user
-    }
-
-# LOGIN AS GOOGLE CLIENT 
-@router.post("/login/google")
-async def login_google(
-    payload: dict,
-    db: AsyncSession = Depends(get_db)
-):
-    user = await services.authenticate_google(db, payload["token"])
-
-    if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid Google token"
-        )
-
-    access_token = create_access_token(
-        data={"sub": str(user.id)}
-    )
-
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": user
+        "status": "need_register",
+        "registration_token": registration_token,
+        "email": result["email"],
+        "name": result["name"],
     }
 
 
@@ -140,3 +120,38 @@ def reset_password(
     db: AsyncSession = Depends(get_db) 
 ):
     return services.reset_password_service(db, payload.email, payload.new_password)
+
+@router.post("/register/google/complete")
+async def complete_google_register(
+    payload: GoogleCompleteRegister,
+    db: AsyncSession = Depends(get_db)
+):
+    token_data = verify_registration_token(payload.registration_token)
+
+    # phòng trường hợp user bấm đăng ký 2 lần / email đã được tạo lúc chờ
+    existing = await repositories.get_by_email_repository(db, token_data["email"])
+    if existing:
+        raise HTTPException(status_code=409, detail="Email đã được đăng ký")
+
+    new_user = {
+        "email": token_data["email"],
+        "google_id": token_data["google_id"],
+        "password": None,
+        "role": "user",
+        "fullname": payload.fullname,
+        "birth_date": payload.birth_date,
+        "phone": payload.phone,
+        "gender": payload.gender,
+        "address": payload.address,
+        "current_height": payload.current_height,
+        "current_weight": payload.current_weight,
+    }
+
+    user = await repositories.create_account(db, new_user)
+
+    access_token = create_access_token(data={"sub": str(user.id)})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user
+    }

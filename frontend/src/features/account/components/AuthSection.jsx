@@ -9,10 +9,12 @@ import { useAuth } from "../../../context/AuthContext.jsx"
 import { Popup } from "../../../components/Popup.jsx";
 import { AuthorStoryDialog } from "../../../components/AuthorStoryDialog.jsx"
 import { UpgradeProModal } from "./UpgradeProModal.jsx";
+import { GoogleCompleteProfileForm } from "../../../components/GoogleCompleteProfileForm.jsx";
 
 export function AuthSection() {
   // STATE hiển thị Dialog Lời tâm sự
   const [showAuthorStory, setShowAuthorStory] = useState(false)
+  const [googleData, setGoogleData] = useState(null)
 
   const { 
     user, 
@@ -134,6 +136,10 @@ export function AuthSection() {
             onSwitchToRegister={() => setAuthMode("register")}
             onSwitchToForgotPassword={() => setAuthMode("forgotPassword")}
             onLoginSuccess={() => closeAuthModal()} 
+            onNeedGoogleRegister={(data) => {
+              setGoogleData(data)
+              setAuthMode("googleCompleteProfile")
+            }}
           />
         </Popup>
       )}
@@ -170,6 +176,18 @@ export function AuthSection() {
           <AuthorStoryDialog onClose={() => setShowAuthorStory(false)} />
         </Popup>
       )}
+
+{isAuthModalOpen && authMode === "googleCompleteProfile" && googleData && (
+  <Popup open={isAuthModalOpen} onClose={closeAuthModal} title="Hoàn tất thông tin" maxWidth="max-w-2xl">
+    <GoogleCompleteProfileForm
+      registrationToken={googleData.registrationToken}
+      email={googleData.email}
+      name={googleData.name}
+      onDone={() => closeAuthModal()}
+      onCancel={closeAuthModal}
+    />
+  </Popup>
+)}
     </>
   );
 }

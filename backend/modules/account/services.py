@@ -1,9 +1,6 @@
 import logging
 logger = logging.getLogger(__name__)
 
-#
-# 
-#
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -95,38 +92,36 @@ async def check_email_service(db, email: str):
     except:
         logger.exception("check email failed!")     
 
-async def authenticate_google( db: AsyncSession, token: str ): 
-    try: 
-        idinfo = id_token.verify_oauth2_token( token, requests.Request(), GOOGLE_CLIENT_ID ) 
-    except ValueError: 
-        return None 
-    
-    try: 
-        google_id = idinfo["sub"] 
-        email = idinfo["email"] 
-        name = idinfo.get("name") 
-        
-        # 1️⃣ Kiểm tra google_id trước 
-        user = await repositories.get_by_google_id( db, google_id ) 
-        if user: 
-            return user 
-        
-        # 2️⃣ Nếu email đã tồn tại (đã đăng ký bằng password) 
-        user = await repositories.get_by_email( db, email ) 
-        if user: 
-            user.google_id = google_id 
-        
-            await db.commit() 
-            await db.refresh(user) 
-        
-            return user 
-        
-        # 3️⃣ Nếu chưa tồn tại → tạo mới 
-        new_user = { "email": email, "password": None, "google_id": google_id, "role": "user" } 
-        return await repositories.create_account( db, new_user ) 
-    except Exception as e: 
-        await db.rollback() 
-        raise ValueError(e) 
+async def authenticate_google(db: AsyncSession, token: str):
+    try:
+        idinfo = id_token.verify_oauth2_token(token, requests.Request(), GOOGLE_CLIENT_ID)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    google_id = idinfo["sub"]
+    email = idinfo["email"]
+    name = idinfo.get("name")
+
+    # 1️⃣ Đã liên kết Google trước đó
+    user = await repositories.get_by_google_id(db, google_id)
+    if user:
+        return {"status": "login", "user": user}
+
+    # 2️⃣ Email đã có (đăng ký bằng password trước đó) → liên kết thêm google_id
+    user = await repositories.get_by_email_repository(db, email)
+    if user:
+        user.google_id = google_id
+        await db.commit()
+        await db.refresh(user)
+        return {"status": "login", "user": user}
+
+    # 3️⃣ Chưa tồn tại → KHÔNG tạo user, trả thông tin để FE hỏi thêm
+    return {
+        "status": "need_register",
+        "google_id": google_id,
+        "email": email,
+        "name": name,
+    }
 
 async def send_email( to_email: str, otp: str ): 
     try: 

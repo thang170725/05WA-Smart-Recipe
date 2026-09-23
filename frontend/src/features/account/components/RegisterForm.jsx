@@ -1,6 +1,3 @@
-//
-// ========= nơi import thư viện =========== 
-// 
 import { useState, useEffect } from "react"
 import { RegisterApi, checkEmailApi } from "../api/RegisterApi"
 import SuccessPopup from "../../../components/SuccessPopup"
@@ -22,16 +19,19 @@ import { PasswordRegExp, PhoneRegExp, EmailRegExp, FullNameRegExp, CalculateAge,
 } from "../../../components/RegExp"
 
 import { HealthInfoForm } from "./HealthInfoForm"
+import { useRegisterFormValidator, useEmailChecker } from "../../../hooks/RegisterForm"
 
 export function RegisterForm({ onCancel, onSwitchToLogin, onRegisterSuccess }) {
   const devMode = "production"
 
   const [loading, setLoading] = useState(false) 
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
   const [step, setStep] = useState(1)
 
+  // =====================================================
+  // ========= chức năng đăng ký tài khoản user =========
+  // =====================================================
   const [form, setForm] = useState({
     fullname: "",
     birth_date: "",
@@ -46,6 +46,9 @@ export function RegisterForm({ onCancel, onSwitchToLogin, onRegisterSuccess }) {
     activity_level: "",
     target_goal: ""
   })
+  
+  // bắt lỗi input của user
+  const [error, setError] = useRegisterFormValidator(form)
   
   const handleChange = (e) => {
     let { name, value } = e.target
@@ -71,22 +74,16 @@ export function RegisterForm({ onCancel, onSwitchToLogin, onRegisterSuccess }) {
     }
   }
 
+  //
+  // ======== kiểm tra trùng email ========
+  //
+  const [emailError, emailAvailable, setEmailError, setEmailAvailable] = useEmailChecker(devMode, error, form.email);
+
   const handleNextStep = (e) => {
     e.preventDefault()
     setError("")
 
     try {
-      if (!FullNameRegExp().test(form.fullname)) throw new Error("Tên không hợp lệ")
-      if (!form.birth_date) throw new Error("Ngày sinh không được để trống")
-      if (!AgeRegExp().test(String(form.age))) throw new Error("Độ tuổi cho phép đăng ký là từ lớn hơn 17 tuổi")
-      if (!PasswordRegExp().test(form.password)) throw new Error("Password ≥8 ký tự, gồm chữ, số, ký tự đặc biệt và ký tự in hoa")
-      if (!PhoneRegExp().test(form.phone)) throw new Error("Số điện thoại không hợp lệ")
-      if (!form.gender) throw new Error("Vui lòng chọn giới tính")
-      if (!form.address.trim()) throw new Error("Vui lòng nhập địa chỉ")  
-      if (!EmailRegExp().test(form.email)) {
-        setEmailError("Email không hợp lệ")
-        return
-      }
       if (emailError || !emailAvailable) {
         throw new Error("Vui lòng sử dụng một email hợp lệ và chưa đăng ký")
       }
@@ -130,59 +127,6 @@ export function RegisterForm({ onCancel, onSwitchToLogin, onRegisterSuccess }) {
     }
   }
 
-  const [emailError, setEmailError] = useState("")
-  const [checkingEmail, setCheckingEmail] = useState(false)
-  const [emailAvailable, setEmailAvailable] = useState(false)
-
-  const checkEmail = async (email) => {
-    if (!email.trim()) {
-      setEmailError("")
-      setEmailAvailable(false)
-      return
-    }
-  
-    if (!EmailRegExp().test(email)) {
-      setEmailError("Email không hợp lệ")
-      setEmailAvailable(false)
-      return
-    }
-  
-    try {
-      setCheckingEmail(true)
-      setEmailError("")
-      setEmailAvailable(false)
-  
-      const response = await checkEmailApi(devMode, email)
-  
-      if (response) {
-        setEmailError("Email này đã được đăng ký")
-        setEmailAvailable(false)
-      } else {
-        setEmailError("")
-        setEmailAvailable(true)
-      }
-    } catch (error) {
-      setEmailError("Không thể kiểm tra email")
-      setEmailAvailable(false)
-    } finally {
-      setCheckingEmail(false)
-    }
-  }
-
-  useEffect(() => {
-    if (!form.email.trim()) {
-      setEmailError("")
-      setEmailAvailable(false)
-      return
-    }
-  
-    const timer = setTimeout(() => {
-      checkEmail(form.email)
-    }, 500)
-  
-    return () => clearTimeout(timer)
-  }, [form.email])
-
   const [agreements, setAgreements] = useState({
     terms: false,
     privacy: false,
@@ -205,7 +149,7 @@ export function RegisterForm({ onCancel, onSwitchToLogin, onRegisterSuccess }) {
           className="flex transition-transform duration-500 ease-in-out w-[200%]"
           style={{ transform: `translateX(${step === 1 ? '0%' : '-50%'})` }}
         >
-          <div className="w-1/2 flex-shrink-0 pr-4 mr-2">
+          <div className="w-1/2 shrink-0 pr-4 mr-2">
             <div className="space-y-5">
               <div className="grid grid-cols-3 gap-5">
                 <div className="col-span-3"> 
@@ -408,7 +352,7 @@ export function RegisterForm({ onCancel, onSwitchToLogin, onRegisterSuccess }) {
               agreements={agreements}
               handleAgreementChange={handleAgreementChange}
             />
-
+          
             {error && step === 2 && (
               <p className="text-red-500 text-sm mt-3">{error}</p>
             )}
