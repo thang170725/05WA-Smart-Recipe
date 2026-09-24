@@ -1,25 +1,29 @@
 import logging
+from backend.config.logging import setup_logging
+setup_logging()
 logger = logging.getLogger(__name__)
+
+import os
+import uuid
+import shutil
+import smtplib
+import random
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from google.oauth2 import id_token
+from google.auth.transport import requests
+from dotenv import load_dotenv
+load_dotenv()
+from fastapi import HTTPException, status
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime, timedelta, timezone
 
 from backend.modules.account import repositories
 from backend.modules.user.models import User, OTP
-from backend.core.security import hash_password, verify_password
-from google.oauth2 import id_token
-from google.auth.transport import requests
-import os
-from dotenv import load_dotenv
-import uuid
-import shutil
-from fastapi import HTTPException, status
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import random
-from datetime import datetime, timedelta, timezone
-load_dotenv()
+from backend.core.security import PasswordSecurity
+
 EMAIL = os.getenv("EMAIL")
 PASSWORD = os.getenv("PASSWORD")
 SMTP_SERVER = "smtp.gmail.com"
@@ -31,13 +35,12 @@ if GOOGLE_CLIENT_ID == "Empty":
 
 from backend.modules.account import repositories
 
-#
-#
-#
 async def register_service(db: AsyncSession, data: dict):
     try:
+        ps = PasswordSecurity()
+
         data["role"] = "user"
-        data["password"] = hash_password(data["password"])
+        data["password"] = ps.hash_password(data["password"])
         
         new_user = await repositories.register_repository(data)
         
@@ -53,6 +56,8 @@ async def register_service(db: AsyncSession, data: dict):
 # LOGIN SERVICE
 async def login_service(db: AsyncSession, payload):
     try:
+        ps = PasswordSecurity()
+
         user = await repositories.get_by_email_repository(
             db,
             payload["email"]
@@ -64,7 +69,7 @@ async def login_service(db: AsyncSession, payload):
                 detail="Username or password is not correct"
             )
 
-        if not verify_password(
+        if not ps.verify_password(
             payload["password"],
             user.password
         ):
@@ -188,6 +193,8 @@ async def verity_otp_service( db: AsyncSession, email, otp: str ):
 # reset user bằng email 
 async def reset_password_service( db: AsyncSession, email: str, new_password: str ): 
     try: 
+        ps = PasswordSecurity()
+
         now = datetime.now(timezone.utc) 
         result = await db.execute( 
             select(OTP).where( OTP.email == email, OTP.is_used == True, ) .order_by( OTP.expires_at.desc() ) ) 
@@ -203,7 +210,7 @@ async def reset_password_service( db: AsyncSession, email: str, new_password: st
         user = await repositories.get_user_by_email_repo( db, email ) 
         if not user: 
             raise HTTPException( status_code=404, detail="User not found" ) 
-        user.password = hash_password( new_password ) 
+        user.password = ps.hash_password( new_password ) 
         
         await db.commit() 
         return { "message": "Password updated" } 

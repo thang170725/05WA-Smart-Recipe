@@ -11,7 +11,11 @@ logger = logging.getLogger(__name__)
 #
 from backend.config.database import get_db
 from backend.modules.account import services
-from backend.core.security import create_access_token, create_registration_token, verify_registration_token
+from backend.core.security import (
+    create_access_token, 
+    create_registration_token, 
+    verify_registration_toke
+)
 from backend.modules.user.schemas import (
     InputSendEmailSchema,
     InputVerifyOtpSchema,

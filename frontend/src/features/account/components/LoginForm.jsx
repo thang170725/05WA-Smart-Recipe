@@ -67,8 +67,6 @@ export function LoginForm({
       console.error(err.message || "LOGIN Failed")
       setPhase("idle")
       setError("Sai email hoặc mật khẩu")
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -143,7 +141,6 @@ export function LoginForm({
             <GoogleLogin
               onSuccess={async (credentialResponse) => {
                 try {
-                  setLoading(true)
 
                   const res = await LoginGoogleApi({ token: credentialResponse.credential })
 
@@ -162,8 +159,6 @@ export function LoginForm({
                 } catch (err) {
                   console.error("GOOGLE LOGIN ERROR:", err)
                   alert("Google login failed")
-                } finally {
-                  setLoading(false)
                 }
               }}
               onError={() => console.log("Google Login Failed")}
@@ -186,8 +181,8 @@ export function LoginForm({
 
           <button
             type="submit"
-            disabled={loading || !!error || !form.email || !form.password}
-            className="btn-primary !py-2.5 disabled:opacity-60"
+            disabled={phase !== "idle" || !!error || !form.email || !form.password}
+            className="btn-primary py-2.5! disabled:opacity-60"
           >
             {phase === "idle" ? "Đăng nhập" : <AuthLoader phase={phase} />}
           </button>

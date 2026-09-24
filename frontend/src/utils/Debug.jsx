@@ -1,4 +1,4 @@
-VITE_DEBUG = "DEBUG"
+const VITE_DEBUG = "DEBUG"
 
 export function Debug(content){
     if (VITE_DEBUG == DEBUG) {
