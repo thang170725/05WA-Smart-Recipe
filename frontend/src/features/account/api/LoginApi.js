@@ -1,6 +1,9 @@
 import JsonApi from "../../../services/JsonApi";
 
-export default  async function LoginApi ( payload ) {
+export async function LoginApi (devMode, payload ) {
+    if (devMode === "dev") {
+        return True
+    }
     return await JsonApi(
         "/account/login", {
         method: "POST", 

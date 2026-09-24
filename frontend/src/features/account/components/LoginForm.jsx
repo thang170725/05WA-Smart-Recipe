@@ -1,17 +1,33 @@
 import { User, Lock, Eye, EyeOff } from "lucide-react"
 import { useState } from "react"
 import SuccessPopup from "../../../components/SuccessPopup"
-import LoginApi from "../api/LoginApi"
+import { LoginApi } from "../api/LoginApi"
 import { GoogleLogin } from '@react-oauth/google'
 import { LoginGoogleApi, CompleteGoogleRegisterApi } from "../api/LoginGoogleApi"
 import { useAuth } from "../../../context/AuthContext"
+import { useLoginFormValidator } from "../../../hooks/LoginForm"
+import { Debug } from "../../../utils/Debug"
+import { AuthLoader } from "../../../components/AuthLoader"
 
-export function LoginForm({ onCancel, onLoginSuccess, onSwitchToRegister, onSwitchToForgotPassword, onNeedGoogleRegister }) {
-  // STATE
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [success, setSuccess] = useState(false)
+export function LoginForm({ 
+  onCancel, 
+  onLoginSuccess, 
+  onSwitchToRegister, onSwitchToForgotPassword, 
+  onNeedGoogleRegister 
+}) {
+  const devMode = "production"
+
+  // ==========================================
+  // ======== chức năng đăng nhập =============
+  // ==========================================
+  const [form, setForm] = useState({
+    email: "",
+    password: ""
+  })
+  // bắt regex
+  const [error, setError] = useLoginFormValidator(form) 
+
+  // bắt giá trị input và người dùng nhập vào
   const handleChange = (e) => {
     const { name, value } = e.target
   
@@ -20,44 +36,50 @@ export function LoginForm({ onCancel, onLoginSuccess, onSwitchToRegister, onSwit
         [name]: value
     }))
   }
-
-  // USESTATE
-  const [form, setForm] = useState({
-    email: "",
-    password: ""
-  })
+  
+  // gửi api và lưu token người dùng để duy trì đăng nhập
   const { setUser } = useAuth()
-
-  // ====== API ========
+  const [phase, setPhase] = useState("idle") // idle | loading | success
   const handleSend = async (e) => {
     e.preventDefault()
-    setLoading(true)
-    setError("")
+    
+    if (error || !form.email || !form.password) {
+      alert("đăng nhập thất bại", error)
+      return
+    }
+
+    setPhase("loading")
       
     try {
+      const res = await LoginApi(devMode, form)
 
-      const res = await LoginApi(form)
-      setUser(res.user)
-      
-      localStorage.setItem("token", res.access_token)    
+      if (devMode === "production") {
+        setUser(res.user)
+        localStorage.setItem("token", res.access_token)    
+      }
+    
+      setPhase("success")
+      await new Promise((resolve) => setTimeout(resolve, 700)) // giữ hiệu ứng ✓ trong 0.7s
 
       onLoginSuccess()
       setSuccess(true)
     } catch(err){
       console.error(err.message || "LOGIN Failed")
+      setPhase("idle")
+      setError("Sai email hoặc mật khẩu")
     } finally {
       setLoading(false)
     }
   }
 
+  // 
+  const [showPassword, setShowPassword] = useState(false)
+  
   return (
     <>
       <form className="space-y-5 relative z-10" method="POST" onSubmit={handleSend}>
         <div>
-          <label className="label-light">
-            Email
-          </label>
-
+          <label className="label-light">Email</label>
           <div className="relative mt-1">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
@@ -118,34 +140,34 @@ export function LoginForm({ onCancel, onLoginSuccess, onSwitchToRegister, onSwit
 
         <div className="flex justify-center gap-2">
           <div className="flex justify-center">
-          <GoogleLogin
-    onSuccess={async (credentialResponse) => {
-      try {
-        setLoading(true)
+            <GoogleLogin
+              onSuccess={async (credentialResponse) => {
+                try {
+                  setLoading(true)
 
-        const res = await LoginGoogleApi({ token: credentialResponse.credential })
+                  const res = await LoginGoogleApi({ token: credentialResponse.credential })
 
-        if (res.status === "need_register") {
-          onNeedGoogleRegister({
-            registrationToken: res.registration_token,
-            email: res.email,
-            name: res.name,
-          })
-          return
-        }
+                  if (res.status === "need_register") {
+                    onNeedGoogleRegister({
+                      registrationToken: res.registration_token,
+                      email: res.email,
+                      name: res.name,
+                    })
+                    return
+                  }
 
-        localStorage.setItem("token", res.access_token)
-        setUser(res.user)
-        setSuccess(true)
-      } catch (err) {
-        console.error("GOOGLE LOGIN ERROR:", err)
-        alert("Google login failed")
-      } finally {
-        setLoading(false)
-      }
-    }}
-    onError={() => console.log("Google Login Failed")}
-  />
+                  localStorage.setItem("token", res.access_token)
+                  setUser(res.user)
+                  setSuccess(true)
+                } catch (err) {
+                  console.error("GOOGLE LOGIN ERROR:", err)
+                  alert("Google login failed")
+                } finally {
+                  setLoading(false)
+                }
+              }}
+              onError={() => console.log("Google Login Failed")}
+            />
           </div>
         </div>
 
@@ -164,23 +186,13 @@ export function LoginForm({ onCancel, onLoginSuccess, onSwitchToRegister, onSwit
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !!error || !form.email || !form.password}
             className="btn-primary !py-2.5 disabled:opacity-60"
           >
-            Đăng nhập
+            {phase === "idle" ? "Đăng nhập" : <AuthLoader phase={phase} />}
           </button>
         </div>
       </form>
-
-      {success && (
-        <SuccessPopup
-          onClose={() => {
-            setSuccess(false)
-            onLoginSuccess()
-            onCancel() // đóng popup đăng ký
-          }}
-        />
-      )}
     </>
   )
 }

@@ -5,19 +5,18 @@ import {
   User, Mail, MapPinPen,
   Lock, Transgender,
   Phone,
-  Eye,
-  EyeOff,
+  Eye, EyeOff,
   Calendar,
   Ruler,
   Weight,
   Activity,
   Target
 } from "lucide-react"
-
-import { PasswordRegExp, PhoneRegExp, EmailRegExp, FullNameRegExp, CalculateAge, AgeRegExp,
+import { 
+  PasswordRegExp, PhoneRegExp, EmailRegExp, 
+  FullNameRegExp, CalculateAge, AgeRegExp,
   HeightRegExp, WeightRegExp
 } from "../../../components/RegExp"
-
 import { HealthInfoForm } from "./HealthInfoForm"
 import { useRegisterFormValidator, useEmailChecker } from "../../../hooks/RegisterForm"
 
@@ -26,7 +25,6 @@ export function RegisterForm({ onCancel, onSwitchToLogin, onRegisterSuccess }) {
 
   const [loading, setLoading] = useState(false) 
   const [showPassword, setShowPassword] = useState(false)
-  const [success, setSuccess] = useState(false)
   const [step, setStep] = useState(1)
 
   // =====================================================
@@ -46,10 +44,8 @@ export function RegisterForm({ onCancel, onSwitchToLogin, onRegisterSuccess }) {
     activity_level: "",
     target_goal: ""
   })
-  
-  // bắt lỗi input của user
-  const [error, setError] = useRegisterFormValidator(form)
-  
+
+  // bắt dữ liệu mà user nhập vào
   const handleChange = (e) => {
     let { name, value } = e.target
 
@@ -73,10 +69,13 @@ export function RegisterForm({ onCancel, onSwitchToLogin, onRegisterSuccess }) {
       }))
     }
   }
-
-  //
+  
+  // bắt lỗi input của user
+  const [error, setError] = useRegisterFormValidator(form)
+  
+  // ======================================
   // ======== kiểm tra trùng email ========
-  //
+  // ======================================
   const [emailError, emailAvailable, setEmailError, setEmailAvailable] = useEmailChecker(devMode, error, form.email);
 
   const handleNextStep = (e) => {
@@ -359,15 +358,6 @@ export function RegisterForm({ onCancel, onSwitchToLogin, onRegisterSuccess }) {
           </div>
         </div>
       </div>
-
-      {success && (
-        <SuccessPopup
-          onClose={() => {
-            setSuccess(false)
-            onCancel() 
-          }}
-        />
-      )}
     </>
   )
 }

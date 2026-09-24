@@ -22,6 +22,10 @@
   --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.15);
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @layer base {
   html {
     font-family: var(--font-sans);
