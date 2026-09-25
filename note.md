@@ -3,6 +3,7 @@
   - [chức năng đăng ký](#chức-năng-đăng-ký)
   - [chức năng update lên bản trả phí](#chức-năng-update-lên-bản-trả-phí)
   - [luồng chức năng đánh giá AI và dự phóng mục tiêu](#luồng-chức-năng-đánh-giá-ai-và-dự-phóng-mục-tiêu)
+- [bổ sung thêm vào giao diện AI](#bổ-sung-thêm-vào-giao-diện-ai)
 ---
 **Tên đề tài: Smart-Recipe: trợ lý ảo dinh dưỡng**
 ```bash
@@ -95,4 +96,13 @@ user nhập thông tin -> xác thực -> be -> xác thực -> db -> be -> fe -> 
        │    (Ví dụ: Tuần 1 -> Tuần 4 -> Tuần 8 -> Tuần 12)       │
        │ 4. Hướng dẫn Lộ trình Dinh dưỡng & Tập luyện           │
        └─────────────────────────────────────────────────────────┘
+```
+# bổ sung thêm vào giao diện AI
+```bash
+AI chatbot hỗ trợ:
+    - hỏi đáp trong lĩnh vực sức khỏe và luyện tập 
+    - hỗ trợ tra cứu các thông tin cá nhân
+    - hỗ trợ tương tác với dữ liệu người dùng trực tiếp
+    - dựa vào dữ liệu của người dùng để tự vấn được chính xác với case study của user hơn
+    - tự tổng hợp dữ liệu cá nhân để làm báo cáo hàng tuần
 ```

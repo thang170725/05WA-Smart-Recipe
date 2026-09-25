@@ -8,6 +8,7 @@ sr/
 *.log
 logs/
 backend/config/*.json
+temp/
 
 # backend
 backend/data/
