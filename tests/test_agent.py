@@ -1,21 +1,36 @@
+import logging
+from backend.config.logging import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
 import csv
 import json
 import time
-from pathlib import Path
-
 import httpx
 import pytest
+import os
 
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv()
 
 # =========================
 # Configuration
 # =========================
 
-BASE_URL = "http://localhost:8000"
-API_ENDPOINT = "/api/ai/chat"
+BASE_URL = os.getenv("BASE_URL")
+LOGIN_ENDPOINT="account/login"
+API_ENDPOINT = "/ai/chat"
 
-INPUT_FILE = Path(__file__).parent / "data" / "agent_test_cases.csv"
-OUTPUT_FILE = Path(__file__).parent / "data" / "agent_test_results.csv"
+TEST_USER_EMAIL = os.getenv("TEST_USER_EMAIL")
+TEST_USER_PASSWORD = os.getenv("TEST_USER_PASSWORD")
+
+INPUT_FILE = Path(
+    "/home/thang/workspace/Smart-Recipe/backend/data/test_cases/agent_test_cases.csv"
+)
+OUTPUT_FILE = Path(
+    "/home/thang/workspace/Smart-Recipe/tests/output/agent_test_results.csv"
+)
 
 
 # =========================
@@ -59,13 +74,17 @@ def save_result(result):
 # API
 # =========================
 
-async def call_agent(prompt):
+async def call_agent(prompt, token):
     """
     Gửi prompt tới AI Agent và đọc toàn bộ SSE response.
     """
 
     request_data = {
         "prompt": prompt
+    }
+
+    headers = {
+        "Authorization": f"Bearer {token}"
     }
 
     response_events = []
@@ -79,6 +98,7 @@ async def call_agent(prompt):
             "POST",
             API_ENDPOINT,
             json=request_data,
+            headers=headers
         ) as response:
 
             response.raise_for_status()
@@ -126,6 +146,33 @@ def extract_agent_response(events):
 
     return "".join(replies)
 
+# =========================
+# Auth
+# =========================
+
+@pytest.fixture(scope="session")
+def access_token():
+    """
+    Đăng nhập 1 lần duy nhất cho cả session test,
+    trả về access_token dùng chung cho mọi test case.
+    """
+    assert TEST_USER_EMAIL, "TEST_USER_EMAIL chưa được nạp — kiểm tra .env"
+    assert TEST_USER_PASSWORD, "TEST_USER_PASSWORD chưa được nạp — kiểm tra .env"
+    logger.debug("Login với email=%s", TEST_USER_EMAIL)
+
+    with httpx.Client(base_url=BASE_URL, timeout=None) as client:
+        response = client.post(
+            LOGIN_ENDPOINT,
+            json={
+                "email": TEST_USER_EMAIL,
+                "password": TEST_USER_PASSWORD,
+            },
+        )
+        response.raise_for_status()
+        token = response.json()["access_token"]
+
+    logger.info("Login test account thành công, đã lấy access_token")
+    return token
 
 # =========================
 # Test
@@ -137,7 +184,7 @@ def extract_agent_response(events):
     load_test_cases(),
     ids=lambda test_case: test_case["id"],
 )
-async def test_agent(test_case):
+async def test_agent(test_case, access_token):
 
     test_id = test_case["id"]
     prompt = test_case["prompt"]
@@ -146,7 +193,7 @@ async def test_agent(test_case):
     start_time = time.perf_counter()
 
     try:
-        events = await call_agent(prompt)
+        events = await call_agent(prompt, access_token)
 
         response_agent = extract_agent_response(events)
 

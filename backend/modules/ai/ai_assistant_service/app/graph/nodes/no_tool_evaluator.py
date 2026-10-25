@@ -20,6 +20,7 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 from langchain_core.messages import HumanMessage
+from langchain_core.runnables import RunnableConfig 
 
 from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
 from backend.modules.ai.ai_assistant_service.app.config.prompt_config import (
@@ -32,18 +33,19 @@ from backend.modules.ai.ai_assistant_service.app.utils.helpers import (
 )
 from backend.modules.ai.ai_assistant_service.app.utils import trace
 from backend.modules.ai.ai_assistant_service.tools.registry import summarize_tools
+from backend.modules.ai.ai_assistant_service.app.graph.nodes.retrieve import resolve_tools
 
 _VALID_CATEGORIES = {"ASKANDANSWER", "OUTSIDE", "UNKNOWN", "INVALID_BYPASS"}
 
 
-async def no_tool_evaluator_node(state: AgentState) -> dict:
+async def no_tool_evaluator_node(state: AgentState, config: RunnableConfig) -> dict:
     """
     Validate xem việc bỏ qua tool có hợp lệ hay không.
     Valid (YES) -> agent_return_result
     Invalid (NO) -> rewrite
     """
     user_query = state.get("user_query") or ""
-    active_tools = state.get("active_tools") or []
+    active_tools = resolve_tools(state.get("active_tools") or [])
     retrieval_iteration = int(state.get("retrieval_iteration") or 0)
     max_retrieval = int(state.get("max_retrieval_retries") or 2)
     iteration = int(state.get("iteration") or 0)
@@ -84,7 +86,7 @@ async def no_tool_evaluator_node(state: AgentState) -> dict:
 
     try:
         trace.step("Đang gọi LLM No-Tool Evaluator...")
-        response = await state["llm"].ainvoke([HumanMessage(content=prompt)])
+        response = await config["configurable"]["llm"].ainvoke([HumanMessage(content=prompt)])
         raw = extract_text_from_response(response)
         parsed = safe_json_loads(raw) or {}
 

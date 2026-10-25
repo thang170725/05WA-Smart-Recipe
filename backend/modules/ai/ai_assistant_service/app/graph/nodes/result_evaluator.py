@@ -13,6 +13,7 @@ import json
 import logging
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 
 from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
 from backend.modules.ai.ai_assistant_service.app.config.prompt_config import (
@@ -62,7 +63,7 @@ def _heuristic_from_results(tool_results: list[dict]) -> dict | None:
     return None
 
 
-async def result_evaluator_node(state: AgentState) -> dict:
+async def result_evaluator_node(state: AgentState, config: RunnableConfig) -> dict:
     """
     Đánh giá kết quả từ tool:
     Trạng thái: DATA_COMPLETE | NEED_MORE_TOOLS | FAILED
@@ -133,7 +134,7 @@ async def result_evaluator_node(state: AgentState) -> dict:
 
     try:
         trace.step("Đang gọi LLM Result Evaluator...")
-        response = await state["llm"].ainvoke([HumanMessage(content=prompt)])
+        response = await config["configurable"]["llm"].ainvoke([HumanMessage(content=prompt)])
         raw = extract_text_from_response(response)
         parsed = safe_json_loads(raw) or {}
         raw_status = str(parsed.get("status") or "DATA_COMPLETE").upper()

@@ -23,6 +23,8 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+from langchain_core.runnables import RunnableConfig
+
 from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
 from backend.modules.ai.ai_assistant_service.app.utils import trace
 from backend.modules.ai.ai_assistant_service.tools.rag import retrieve_tools
@@ -33,10 +35,17 @@ from backend.modules.ai.ai_assistant_service.tools.rag import retrieve_tools
 DEFAULT_TOOL_TOP_K = os.getenv('DEFAULT_TOOL_TOP_K', default=5)
 DEFAULT_RAG_SCORE_THRESHOLD = os.getenv('DEFAULT_RAG_SCORE_THRESHOLD', default=0.5)
 
+from typing import Any
+
+_TOOL_CACHE: dict[str, Any] = {}
+
+def resolve_tools(names: list[str]) -> list:
+    """Tên tool (trong state) -> object tool (để bind_tools / summarize)."""
+    return [_TOOL_CACHE[n] for n in (names or []) if n in _TOOL_CACHE]
 #
 #
 #
-async def retrieve_tools_node(state: AgentState) -> dict:
+async def retrieve_tools_node(state: AgentState, config: RunnableConfig) -> dict:
     """
     Trạm RAG: embed current_query → cosine similarity → Top-K BaseTool.
     Output:
@@ -48,7 +57,7 @@ async def retrieve_tools_node(state: AgentState) -> dict:
     }
     """
     current_query = (state.get("current_query") or state.get("user_query")or "").strip()
-    db = state["db"]
+    db = config["configurable"]["db"]
     history = list(state.get("retrieval_history") or [])
 
     trace.banner("NODE 2 · RETRIEVE (Tool RAG)", query=current_query)
@@ -66,6 +75,9 @@ async def retrieve_tools_node(state: AgentState) -> dict:
         tools = []
 
     names = [t.name for t in tools]
+    for t in tools:
+        _TOOL_CACHE[t.name] = t
+        
     history.append({"query": current_query, "tools": names})
 
     if names:
@@ -77,8 +89,8 @@ async def retrieve_tools_node(state: AgentState) -> dict:
         )
 
     return {
-        "active_tools": tools,
-        "retrieved_tools": tools,
+        "active_tools": names,
+        "retrieved_tools": names,
         "retrieval_history": history,
         "progress": "Đang xác định phương án xử lý...",
     }

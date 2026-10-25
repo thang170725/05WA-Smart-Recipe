@@ -1,5 +1,5 @@
 """
-Smoke test cho cấu trúc graph mới (Multi-Agent LangGraph Pipeline).
+Smoke test cấu trúc graph Phase 1.
 
 Chạy:
     /home/thang/workspace/Smart-Recipe/sr/bin/python -m backend.modules.ai.ai_assistant_service.test
@@ -8,6 +8,8 @@ Chạy:
 from backend.modules.ai.ai_assistant_service.app.graph.builder import build_agent_graph
 
 EXPECTED_NODES = {
+    "intake",
+    "docs_retrieval",
     "rewrite",
     "retrieve",
     "agent_choose_branch",
@@ -30,7 +32,7 @@ def main():
         raise SystemExit(f"MISSING nodes: {sorted(missing)}")
     if extra:
         print("Note — extra nodes:", sorted(extra))
-    print("Architecture nodes match Multi-Agent LangGraph Pipeline specification ✓")
+    print("Phase 1 architecture nodes OK ✓")
 
 
 if __name__ == "__main__":

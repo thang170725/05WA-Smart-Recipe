@@ -1,7 +1,5 @@
 """
 API schemas cho FastAPI routes của AI Assistant.
-
-Đã loại bỏ Intent Layer1/Layer2 (Decision Tree cũ) — Agent tự suy luận.
 """
 
 from pydantic import BaseModel
@@ -15,6 +13,18 @@ class InputAiAssistantSchema(BaseModel):
 
 
 class ConfirmSchema(BaseModel):
-    """Body POST /ai/confirm — xác nhận thao tác ghi đang treo."""
+    """Body POST /ai/confirm — backward-compat, xác nhận thao tác ghi đang treo."""
 
     action_id: str
+
+
+class ResumeSchema(BaseModel):
+    """
+    Body POST /ai/resume — tiếp tục graph đang interrupt.
+    
+    reply: câu trả lời của user (chọn option hoặc gõ tự do).
+           Với confirm_gate: "Xác nhận" hoặc "Hủy".
+           Với ask_user: text tùy ý hoặc option đã chọn.
+    """
+
+    reply: str

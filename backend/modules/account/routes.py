@@ -14,7 +14,7 @@ from backend.modules.account import services
 from backend.core.security import (
     create_access_token, 
     create_registration_token, 
-    verify_registration_toke
+    verify_registration_token
 )
 from backend.modules.user.schemas import (
     InputSendEmailSchema,

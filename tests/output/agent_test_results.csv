@@ -1,0 +1,31 @@
+﻿TC001,xin chào,greeting,"Xin chào! Rất vui được gặp bạn. Tôi có thể giúp gì cho bạn hôm nay về dinh dưỡng, sức khỏe, món ăn hoặc lối sống lành mạnh?",32.649
+TC002,bạn có thể giúp tôi những cái gì nhỉ,q&a,"Tất nhiên! Tôi có thể giúp bạn với nhiều vấn đề liên quan đến dinh dưỡng, công thức nấu ăn lành mạnh, cách cân bằng chế độ ăn uống và lối sống. Bạn cần hỗ trợ về điều gì cụ thể?",23.153
+TC003,tôi muốn xem thông tin tài khoản của tôi,request_tool,"Xin chào Lê Đức Thắng,
+
+Dưới đây là thông tin tài khoản của bạn:
+
+- ID: 16
+- Email: leducthang72005@gmail.com
+- Tên đầy đủ: Lê Đức Thắng
+- Địa chỉ: Hoài Đức, Hà Nội
+- Số điện thoại: 0964784462
+- Ngày sinh: 17/07/2005
+- Giới tính: Nam
+- Mức độ hoạt động: Light
+- Mục tiêu: Gain muscle (Tăng cơ)
+- Chiều cao: 180.0 cm
+- Trọng lượng: 51.0 kg
+
+Nếu bạn có thêm câu hỏi hoặc cần hỗ trợ gì khác, hãy liên hệ với chúng tôi.
+
+Chúc bạn một ngày tốt lành!",37.326
+TC004,tôi muốn xem địa chỉ của tôi,request_tool,"Địa chỉ của bạn là: Hoài Đức, Hà Nội. Nếu bạn cần thêm thông tin hoặc có bất kỳ câu hỏi nào khác về dinh dưỡng, sức khỏe hay lối sống lành mạnh, hãy liên hệ với chúng tôi!",18.595
+TC005,tôi muốn xem văn hóa của hàn quốc như thế nào,outside,"Bạn quan tâm đến văn hóa Hàn Quốc như thế nào cụ thể? Tôi có thể giúp bạn tìm hiểu về ẩm thực truyền thống, lễ hội đặc sắc hoặc phong tục tập quán của đất nước này. Hãy cho tôi biết để tôi có thể hỗ trợ tốt hơn nhé!",20.741
+TC006,dsapfadsfadhgfm,error,"Xin lỗi, tôi không hiểu yêu cầu của bạn. Bạn có thể hỏi về dinh dưỡng, sức khỏe, món ăn hoặc lối sống lành mạnh sao?",16.672
+TC007,người gầy lên ăn gì cho tăng cân nhanh nhất,q&a,"Để tăng cân hiệu quả, bạn nên tập trung vào việc bổ sung thêm calo từ các thực phẩm giàu chất dinh dưỡng. Dưới đây là một số gợi ý:
+
+1. **Thực phẩm giàu protein**: Thịt đỏ, cá, trứng, sữa và các sản phẩm từ sữa.
+2. **Thực phẩm giàu tinh bột**: Bánh mì, cơm, khoai lang, yến mạch.
+3. **Thực phẩm giàu chất béo lành mạnh**: Trứng bắc thảo, hạt điều, dầu ô liu.
+
+Bạn cũng có thể tăng cường ăn các bữa phụ giữa các bữa chính và uống thêm sữa hoặc shake protein để bổ sung calo. Chúc bạn thành công!",50.85

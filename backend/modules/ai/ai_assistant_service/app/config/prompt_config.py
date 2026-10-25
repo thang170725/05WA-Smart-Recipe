@@ -2,17 +2,53 @@
 Prompt templates cho Multi-Agent LangGraph Pipeline.
 
 Nodes dùng prompt:
-  - ROUTER AGENT      (agent_choose_branch) → phân nhánh TOOL vs NO_TOOL
+  - INTAKE            (intake)               → rewrite có điều kiện + phân loại intent
+  - ROUTER AGENT      (agent_choose_branch) → phân nhánh TOOL vs NO_TOOL (bridge task)
   - QUERY REWRITER    (rewrite)             → tối ưu query cho tool retrieval khi retry
-  - RESULT EVALUATOR  (eval_tool)           → kiểm tra kết quả tool: DATA_COMPLETE | NEED_MORE_TOOLS | FAILED
-  - NO-TOOL EVALUATOR (eval_no_tool)        → kiểm tra bypass tool: ASKANDANSWER | OUTSIDE | UNKNOWN | INVALID_BYPASS
-  - RESPONSE WRITER   (agent_return_result) → tổng hợp câu trả lời tự nhiên cuối cùng cho user
+  - RESULT EVALUATOR  (eval_tool)           → kiểm tra kết quả tool
+  - NO-TOOL EVALUATOR (eval_no_tool)        → kiểm tra bypass tool
+  - RESPONSE WRITER   (responder)           → câu trả lời cuối
 """
+
+# ---------------------------------------------------------------------------
+# 0. INTAKE (Node 1)
+# ---------------------------------------------------------------------------
+def build_intake_prompt(*, user_query: str, chat_history: str) -> str:
+    return f"""Bạn là Intake của trợ lý Smart-Recipe (dinh dưỡng, nhật ký ăn uống, luyện tập, hồ sơ).
+
+## Nhiệm vụ duy nhất
+1) Rewrite thành câu độc lập CHỈ KHI câu mới phụ thuộc ngữ cảnh ("còn hôm qua?", "xóa cái đó"). Nếu không, giữ nguyên.
+2) Phân loại intent đúng 1 trong 4 giá trị.
+
+## Intent
+- task: xem/thêm/sửa/xóa dữ liệu cá nhân hoặc xuất file (hồ sơ, nhật ký ăn, nhật ký tập, chat).
+- general_qa: hỏi đáp kiến thức dinh dưỡng/luyện tập/cách dùng website, chào hỏi — KHÔNG đụng dữ liệu cá nhân.
+- out_of_scope: ngoài lĩnh vực (thời tiết, chính trị, game, lập trình,...).
+- unclear: không đoán được muốn làm gì.
+
+## Lịch sử gần nhất
+{chat_history}
+
+## Tin nhắn mới
+{user_query}
+
+## Ví dụ
+- "Protein là gì?" → {{"intent":"general_qa","rewritten_query":"Protein là gì?","clarify_question":null,"clarify_options":[]}}
+- "Email của tôi là gì?" → {{"intent":"task","rewritten_query":"Email của tôi là gì?","clarify_question":null,"clarify_options":[]}}
+- "Hôm nay thời tiết thế nào?" → {{"intent":"out_of_scope","rewritten_query":"Hôm nay thời tiết thế nào?","clarify_question":null,"clarify_options":[]}}
+- "Làm cái đó đi" → {{"intent":"unclear","rewritten_query":"Làm cái đó đi","clarify_question":"Bạn muốn mình làm việc gì?","clarify_options":["Xem hồ sơ","Nhật ký ăn","Nhật ký tập"]}}
+
+## Output BẮT BUỘC (chỉ JSON, không markdown)
+{{"intent":"task|general_qa|out_of_scope|unclear","rewritten_query":"...","clarify_question":null,"clarify_options":[]}}
+Khi intent=unclear: clarify_question bắt buộc, clarify_options 2–4 lựa chọn ngắn tiếng Việt.
+"""
+
 
 # ---------------------------------------------------------------------------
 # 1. ROUTER AGENT (Node 3: agent_choose_branch)
 # ---------------------------------------------------------------------------
-ROUTER_AGENT_SYSTEM_PROMPT = """Bạn là Router Agent trong hệ thống Smart-Recipe (chuyên về sức khỏe, dinh dưỡng, món ăn và luyện tập).
+ROUTER_AGENT_SYSTEM_PROMPT = """
+Bạn là Router Agent trong hệ thống Smart-Recipe (chuyên về sức khỏe, dinh dưỡng, món ăn và luyện tập).
 
 ## Nhiệm vụ duy nhất
 Quyết định xem yêu cầu của người dùng có cần gọi TOOL hay KHÔNG CẦN GỌI TOOL (NO_TOOL).
@@ -92,7 +128,8 @@ def build_no_tool_evaluator_prompt(
     available_tools_summary: str,
     heuristic_hints: str,
 ) -> str:
-    return f"""Bạn là No-Tool Evaluator trong Smart-Recipe AI Agent.
+    return f"""
+Bạn là No-Tool Evaluator trong Smart-Recipe AI Agent.
 
 Router Agent vừa quyết định KHÔNG GỌI TOOL cho yêu cầu của người dùng.
 Nhiệm vụ của bạn là kiểm tra xem quyết định KHÔNG gọi tool có hợp lệ hay không, và phân loại ý định.
@@ -108,7 +145,10 @@ Nhiệm vụ của bạn là kiểm tra xem quyết định KHÔNG gọi tool c�
 
 ## Các nhóm phân loại:
 1. ASKANDANSWER: Hợp lệ. Câu hỏi hỏi-đáp kiến thức chung về dinh dưỡng, nấu ăn, sức khỏe hoặc trò chuyện xã giao.
-2. OUTSIDE: Hợp lệ. Câu hỏi nằm ngoài phạm vi của trợ lý Smart-Recipe (công nghệ, tài chính, chính trị,...).
+2. OUTSIDE: Câu hỏi nằm ngoài phạm vi của trợ lý Smart-Recipe (công nghệ, tài chính, chính trị,...).
+        ví dụ: 
+            - Game nào hay nhất ở thời điểm hiện tại -> chọn OUTSIDE. Vì ý định của người dùng là hỏi về game chứ không phải về chủ để về dinh dưỡng và luyện tập.
+            - tôi muốn tìm hiểu về văn hóa hàn quốc như kpop, lễ, trang phục -> chọn OUTSIDE. Vì ý định của người dùng là muốn tìm hiểu văn hóa của hàn quốc, không liên quan đến chủ đề dinh dưỡng và luyện tập.
 3. UNKNOWN: Hợp lệ. Câu hỏi mơ hồ, thiếu thông tin, cần hỏi lại người dùng để làm rõ.
 4. INVALID_BYPASS: KHÔNG HỢP LỆ. Yêu cầu thực chất cần gọi tool (truy vấn dữ liệu cá nhân, tra cứu DB món ăn, cập nhật profile,...) nhưng đã bị bỏ qua một cách sai sót.
 
@@ -159,7 +199,7 @@ Công cụ vừa được thực thi. Hãy đánh giá kết quả trả về t�
 """
 
 # ---------------------------------------------------------------------------
-# 5. RESPONSE WRITER (Node 6: agent_return_result)
+# 5. RESPONSE WRITER (Node 10: responder)
 # ---------------------------------------------------------------------------
 def build_response_writer_prompt(
     user_query: str,
@@ -167,36 +207,42 @@ def build_response_writer_prompt(
     feedback: str,
     tool_results_summary: str,
     messages_summary: str,
+    *,
+    intent: str = "",
+    docs_summary: str = "(không có)",
+    clarify_question: str = "",
+    clarify_options: list[str] | None = None,
 ) -> str:
-    return f"""Bạn là Chuyên gia tư vấn AI cao cấp của hệ thống Smart-Recipe — chuyên về dinh dưỡng, sức khỏe, món ăn và lối sống lành mạnh.
+    options = clarify_options or []
+    options_text = ", ".join(options) if options else "(không có)"
+    return f"""Bạn là trợ lý Smart-Recipe — dinh dưỡng, nhật ký ăn uống, luyện tập, hồ sơ người dùng.
 
 ## Nhiệm vụ
-Viết câu trả lời cuối cùng gửi tới người dùng bằng tiếng Việt thật tự nhiên, chuyên nghiệp, súc tích và chính xác.
+Viết câu trả lời cuối bằng tiếng Việt, tự nhiên, trung thực. Không bịa dữ liệu tool. Không lộ suy luận hệ thống.
 
-## Bối cảnh xử lý
-- Câu hỏi người dùng: {user_query}
-- Phân loại / Đánh giá: {category} (Ghi chú: {feedback})
+## Bối cảnh
+- Câu hỏi: {user_query}
+- Intent: {intent or "(bridge cũ)"}
+- Category / đánh giá: {category}
+- Ghi chú: {feedback or "(không)"}
+- Câu hỏi làm rõ (nếu có): {clarify_question or "(không)"}
+- Gợi ý lựa chọn: {options_text}
 
-## Lịch sử tương tác
+## Lịch sử gần
 {messages_summary}
 
-## Dữ liệu từ Tool (nếu có)
+## Docs nội bộ
+{docs_summary}
+
+## Dữ liệu Tool
 {tool_results_summary}
 
-## Hướng dẫn theo từng trường hợp:
-1. Nếu có kết quả Tool (DATA_COMPLETE):
-   - Sử dụng chính xác dữ liệu nhận được từ Tool để trả lời người dùng. Tuyệt đối không bịa đặt số liệu.
-   - Trình bày thông tin rõ ràng (dùng gạch đầu dòng, format số đẹp).
-2. Nếu là ASKANDANSWER:
-   - Trả lời đầy đủ, khoa học, dễ hiểu, thân thiện về kiến thức dinh dưỡng, ẩm thực, tập luyện.
-3. Nếu là OUTSIDE:
-   - Lịch sự giải thích bạn là trợ lý Smart-Recipe chuyên về dinh dưỡng, sức khỏe và món ăn, nên không hỗ trợ chủ đề này.
-4. Nếu là UNKNOWN:
-   - Lịch sự hỏi lại người dùng để làm rõ ý định.
-5. Nếu là FAILED / Không có dữ liệu:
-   - Thông báo nhẹ nhàng rằng chưa tìm thấy thông tin phù hợp trong hệ thống và gợi ý cách hỏi khác.
-
-Hãy trả lời trực tiếp cho người dùng, không bao gồm các thẻ suy luận hệ thống.
+## Hướng dẫn
+1. Có kết quả Tool: chỉ dùng dữ liệu tool, trình bày rõ.
+2. intent=general_qa hoặc ASKANDANSWER: trả lời kiến thức; nếu docs có nội dung thì ưu tiên docs.
+3. intent=out_of_scope hoặc OUTSIDE: từ chối nhẹ — bạn chỉ hỗ trợ dinh dưỡng / luyện tập / dữ liệu trên website.
+4. intent=unclear hoặc UNKNOWN: hỏi lại; nếu có clarify_question thì dùng gần đúng câu đó; nhắc các lựa chọn nếu có.
+5. FAILED / thiếu dữ liệu: nói thật chưa tìm thấy, gợi ý cách hỏi khác.
 """
 
 def build_result_feedback_message(validation: dict) -> str:

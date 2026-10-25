@@ -1,34 +1,38 @@
 """
 AIAssistantService — facade public cho FastAPI routes.
 
-Contract API:
-  - run_pipline(input_text) → {status, message, action_id?}
-  - stream_pipeline(input_text) → async generator SSE events
-      * {type: "workflow", node, status, label, message}
-      * {type: "answer", status, reply, action_id?}
-  - confirm_pending_action(action_id) → {status, message}
-  - PENDING_ACTIONS (re-export) để routes kiểm tra ownership
+Contract API (Phase 3/4 update):
+  - stream_pipeline(input_text, thread_id) → async generator SSE events
+      Normal turn:
+        * {type: "workflow", node, status, label, message}
+        * {type: "answer", status, reply}
+      Interrupt turn (ask_user):
+        * {type: "ask_user", question, options, ask_count}
+      Interrupt turn (confirm_gate):
+        * {type: "confirm", question, staged_actions, options}
 
-Bên trong: LangGraph
-  rewrite → retrieve → agent → (execute → result_evaluator | decision_validator)
+  - resume_pipeline(thread_id, user_reply) → async generator SSE events
+      Tiếp tục graph đang interrupt với câu trả lời của user.
+
+  - confirm_pending_action(action_id) → dict [backward-compat]
+
+LangGraph interrupt/resume:
+  - Mỗi user ↔ thread_id riêng (f"user-{user_id}")
+  - graph được compile với MemorySaver checkpointer
+  - astream() với stream_mode="updates" + config={"configurable": {"thread_id": ...}}
 """
 
 from __future__ import annotations
 
-#
-# ===== nơi setup logging ======
-#
 import logging
 from backend.config.logging import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
-#
-# ===== nơi import thư viện ======
-#
 from typing import Any, Optional
 
 from langchain_core.messages import HumanMessage
+from langgraph.types import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.modules.ai.ai_assistant_service.app.config.settings import (
@@ -55,9 +59,18 @@ from backend.modules.ai.ai_assistant_service.app.utils import trace
 
 __all__ = ["AIAssistantService", "PENDING_ACTIONS"]
 
+# ── Singleton graph (compile once, dùng lại với nhiều thread_id) ──
+_AGENT_GRAPH = None
+
+def _get_graph():
+    global _AGENT_GRAPH
+    if _AGENT_GRAPH is None:
+        _AGENT_GRAPH = build_agent_graph()
+    return _AGENT_GRAPH
+
 
 class AIAssistantService:
-    """Service khởi tạo LLM + compile graph một lần, rồi chạy pipeline theo request."""
+    """Service khởi tạo LLM + dùng graph singleton với checkpointer."""
 
     def __init__(
         self,
@@ -76,79 +89,97 @@ class AIAssistantService:
         self.max_retrieval_retries = max_retrieval_retries
         self.max_execution_steps = max_execution_steps
         self.option = option
-        if self.option == "local":
-            self.name_local = name_local
-        else:
-            self.name_local = "model API key"
-
+        self.name_local = name_local if option == "local" else "model API key"
         self.temperature = temperature
         self.llm = get_llm(
             option=option,
             name_local=name_local,
             temperature=temperature,
         )
-        self.graph = build_agent_graph()
+        self.graph = _get_graph()
+
+    def _thread_id(self) -> str:
+        user_id = getattr(self.current_user, "id", None)
+        return f"user-{user_id}" if user_id is not None else "anon"
+
+    def _graph_config(self) -> dict:
+        """
+        Config cho mỗi lần astream().
+
+        db / llm / current_user là object runtime (AsyncSession, LLM client, ORM user)
+        → KHÔNG serialize được nên tuyệt đối không để trong state (checkpointer sẽ
+        msgpack toàn bộ state). Node đọc chúng qua config["configurable"].
+
+        Hàm này được gọi lại ở mỗi lần stream/resume nên luôn có db + llm mới nhất
+        (kể cả sau khi fallback sang Gemini hoặc khi resume bằng session mới).
+        """
+        return {
+            "configurable": {
+                "thread_id": self._thread_id(),
+                "db": self.db,
+                "llm": self.llm,
+                "current_user": self.current_user,
+            }
+        }
 
     def _switch_to_gemini(self) -> None:
-        """Chuyển LLM runtime sang Gemini (fallback khi Ollama crash)."""
-        logger.warning(
-            "[AIAssistant] Fallback local → Gemini (Ollama lỗi / OOM)."
-        )
+        logger.warning("[AIAssistant] Fallback local → Gemini.")
         self.option = "key"
         self.name_local = "gemini"
-        self.llm = get_llm(
-            option="key",
-            temperature=self.temperature,
-        )
+        self.llm = get_llm(option="key", temperature=self.temperature)
 
     # =========================================================================
-    # ===== Build initial AgentState (dùng chung run + stream) ================
+    # Build initial AgentState
     # =========================================================================
     def _build_initial_state(self, text: str) -> dict:
+        user_id = getattr(self.current_user, "id", None)
         return {
-            # Original + retrieval
+            "user_id": int(user_id) if user_id is not None else 0,
+            "thread_id": self._thread_id(),
             "user_query": text,
+            "rewritten_query": text,
+            "intent": "",
+            "clarify_question": None,
+            "clarify_options": [],
+            "docs": [],
+            "plan": [],
+            "task_status": {},
+            "task_results": {},
+            "staged_actions": [],
+            "approved_action_ids": [],
+            "step_count": {},
+            "replan_count": 0,
+            "ask_count": 0,
+            "files": [],
             "current_query": text,
             "query_history": [],
             "retrieved_tools": [],
             "active_tools": [],
             "retrieval_history": [],
-
-            # Conversation
             "messages": [HumanMessage(content=text)],
-
-            # Runtime
-            "db": self.db,
-            "current_user": self.current_user,
-            "llm": self.llm,
-
-            # Decisions / validations
+            # NOTE: db / current_user / llm KHÔNG để trong state (không serialize được).
+            # Chúng được truyền qua config["configurable"] — xem _graph_config().
             "decision": None,
             "decision_validation": None,
             "result_validation": None,
-
-            # Tool history
             "tool_calls": [],
             "tool_results": [],
             "used_tools": [],
-
-            # Loop control
             "iteration": 0,
             "retrieval_iteration": 0,
             "execution_iteration": 0,
             "max_iterations": self.max_iterations,
             "max_retrieval_retries": self.max_retrieval_retries,
             "max_execution_steps": self.max_execution_steps,
-
-            # Progress / output
-            "progress": "Đang phân tích yêu cầu...",
+            "progress": "Đang tiếp nhận yêu cầu...",
             "final_status": None,
             "final_message": None,
+            "final_answer": None,
             "action_id": None,
         }
 
     def _extract_final_response(self, final_state: dict) -> dict[str, Any]:
-        """Ghép payload trả về FastAPI / SSE answer event."""
+        """Ghép payload trả về SSE answer event."""
         status = (final_state or {}).get("final_status") or "SUCCESS"
         message = (final_state or {}).get("final_message")
 
@@ -161,100 +192,27 @@ class AIAssistantService:
                         break
             message = message or "Xin lỗi, mình chưa xử lý được yêu cầu này."
 
-        response: dict[str, Any] = {
-            "status": status,
-            "message": message,
-        }
+        response: dict[str, Any] = {"status": status, "message": message}
         if (final_state or {}).get("action_id"):
             response["action_id"] = final_state["action_id"]
         return response
 
     # =========================================================================
-    # ===== Non-streaming (CLI / fallback) ====================================
-    # =========================================================================
-    async def run_pipline(self, input_text: str) -> dict:
-        text = (input_text or "").strip()
-        if not text:
-            return {
-                "status": "SUCCESS",
-                "message": "Bạn muốn hỏi gì về dinh dưỡng hoặc luyện tập?",
-            }
-
-        user_label = getattr(self.current_user, "email", None) or getattr(
-            self.current_user, "id", None
-        )
-        trace.banner(
-            "PIPELINE START",
-            user=user_label,
-            prompt=text,
-            max_iterations=self.max_iterations,
-            max_retrieval=self.max_retrieval_retries,
-            max_execution=self.max_execution_steps,
-            option=self.option,
-            llm=self.name_local,
-        )
-
-        initial_state = self._build_initial_state(text)
-        logger.debug("INITIAL STATE keys: %s", list(initial_state.keys()))
-
-        final_state: dict = {}
-
-        try:
-            async for event in self.graph.astream(
-                initial_state,
-                stream_mode="updates",
-            ):
-                logger.info("[WORKFLOW EVENT] %s", event)
-
-                if not event:
-                    continue
-
-                for node_name, node_update in event.items():
-                    logger.info("[WORKFLOW NODE] %s", node_name)
-                    if isinstance(node_update, dict):
-                        final_state.update(node_update)
-
-        except Exception:
-            logger.exception("[AIAssistant] Graph lỗi.")
-            trace.error("Graph exception — xem stacktrace phía trên.")
-            return {
-                "status": "ERROR",
-                "message": "AI hiện đang quá tải, vui lòng thử lại sau.",
-            }
-
-        response = self._extract_final_response(final_state)
-        preview = response["message"]
-        if len(preview) > 200:
-            preview = preview[:200] + "..."
-
-        trace.banner(
-            "PIPELINE END",
-            status=response["status"],
-            action_id=response.get("action_id"),
-            iterations=final_state.get("iteration"),
-            retrieval_iteration=final_state.get("retrieval_iteration"),
-            execution_iteration=final_state.get("execution_iteration"),
-            progress=final_state.get("progress"),
-            message=preview,
-        )
-        return response
-
-    # =========================================================================
-    # ===== Streaming SSE (frontend progress) =================================
+    # Streaming SSE — new turn
     # =========================================================================
     async def stream_pipeline(self, input_text: str, *, _fallback_tried: bool = False):
         """
         Async generator cho StreamingResponse.
 
-        Yields:
-          1) workflow events (running → completed) theo từng node
-          2) answer event cuối cùng
-
-        Nếu Ollama crash và LLM_AUTO_FALLBACK=true → thử lại 1 lần với Gemini.
+        Yields SSE events:
+          1. workflow events (running → completed) theo từng node
+          2. Khi graph hit interrupt:
+               - ask_user  → {type: "ask_user", question, options}
+               - confirm   → {type: "confirm", question, staged_actions, options}
+          3. answer event cuối (khi không interrupt)
         """
         text = (input_text or "").strip()
 
-        # ---- Empty prompt ----
         if not text:
             yield build_workflow_event("done", "completed")
             yield {
@@ -268,39 +226,61 @@ class AIAssistantService:
             getattr(self.current_user, "email", None)
             or getattr(self.current_user, "id", None)
         )
-
         trace.banner(
             "PIPELINE START (stream)",
             user=user_label,
             prompt=text,
-            max_iterations=self.max_iterations,
-            max_retrieval=self.max_retrieval_retries,
-            max_execution=self.max_execution_steps,
+            thread_id=self._thread_id(),
             option=self.option,
             llm=self.name_local,
-            fallback_tried=_fallback_tried,
         )
 
+        # llm/db nằm trong config (xem _graph_config), không đặt vào state
         initial_state = self._build_initial_state(text)
+
         final_state: dict = {}
 
         try:
-            # ---- Bước đầu: báo frontend đang chạy rewrite ----
-            yield build_workflow_event("rewrite", "running")
+            yield build_workflow_event("intake", "running")
 
             async for event in self.graph.astream(
                 initial_state,
+                config=self._graph_config(),
                 stream_mode="updates",
             ):
                 if not event:
                     continue
 
+                # ── LangGraph interrupt ──
+                # Khi interrupt() được gọi trong node, graph emit __interrupt__ event
+                if "__interrupt__" in event:
+                    interrupt_data = event["__interrupt__"]
+                    # interrupt_data là list[Interrupt]
+                    if interrupt_data:
+                        payload = interrupt_data[0].value if hasattr(interrupt_data[0], "value") else interrupt_data[0]
+                        yield build_workflow_event("done", "completed")
+                        # Xác định loại interrupt
+                        interrupt_type = payload.get("type", "ask_user") if isinstance(payload, dict) else "ask_user"
+                        if interrupt_type == "confirm":
+                            yield {
+                                "type": "confirm",
+                                "question": payload.get("question", "Bạn có muốn thực hiện thao tác này?") if isinstance(payload, dict) else str(payload),
+                                "staged_actions": payload.get("staged_actions", []) if isinstance(payload, dict) else [],
+                                "options": payload.get("options", ["Xác nhận", "Hủy"]) if isinstance(payload, dict) else ["Xác nhận", "Hủy"],
+                            }
+                        else:
+                            yield {
+                                "type": "ask_user",
+                                "question": payload.get("question", "Bạn muốn mình hỗ trợ gì?") if isinstance(payload, dict) else str(payload),
+                                "options": payload.get("options", []) if isinstance(payload, dict) else [],
+                                "ask_count": payload.get("ask_count", 0) if isinstance(payload, dict) else 0,
+                            }
+                    return  # Dừng stream, chờ resume
+
                 for node_name, node_update in event.items():
-                    # Bỏ qua meta keys của LangGraph (nếu có)
                     if str(node_name).startswith("__"):
                         continue
 
-                    # Merge state từ node vừa xong
                     progress_msg = None
                     if isinstance(node_update, dict):
                         final_state.update(node_update)
@@ -308,83 +288,175 @@ class AIAssistantService:
 
                     logger.info("[STREAM NODE] %s progress=%s", node_name, progress_msg)
 
-                    # ---- Node vừa hoàn thành ----
-                    yield build_workflow_event(
-                        node_name,
-                        "completed",
-                        message=progress_msg,
-                    )
+                    yield build_workflow_event(node_name, "completed", message=progress_msg)
 
-                    # ---- Đoán node tiếp theo → emit running (UX) ----
                     next_node = infer_next_running_node(node_name, final_state)
                     if next_node:
                         yield build_workflow_event(next_node, "running")
 
-            # ---- Kết thúc graph → answer ----
+            # ── Graph kết thúc bình thường ──
             response = self._extract_final_response(final_state)
 
-            # Nếu agent đã bắt LLM lỗi → thử fallback Gemini (1 lần)
             if (
                 response.get("status") == "ERROR"
                 and not _fallback_tried
                 and can_fallback_to_gemini(self.option)
             ):
-                yield build_workflow_event(
-                    "rewrite",
-                    "running",
-                    message="Ollama lỗi — đang chuyển sang Gemini...",
-                )
+                yield build_workflow_event("intake", "running", message="Ollama lỗi — đang chuyển sang Gemini...")
                 self._switch_to_gemini()
-                async for event in self.stream_pipeline(
-                    text,
-                    _fallback_tried=True,
-                ):
-                    yield event
+                async for ev in self.stream_pipeline(text, _fallback_tried=True):
+                    yield ev
                 return
 
             yield build_workflow_event("done", "completed")
 
-            yield {
+            answer_event: dict[str, Any] = {
                 "type": "answer",
                 "status": response["status"],
                 "reply": response["message"],
                 "action_id": response.get("action_id"),
             }
-
-            trace.banner(
-                "PIPELINE END (stream)",
-                status=response["status"],
-                action_id=response.get("action_id"),
-                iterations=final_state.get("iteration"),
-            )
+            if response.get("status") == "ASK_USER":
+                answer_event["clarify_options"] = final_state.get("clarify_options") or []
+                answer_event["clarify_question"] = final_state.get("clarify_question")
+            yield answer_event
 
         except Exception as exc:
             logger.exception("[AIAssistant] Graph stream lỗi.")
-            trace.error("Graph exception — xem stacktrace phía trên.")
-
-            # ---- Auto fallback Gemini khi Ollama/graph nổ ----
             if not _fallback_tried and can_fallback_to_gemini(self.option):
-                yield build_workflow_event(
-                    "rewrite",
-                    "running",
-                    message="Ollama lỗi — đang chuyển sang Gemini...",
-                )
+                yield build_workflow_event("intake", "running", message="Ollama lỗi — đang chuyển sang Gemini...")
                 self._switch_to_gemini()
-                async for event in self.stream_pipeline(
-                    text,
-                    _fallback_tried=True,
-                ):
-                    yield event
+                async for ev in self.stream_pipeline(text, _fallback_tried=True):
+                    yield ev
                 return
 
             yield build_workflow_event("done", "error")
-
             yield {
                 "type": "answer",
                 "status": "ERROR",
                 "reply": format_llm_error(exc),
             }
 
+    # =========================================================================
+    # Resume sau interrupt (ask_user / confirm_gate)
+    # =========================================================================
+    async def resume_pipeline(self, user_reply: str, *, _fallback_tried: bool = False):
+        """
+        Tiếp tục graph đang interrupt với câu trả lời của user.
+
+        user_reply: chuỗi user nhập (chọn option hoặc gõ tự do).
+        Yields SSE events giống stream_pipeline.
+        """
+        trace.banner(
+            "PIPELINE RESUME",
+            thread_id=self._thread_id(),
+            reply=str(user_reply)[:80],
+        )
+
+        # db + llm (session mới) được nạp lại qua self._graph_config() ở astream bên dưới.
+        # LangGraph Command(resume=value) sẽ inject value vào interrupt()
+        resume_command = Command(resume=user_reply)
+        final_state: dict = {}
+
+        try:
+            yield build_workflow_event("resume", "running")
+
+            async for event in self.graph.astream(
+                resume_command,
+                config=self._graph_config(),
+                stream_mode="updates",
+            ):
+                if not event:
+                    continue
+
+                # Interrupt lồng nhau (vd: ask_user → confirm_gate)
+                if "__interrupt__" in event:
+                    interrupt_data = event["__interrupt__"]
+                    if interrupt_data:
+                        payload = interrupt_data[0].value if hasattr(interrupt_data[0], "value") else interrupt_data[0]
+                        yield build_workflow_event("done", "completed")
+                        interrupt_type = payload.get("type", "ask_user") if isinstance(payload, dict) else "ask_user"
+                        if interrupt_type == "confirm":
+                            yield {
+                                "type": "confirm",
+                                "question": payload.get("question", "Bạn có muốn thực hiện thao tác này?") if isinstance(payload, dict) else str(payload),
+                                "staged_actions": payload.get("staged_actions", []) if isinstance(payload, dict) else [],
+                                "options": payload.get("options", ["Xác nhận", "Hủy"]) if isinstance(payload, dict) else ["Xác nhận", "Hủy"],
+                            }
+                        else:
+                            yield {
+                                "type": "ask_user",
+                                "question": payload.get("question", "Bạn muốn mình hỗ trợ gì?") if isinstance(payload, dict) else str(payload),
+                                "options": payload.get("options", []) if isinstance(payload, dict) else [],
+                                "ask_count": payload.get("ask_count", 0) if isinstance(payload, dict) else 0,
+                            }
+                    return
+
+                for node_name, node_update in event.items():
+                    if str(node_name).startswith("__"):
+                        continue
+
+                    progress_msg = None
+                    if isinstance(node_update, dict):
+                        final_state.update(node_update)
+                        progress_msg = node_update.get("progress")
+
+                    yield build_workflow_event(node_name, "completed", message=progress_msg)
+                    next_node = infer_next_running_node(node_name, final_state)
+                    if next_node:
+                        yield build_workflow_event(next_node, "running")
+
+            response = self._extract_final_response(final_state)
+            yield build_workflow_event("done", "completed")
+            answer_event: dict[str, Any] = {
+                "type": "answer",
+                "status": response["status"],
+                "reply": response["message"],
+            }
+            yield answer_event
+
+        except Exception as exc:
+            logger.exception("[AIAssistant] Resume lỗi.")
+            yield build_workflow_event("done", "error")
+            yield {
+                "type": "answer",
+                "status": "ERROR",
+                "reply": format_llm_error(exc),
+            }
+
+    # =========================================================================
+    # Non-streaming (CLI / test)
+    # =========================================================================
+    async def run_pipline(self, input_text: str) -> dict:
+        text = (input_text or "").strip()
+        if not text:
+            return {"status": "SUCCESS", "message": "Bạn muốn hỏi gì về dinh dưỡng hoặc luyện tập?"}
+
+        initial_state = self._build_initial_state(text)
+        final_state: dict = {}
+
+        try:
+            async for event in self.graph.astream(
+                initial_state,
+                config=self._graph_config(),
+                stream_mode="updates",
+            ):
+                if not event:
+                    continue
+                if "__interrupt__" in event:
+                    # CLI không xử lý interrupt — trả thông báo
+                    return {"status": "ASK_USER", "message": "Agent cần thêm thông tin từ bạn."}
+                for node_name, node_update in event.items():
+                    if str(node_name).startswith("__"):
+                        continue
+                    if isinstance(node_update, dict):
+                        final_state.update(node_update)
+        except Exception:
+            logger.exception("[AIAssistant] Graph lỗi.")
+            return {"status": "ERROR", "message": "AI hiện đang quá tải, vui lòng thử lại sau."}
+
+        return self._extract_final_response(final_state)
+
     async def confirm_pending_action(self, action_id: str) -> dict:
-        """Thực thi thao tác ghi đã được user xác nhận."""
+        """Backward-compat: thực thi write tool từ /confirm route cũ."""
         return await run_pending_write_action(db=self.db, action_id=action_id)

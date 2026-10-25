@@ -1,10 +1,10 @@
 """
-Node 3: ROUTER AGENT (agent_choose_branch).
+Node 3: ROUTER AGENT (agent_choose_branch) — Phase 2/4 update.
 
-Nhiệm vụ duy nhất:
 Phân nhánh quyết định:
-  - TOOL: Yêu cầu cần gọi tool / hàm ngoài / DB.
-  - NO_TOOL: Yêu cầu là kiến thức chung, trò chuyện hoặc ngoài phạm vi.
+  - TOOL:      Yêu cầu cần gọi tool / hàm ngoài / DB.
+  - NO_TOOL:   Yêu cầu là kiến thức chung, trò chuyện hoặc ngoài phạm vi.
+  - NEED_INFO: Thiếu ngữ cảnh để chọn tool đúng → route sang ask_user interrupt.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 from langchain_core.messages import SystemMessage
+from langchain_core.runnables import RunnableConfig
 
 from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
 from backend.modules.ai.ai_assistant_service.app.config.prompt_config import (
@@ -24,16 +25,18 @@ from backend.modules.ai.ai_assistant_service.app.config.prompt_config import (
 )
 from backend.modules.ai.ai_assistant_service.app.config.settings import format_llm_error
 from backend.modules.ai.ai_assistant_service.app.utils import trace
+from backend.modules.ai.ai_assistant_service.app.graph.nodes.retrieve import resolve_tools
 
 
-async def router_agent_node(state: AgentState) -> dict:
+
+async def router_agent_node(state: AgentState, config: RunnableConfig) -> dict:
     """
     Router Agent: phân loại intent thành TOOL hoặc NO_TOOL.
     Output state:
         decision = {"action": "TOOL" | "NO_TOOL", "tool_calls": [...]}
     """
-    llm = state["llm"]
-    tools = state.get("active_tools") or []
+    llm = config["configurable"]["llm"]
+    tools = resolve_tools(state.get("active_tools") or [])
     messages = list(state.get("messages") or [])
     iteration = int(state.get("iteration") or 0) + 1
     max_iterations = int(state.get("max_iterations") or 6)
@@ -127,6 +130,21 @@ async def router_agent_node(state: AgentState) -> dict:
                 ],
             },
             "progress": "Đang thực hiện truy vấn công cụ...",
+        }
+
+    # Kiểm tra nội dung text có chứa signal NEED_INFO không
+    ai_text = (getattr(ai_msg, "content", "") or "").upper()
+    if "NEED_INFO" in ai_text:
+        # Parse clarify_question từ text nếu có
+        raw_text = getattr(ai_msg, "content", "") or ""
+        trace.step("Router Agent quyết định: NEED_INFO")
+        return {
+            "messages": [ai_msg],
+            "iteration": iteration,
+            "decision": {"action": "NEED_INFO", "tool_calls": []},
+            "clarify_question": "Bạn có thể cho mình biết thêm thông tin cụ thể không?",
+            "clarify_options": [],
+            "progress": "Cần thêm thông tin...",
         }
 
     trace.step("Router Agent quyết định: NO_TOOL")

@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.modules.user import repositories
 from backend.modules.user.models import User, OTP
-from backend.core.security import hash_password, verify_password
+from backend.core.security import PasswordSecurity
 from google.oauth2 import id_token
 from google.auth.transport import requests
 import os
@@ -123,7 +123,8 @@ async def get_fullname_service( db: AsyncSession, user_id ):
 
 async def update_password( db: AsyncSession, user: User, password: str ): 
     try: 
-        hashed_password = hash_password(password) 
+        ps = PasswordSecurity()
+        hashed_password = ps.hash_password(password) 
         await repositories.update_password(user, hashed_password) 
 
         await db.commit()

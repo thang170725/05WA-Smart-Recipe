@@ -72,7 +72,7 @@ def get_llm(
         raise ValueError("GOOGLE_API_KEY is missing — không thể khởi tạo Gemini.")
 
     return ChatGoogleGenerativeAI(
-        model=os.getenv("GEMINI_MODEL", "models/gemini-2.0-flash"),
+        model=os.getenv("GEMINI_MODEL", "models/gemini-3.8-flash"),
         google_api_key=api_key,
         temperature=temperature,
         request_timeout=60,

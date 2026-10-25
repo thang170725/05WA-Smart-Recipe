@@ -1,116 +1,75 @@
 """
-AgentState — bộ nhớ dùng chung xuyên suốt vòng lặp LangGraph.
+AgentState — bộ nhớ dùng chung xuyên suốt LangGraph.
 
-Kiến trúc mới (description.md):
-  Loop A — Discovery:  rewrite → retrieve → agent → decision_validator
-  Loop B — Execution:  agent → execute → result_evaluator → agent
+Flow mới (agent_requirements.md):
+  Intake → (Docs | Planner/Specialist bridge | Ask | Responder)
 
-Mỗi node đọc/ghi partial dict; LangGraph merge vào state tổng.
-`messages` dùng reducer `add_messages` để append (không ghi đè) lịch sử hội thoại.
+Giữ field cũ (retrieved_tools, decision, …) để nhánh task còn bridge
+qua retrieve → router → execute cho đến Phase 2–5.
 """
 
-from typing import Annotated, TypedDict, List, Any, Optional, Dict
+from __future__ import annotations
+
+from typing import Annotated, Any, Dict, List, Optional, TypedDict
+
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 
 
 class AgentState(TypedDict, total=False):
-    """
-    State của True Agentic Workflow (reason → act → verify → correct).
+    # ---- Định danh (backend gán; LLM không ghi) ----
+    user_id: int
+    thread_id: str
 
-    Input:
-    - total=False: tất cả các field đều có optional về mặt typing
-    Output:
-    - active_tools=list: LLM hiện tại được phép dùng những tool nào?
-    - retrieved_tools=list: rag tìm thấy những tool nào
-    - retrieval_history: lịch sử retrieve\n
-      [
-          {
-              "query": "Email của tôi là gì?",
-              "tools": ["get_user_email", "get_profile"],
-              "top_k": 5
-          },
-          {
-              "query": "user email address",
-              "tools": ["get_user_email"],
-              "top_k": 5
-          }
-      ]
-    - messages=list[AnyMessage]: hội thoại Human/AI/Tool 
-      [
-        HumanMessage(content="Email của tôi là gì?"),
-        AIMessage(content="Tôi sẽ kiểm tra thông tin của bạn."),
-        ToolMessage(content="user@example.com"),
-        AIMessage(content="Email của bạn là user@example.com")
-      ]
-    - max_retrieval_retries: dùng để giới hạn số lần Agent quay lại bước Retrieval/rewrite khi lần tìm kiếm trước không đạt yêu cầu
-    - max_iterations=int: giới hạn tổng số vòng agent
-    - user_query=str: câu hỏi gốc của người dùng (không đổi trong quá trình suy luận AI Agent)
+    # ---- Hội thoại ----
+    messages: Annotated[list[AnyMessage], add_messages]
+    user_query: str
+    rewritten_query: str
+    intent: str  # task | general_qa | out_of_scope | unclear
+    clarify_question: Optional[str]
+    clarify_options: List[str]
 
-    ┌──────────────────────────────────────────────────────────┐
-    │                      AgentState                          │
-    ├──────────────────────────────────────────────────────────┤
-    │ current_query       → query dùng cho retrieval           │
-    │ query_history       → các query đã rewrite               │
-    │ retrieved_tools     → Top-K tools vòng hiện tại          │
-    │ decision            → quyết định structured của Agent    │
-    │ decision_validation → kết quả Decision Validator         │
-    │ tool_calls / results→ lịch sử thực thi tool              │
-    │ result_validation   → kết quả Result Evaluator           │
-    │ iteration*          → bộ đếm chống infinite loop         │
-    │ final_*             → payload trả FastAPI                │
-    └──────────────────────────────────────────────────────────┘
-    """
+    # ---- Docs (Node 2; được phép rỗng) ----
+    docs: List[Dict[str, Any]]
 
-    # ---- Original request (immutable sau khi set) ----
-    user_query: str # đây là câu hỏi gốc của user
+    # ---- Plan / task (Phase 5; stub Phase 1) ----
+    plan: List[Dict[str, Any]]
+    task_status: Dict[str, str]
+    task_results: Dict[str, Any]
+    staged_actions: List[Dict[str, Any]]
+    approved_action_ids: List[str]
+    step_count: Dict[str, int]
+    replan_count: int
+    ask_count: int
+    files: List[Dict[str, Any]]
 
-    # ---- Retrieval / Discovery ----
-    current_query: str # đây là query hiện tại dùng cho retrieval (current_query có thể thay đổi qua từng vòng)
-    query_history: List[str] # lưu tất cả query đã từng sử dụng/rewrite (state["query_history"] = ["Email của tôi là gì?", "user email", "user email address"]) - để biết agent đã thử những query nào
-    retrieved_tools: List[Any] # đây là những tool mà retrival tìm được ở vòng lặp hiện tại
-    active_tools: List[Any] # đây là những tools hiện đang được bind vào LLM
-    retrieval_history: List[Dict[str, Any]] # lưu lịch sử retrieval
+    # ---- Bridge: tool RAG / router cũ (Phase 1–2) ----
+    current_query: str
+    query_history: List[str]
+    retrieved_tools: List[Any]
+    active_tools: List[Any]
+    retrieval_history: List[Dict[str, Any]]
+    decision: Optional[Dict[str, Any]]
+    decision_validation: Optional[Dict[str, Any]]
+    tool_calls: List[Dict[str, Any]]
+    tool_results: List[Dict[str, Any]]
+    used_tools: List[str]
+    result_validation: Optional[Dict[str, Any]]
+    iteration: int
+    retrieval_iteration: int
+    execution_iteration: int
+    max_iterations: int
+    max_retrieval_retries: int
+    max_execution_steps: int
 
-    # ---- Hội thoại (ReAct memory) ----
-    messages: Annotated[list[AnyMessage], add_messages] # chứa conversation/message history
-
-    # ---- Runtime dependencies (inject từ Service, không serialize) ----
+    # ---- Runtime (không serialize) ----
     db: Any
-    current_user: Any # user hiện tại đang thực hiện query
+    current_user: Any
     llm: Any
 
-    # ---- Agent decision (structured from router_agent) ----
-    # {"action": "TOOL" | "NO_TOOL", "tool_calls": [{"name": ..., "args": ...}]}
-    decision: Optional[Dict[str, Any]]
-
-    # ---- No-Tool Evaluator (khi NO_TOOL) ----
-    # {"valid": bool, "category": "ASKANDANSWER" | "OUTSIDE" | "UNKNOWN" | "INVALID_BYPASS", "reason": "...", "feedback": "..."}
-    decision_validation: Optional[Dict[str, Any]]
-
-    # ---- Tool execution history ----
-    tool_calls: List[Dict[str, Any]] # lưu lịch sử những tool mà agent yêu cầu gọi
-    tool_results: List[Dict[str, Any]] # đây là kết quả thực tế sau khi execute tool
-    used_tools: List[str] # danh sách tool đã sử dụng
-
-    # ---- Result Evaluator (sau EXECUTE) ----
-    # {"status": "DATA_COMPLETE" | "NEED_MORE_TOOLS" | "FAILED",
-    #  "category": "...", "feedback": "...", "should_retrieve_again": bool}
-    result_validation: Optional[Dict[str, Any]]
-
-    # ---- Loop control ----
-    iteration: int                      # tổng vòng Agent
-    retrieval_iteration: int            # số lần rewrite/retrieve discovery
-    execution_iteration: int            # số lần execute tool
-    max_iterations: int # giới hạn tổng số vòng agent
-    max_retrieval_retries: int # giới hạn số lần retries
-    max_execution_steps: int # giới hạn số lần execute tool
-
-    # ---- Progress (high-level, không expose CoT) ----
-    progress: Optional[str] # trạng thái high-level để bạn biết agent đang làm gì
-
-    # ---- Kết quả API ----
-    # final_status: "SUCCESS" | "WAIT_CONFIRM" | "CHAT" | "ERROR"
-    final_status: Optional[str] # trạng thái cuối cùng của Agent
-    final_message: Optional[str] # đây là message cuối cùng trả cho user
-    action_id: Optional[str] # id của action/session/task mà agent thực hiện
+    # ---- Output / progress ----
+    progress: Optional[str]
+    final_status: Optional[str]  # SUCCESS | WAIT_CONFIRM | ERROR | ASK_USER
+    final_message: Optional[str]
+    final_answer: Optional[str]
+    action_id: Optional[str]

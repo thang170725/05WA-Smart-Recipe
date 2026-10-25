@@ -14,6 +14,7 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 from langchain_core.messages import HumanMessage
+from langchain_core.runnables import RunnableConfig
 
 from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
 from backend.modules.ai.ai_assistant_service.app.config.prompt_config import build_rewrite_prompt
@@ -43,7 +44,7 @@ def _collect_validation_feedback(state: AgentState) -> str:
     return "\n".join(parts)
 
 
-async def rewrite_query_node(state: AgentState) -> dict:
+async def rewrite_query_node(state: AgentState, config: RunnableConfig) -> dict:
     """
     Rewrite current_query cho tool retrieval.
 
@@ -94,7 +95,7 @@ async def rewrite_query_node(state: AgentState) -> dict:
         ),
     )
 
-    llm = state["llm"]
+    llm = config["configurable"]["llm"]
     new_query = current_query
     try:
         trace.step("Đang gọi LLM Query Rewriter...")

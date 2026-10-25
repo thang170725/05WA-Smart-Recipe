@@ -3,13 +3,19 @@ import { Check, Loader2, Sparkles, AlertCircle } from "lucide-react";
 
 // ===== Nhãn fallback nếu backend không gửi label =====
 const WORKFLOW_LABELS = {
-    rewrite: "Phân tích câu hỏi",
+    intake: "Tiếp nhận yêu cầu",
+    docs_retrieval: "Tìm tài liệu tham khảo",
+    rewrite: "Tối ưu truy vấn công cụ",
     retrieve: "Tìm công cụ phù hợp",
     agent_choose_branch: "Định tuyến xử lý",
     execute_tool: "Thực thi công cụ",
     eval_tool: "Đánh giá kết quả công cụ",
     eval_no_tool: "Xác thực yêu cầu",
     agent_return_result: "Tổng hợp câu trả lời",
+    planner: "Lên kế hoạch",
+    ask_user: "Hỏi lại bạn",
+    confirm_gate: "Chờ xác nhận",
+    commit: "Ghi dữ liệu",
     // Legacy fallback
     agent: "AI suy luận",
     execute: "Thực thi công cụ",
