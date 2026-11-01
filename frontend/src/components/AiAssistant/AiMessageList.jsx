@@ -1,7 +1,7 @@
 // Vùng hiển thị tin nhắn (gồm cả bubble, suggestions, interrupt buttons)
 
 import { Sparkles } from "lucide-react";
-import WorkflowProgress from "../../../components/AiAssistant/WorkflowProgress";
+import WorkflowProgress from "./WorkflowProgress";
 
 export function AiMessageList({
   messages,

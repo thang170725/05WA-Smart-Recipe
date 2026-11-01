@@ -8,6 +8,10 @@ Hỗ trợ 2 backend:
 Ưu tiên local (qwen2.5:7b + AITeamVN/Vietnamese_Embedding_v2) để tiết kiệm chi phí.
 Lưu ý VRAM: embedding local nên chạy CPU (EMBEDDING_DEVICE=cpu) để Ollama giữ GPU.
 """
+import logging 
+from backend.config.logging import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 import os
 from dotenv import load_dotenv
@@ -17,8 +21,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 load_dotenv()
 
 # Số tool tối đa lấy từ Vector DB mỗi lượt hỏi
-DEFAULT_TOOL_TOP_K = int(float(os.getenv("DEFAULT_TOOL_TOP_K", "5")))
-
+DEFAULT_TOOL_TOP_K = int(float(os.getenv("TOOL_TOP_K", "5")))
 # Ngưỡng cosine similarity tối thiểu để giữ tool (0–1)
 DEFAULT_RAG_SCORE_THRESHOLD = float(os.getenv("DEFAULT_RAG_SCORE_THRESHOLD", "0.45"))
 
@@ -57,6 +60,7 @@ def get_llm(
     temperature thấp (≈0.2–0.3) giúp function calling ổn định hơn.
     """
     if option == "local":
+        logger.info('ĐANG KHỞI TẠO LLM LOCAL %s', DEFAULT_LOCAL_MODEL)
         return ChatOllama(
             model=name_local,
             temperature=temperature,
@@ -117,3 +121,6 @@ def can_fallback_to_gemini(current_option: str) -> bool:
     if not LLM_AUTO_FALLBACK:
         return False
     return bool(os.getenv("GOOGLE_API_KEY"))
+
+if __name__ == "__main__":
+    print(OLLAMA_NUM_THREAD)

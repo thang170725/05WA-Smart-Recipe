@@ -131,6 +131,8 @@ CREATE TABLE users (
 	unique key uq_users_email (email)
 ) ENGINE=InnoDB;
 
+insert into users (email, password, ro)
+
 CREATE TABLE weight_history (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,

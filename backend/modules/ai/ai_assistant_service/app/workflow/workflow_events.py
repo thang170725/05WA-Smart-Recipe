@@ -7,9 +7,10 @@ Tương thích:
 """
 
 # ---- Nhãn hiển thị cho từng node trong LangGraph ----
+# ánh xạ tên node sang tên hiển thị
 WORKFLOW_NODES = {
-    "intake": "Tiếp nhận yêu cầu",
-    "docs_retrieval": "Tìm tài liệu tham khảo",
+    "intake": "Tiếp nhận yêu cầu", 
+    "docs_retrieval": "Tìm tài liệu tham khảo", 
     "rewrite": "Tối ưu truy vấn công cụ",
     "retrieve": "Tìm công cụ phù hợp",
     "agent_choose_branch": "Định tuyến xử lý",
@@ -17,6 +18,7 @@ WORKFLOW_NODES = {
     "eval_tool": "Đánh giá kết quả công cụ",
     "eval_no_tool": "Xác thực yêu cầu",
     "agent_return_result": "Tổng hợp câu trả lời",
+    
     # Phase 3–5 (sẵn nhãn)
     "planner": "Lên kế hoạch",
     "dispatcher": "Điều phối task",
@@ -25,6 +27,7 @@ WORKFLOW_NODES = {
     "ask_user": "Hỏi lại bạn",
     "confirm_gate": "Chờ xác nhận",
     "commit": "Ghi dữ liệu",
+    
     # Legacy
     "agent": "Định tuyến xử lý",
     "execute": "Thực thi công cụ",
@@ -65,9 +68,25 @@ def build_workflow_event(
     message: str | None = None,
 ) -> dict:
     """
-    Tạo event SSE type=workflow (FE hiện tại).
+    Chuyển trạng thái xử lý của từng node trong langgraph thành một workflow event gửi về FE thông qua SSE
+    Nó giúp FE biết:
+        - langgraph đang chạy đến node nào
+        - Tên hiển thị node của node đó là gì
+        - node này đang chạy, hoàn thành hay gặp lỗi
+        - nội dung thông báo cần hiển thị cho người dùng
 
-    status: "running" | "completed" | "error"
+    Input:
+        - node: tên node trong langgraph
+        - status: trạng thái của node
+            + "running" | "completed" | "error"
+        - *, message: tham số tuy chọn để truyền thông báo tùy chỉnh
+            + dấu * quy định những tham số phía sau bắt buộc phải truyền bằng tên
+        
+            build_workflow_event(
+                "retrieve",
+                "running",
+                message="Đang tìm kiếm dữ liệu...",
+            )
     """
     label = WORKFLOW_NODES.get(node, node)
 
@@ -87,7 +106,6 @@ def build_workflow_event(
         "status": status,
         "label": label,
         "message": message,
-        # Protocol mới (§7) — FE cũ bỏ qua field lạ
         "text": message,
     }
 

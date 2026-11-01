@@ -27,19 +27,6 @@ def _make_event_generator(stream_gen):
             yield f"data: {payload}\n\n"
     return generator()
 
-
-def _make_streaming_response(stream_gen):
-    return StreamingResponse(
-        _make_event_generator(stream_gen),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
-
-
 # =========================================================================
 # ===== POST /ai/chat — SSE stream tiến trình Agent + câu trả lời =========
 # =========================================================================
@@ -60,6 +47,7 @@ async def chat(
             try:
                 async for event in ai_assistant.stream_pipeline(message.prompt):
                     payload = json.dumps(event, ensure_ascii=False, default=str)
+                    
                     yield f"data: {payload}\n\n"
             except Exception as exc:
                 print("AI STREAM ERROR:", exc)

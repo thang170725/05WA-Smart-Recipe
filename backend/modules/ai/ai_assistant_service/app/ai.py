@@ -29,6 +29,9 @@ from backend.config.logging import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
+import json
+import asyncio
+
 from typing import Any, Optional
 
 from langchain_core.messages import HumanMessage
@@ -132,50 +135,65 @@ class AIAssistantService:
     # Build initial AgentState
     # =========================================================================
     def _build_initial_state(self, text: str) -> dict:
+        '''
+        Khởi tại trạng thái ban đầu cho langgraph trước khi bắt đầu chạy agent
+        (chuẩn bị toàn bộ dữ liệu cần thiết để agent xử lý câu hỏi đó)
+        '''
         user_id = getattr(self.current_user, "id", None)
         return {
-            "user_id": int(user_id) if user_id is not None else 0,
-            "thread_id": self._thread_id(),
-            "user_query": text,
-            "rewritten_query": text,
-            "intent": "",
-            "clarify_question": None,
-            "clarify_options": [],
-            "docs": [],
-            "plan": [],
-            "task_status": {},
-            "task_results": {},
-            "staged_actions": [],
-            "approved_action_ids": [],
-            "step_count": {},
-            "replan_count": 0,
-            "ask_count": 0,
-            "files": [],
-            "current_query": text,
-            "query_history": [],
-            "retrieved_tools": [],
-            "active_tools": [],
-            "retrieval_history": [],
-            "messages": [HumanMessage(content=text)],
-            # NOTE: db / current_user / llm KHÔNG để trong state (không serialize được).
-            # Chúng được truyền qua config["configurable"] — xem _graph_config().
-            "decision": None,
-            "decision_validation": None,
-            "result_validation": None,
-            "tool_calls": [],
-            "tool_results": [],
-            "used_tools": [],
-            "iteration": 0,
-            "retrieval_iteration": 0,
-            "execution_iteration": 0,
-            "max_iterations": self.max_iterations,
-            "max_retrieval_retries": self.max_retrieval_retries,
-            "max_execution_steps": self.max_execution_steps,
-            "progress": "Đang tiếp nhận yêu cầu...",
-            "final_status": None,
-            "final_message": None,
+            # 1. thông tin người dùng và hội thoại
+            "user_id": int(user_id) if user_id is not None else 0, # id người dùng
+            "thread_id": self._thread_id(), # id phiên hội thoại
+            "user_query": text, # câu hỏi gốc của người dùng
+            "rewritten_query": text, # viết lại câu hỏi gốc của người dùng, ban đầu là câu gốc của người dùng
+            "current_query": text, # câu hiện tại được xử lý trong workflow 
+            "messages": [HumanMessage(content=text)], # lưu lịch sử tin nhắn theo cấu trúc message của langchain
+
+            # 2. nhóm phân tích ý định và làm rõ câu hỏi
+            "intent": "", # ý định mà agent xác định từ câu hỏi của người dùng
+            "clarify_question": None, # câu hỏi agent muốn hỏi lại người dùng khi thiếu thông tin
+            "clarify_options": [], # những lựa chọn gợi ý để người dùng trả lời
+            "ask_count": 0, # số lần agent đã yêu cầu người dùng làm rõ thông tin
+
+            # 3. nhóm dữ liệu retrieval
+            "docs": [], # những tài liệu được truy xuất từ nguồn dữ 
+            "retrieved_tools": [], # các công cụ tìm được trong quá trình tìm kiếm tool
+            "active_tools": [], # những công cụ được lựa chọn để sử dụng
+            "retrieval_history": [], # lịch sử các lần retrieval
+            "query_history": [], # lịch sử các câu truy vấn đã được sử dụng
+            "files": [], # danh sách các file liên quan đến yêu cầu
+
+            # 4. nhóm lập kế hoạch và quản lý nhiệm vụ
+            "plan": [], # kế hoạch các bước agent cần thực hiện
+            "task_status": {}, # trạng thái của từng nhiệm vụ
+            "task_results": {}, # kết quả của từng nhiệm vụ
+            "step_count": {}, # số lần thực hiện hoặc số bước theo dõi cho từng nhiệm vụ
+
+            # 5. nhóm thực thi tool và kiểm soát hành động
+            "staged_actions": [], # danh sách hành động đã được chuẩn bị nhưng chưa thực thi hoặc đang chờ xác nhận
+            "approved_action_ids": [], # danh sách id hành động mà người dùng đã đồng ý thực hiện
+            "tool_calls": [], # lưu các yêu cầu gọi tool mà agent tạo ra
+            "tool_results": [], # lưu kết quả trả về từ các lần gọi tool
+            "used_tools": [], # theo dõi các tool đã được sử dụng
+            "decision": None, # lưu quyết định của agent hoặc node ra cây quyết định
+            "decision_validation": None, # lưu kết quả kiểm tra tính hợp lệ của quyết định
+            "result_validation": None, # lưu kết quả đầu ra sau khi thực thi
+
+            # 6. nhóm kiểm soát vòng lặp và giới hạn agent
+            "iteration": 0, # tổng số vòng lặp agent
+            "retrieval_iteration": 0, # số vòng lặp tìm kiếm công cụ
+            "execution_iteration": 0, # số vòng lặp thực thi
+            "replan_count": 0, # số lần agent phải lập lại kế hoạch
+            "max_iterations": self.max_iterations, # giới hạn số vòng lặp tổng thể
+            "max_retrieval_retries": self.max_retrieval_retries, # giới hạn số lần thử retrieval lại
+            "max_execution_steps": self.max_execution_steps, # giới hạn số bước thực thi
+
+            # 7. nhóm tiến trình và kết quả cuối cùng
+            "progress": "Đang tiếp nhận yêu cầu...", # thông báo trạng thái để frontend có thể hiển thị tiến trình
+            "final_status": None, # trạng thái kết thúc của agent
+            "final_message": None, # thông báo hoặc nội dung trả về cuối cùng cho người dùng
             "final_answer": None,
-            "action_id": None,
+            "action_id": None, # id hành động liên quan đến kết quả xử lý 
         }
 
     def _extract_final_response(self, final_state: dict) -> dict[str, Any]:
@@ -212,7 +230,6 @@ class AIAssistantService:
           3. answer event cuối (khi không interrupt)
         """
         text = (input_text or "").strip()
-
         if not text:
             yield build_workflow_event("done", "completed")
             yield {
@@ -235,7 +252,7 @@ class AIAssistantService:
             llm=self.name_local,
         )
 
-        # llm/db nằm trong config (xem _graph_config), không đặt vào state
+        # 1. chuẩn bị toàn bộ khung dữ liệu để agent xử lý
         initial_state = self._build_initial_state(text)
 
         final_state: dict = {}
@@ -460,3 +477,15 @@ class AIAssistantService:
     async def confirm_pending_action(self, action_id: str) -> dict:
         """Backward-compat: thực thi write tool từ /confirm route cũ."""
         return await run_pending_write_action(db=self.db, action_id=action_id)
+
+async def main():
+    assistant = AIAssistantService()
+
+    input_text = "Tôi muốn hỏi về tình trạng hồ sơ bồi thường."
+
+    async for event in assistant.stream_pipeline(input_text):
+        print(json.dumps(event, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

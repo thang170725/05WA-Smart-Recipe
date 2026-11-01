@@ -2,9 +2,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { AiAssistantApi, ResumeAiApi, ConfirmAiActionApi } from "../api/AIAssistantApi";
 
 // Import các sub-components đã tách
-import { AiHeader } from "../components/AiAssistant/AiHeader";
-import { AiMessageList } from "../components/AiAssistant/AiMessageList";
-import { AiInputBox } from "../components/AiAssistant/AiInputBox";
+import { AiHeader } from "../../../components/AiAssistant/AiHeader";
+import { AiMessageList } from "../../../components/AiAssistant/AiMessageList";
+import { AiInputBox } from "../../../components/AiAssistant/AiInputBox";
 
 export default function AiAssistant({ devMode }) {
   const [loading, setLoading] = useState(false);

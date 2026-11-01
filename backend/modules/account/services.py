@@ -90,6 +90,15 @@ async def login_service(db: AsyncSession, payload):
             detail="Internal server error"
         )
 
+# ADMIN LOGIN SERVICE
+async def admin_login_service(db: AsyncSession, username, password):
+    try:
+        admin = await repositories.check_admin_login_repository(db, username, password)
+        return admin
+    except Exception as e:
+        logger.error("LỖI ĐĂNG NHẬP ADMIN")
+        raise ValueError("LỖI LOGGING")
+
 async def check_email_service(db, email: str):
     try:
         response = await repositories.check_email_repository(db, email)

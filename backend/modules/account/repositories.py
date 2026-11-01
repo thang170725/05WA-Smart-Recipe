@@ -37,6 +37,12 @@ async def check_email_repository(db: AsyncSession, email:str):
 
     return result.scalar()
 
+async def check_admin_login_repository(db: AsyncSession, username, password):
+    admin = await db.execute(
+        select(User).where(User.email == username, User.password == password, User.role == 'admin')
+    )
+    return admin.scalar_one_or_none()
+
 async def get_by_google_id(db: AsyncSession, google_id: str) -> User | None:
     user = await db.execute(
         select(User).where(User.google_id == google_id)

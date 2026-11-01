@@ -70,6 +70,15 @@ async def login(
         "user": user
     }
 
+# API login by admin
+@router.post("/admin/login")
+async def admin_login(
+    payload: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    admin = await services.admin_login_service(db, payload['email'], payload['password'])
+    return admin
+
 # LOGIN AS GOOGLE CLIENT 
 @router.post("/login/google")
 async def login_google(payload: dict, db: AsyncSession = Depends(get_db)):

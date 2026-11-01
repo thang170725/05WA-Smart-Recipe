@@ -1,7 +1,6 @@
-// src/pages/LoginPage.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
+import { LoginApi } from "../api/LoginApi";
 export function LoginPage() {
     //
     // ======= chức năng đang nhập quyền admin =========
@@ -11,11 +10,16 @@ export function LoginPage() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError(""); // Xóa lỗi cũ khi submit lại
 
-    if (username === "admin" && password === "123456") {
+    const admin = await LoginApi({
+      username: username,
+      password: password
+    })
+
+    if (admin) {
       localStorage.setItem("isAuthenticated", "true");
       navigate("/dashboard", { replace: true });
     } else {
@@ -42,7 +46,7 @@ export function LoginPage() {
         </div>
 
         {/* Phần Form Đăng nhập */}
-        <div className="p-8">
+        <div className="p-8 text-black">
           <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">
             Đăng nhập Admin
           </h2>
