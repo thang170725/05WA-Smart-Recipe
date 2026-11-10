@@ -26,14 +26,10 @@ def route_after_intake(state: AgentState) -> str:
     if intent == "general_qa":
         trace.log_route("intake", "general_qa", "docs_retrieval")
         return "docs_retrieval"
-    if intent == "out_of_scope":
+    if intent == "out_of_scope" or intent == "unclear":
         trace.log_route("intake", "out_of_scope", "agent_return_result")
         return "agent_return_result"
-    if intent == "unclear":
-        trace.log_route("intake", "unclear", "ask_user")
-        return "ask_user"
-
-    # task (mặc định an toàn: nếu intent lạ cũng đi bridge retrieve)
+    
     trace.log_route("intake", intent or "task", "retrieve")
     return "retrieve"
 

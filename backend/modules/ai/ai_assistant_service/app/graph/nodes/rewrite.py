@@ -59,7 +59,7 @@ async def rewrite_query_node(state: AgentState, config: RunnableConfig) -> dict:
     feedback = _collect_validation_feedback(state)
 
     trace.banner(
-        "NODE 1 · REWRITING (rewrite)",
+        "NODE 2.4 · REWRITING (rewrite)",
         user_query=user_query,
         current_query=current_query,
         retrieval_iteration=f"{retrieval_iteration}/{max_retrieval}",
@@ -118,7 +118,7 @@ async def rewrite_query_node(state: AgentState, config: RunnableConfig) -> dict:
         updated_history = query_history + [new_query]
         trace.step("Rewritten query: %s", new_query)
 
-    return {
+    out = {
         "current_query": new_query,
         "query_history": updated_history,
         "retrieval_iteration": retrieval_iteration + 1,
@@ -126,3 +126,6 @@ async def rewrite_query_node(state: AgentState, config: RunnableConfig) -> dict:
         "final_status": None,
         "final_message": None,
     }
+    logger.debug("Result Node 2.4: \n%s", out)
+    
+    return out

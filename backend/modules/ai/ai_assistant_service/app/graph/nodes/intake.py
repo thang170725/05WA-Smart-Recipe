@@ -22,7 +22,7 @@ from backend.modules.ai.ai_assistant_service.app.config.design_decisions import 
     CHAT_HISTORY_WINDOW,
     MAX_STRUCTURED_PARSE_RETRIES,
 )
-from backend.modules.ai.ai_assistant_service.app.config.prompt_config import build_intake_prompt
+from backend.modules.ai.ai_assistant_service.app.config.prompt_config import build_intake_prompt_rule
 from backend.modules.ai.ai_assistant_service.app.utils.helpers import (
     extract_text_from_response,
     safe_json_loads,
@@ -53,20 +53,26 @@ def _summarize_recent_messages(messages: list, window: int) -> str:
 
 def _parse_intake(raw: str) -> IntakeResult | None:
     data = safe_json_loads(raw)
+
     if not isinstance(data, dict):
         return None
     intent = str(data.get("intent") or "").strip().lower()
+
     if intent not in _VALID_INTENTS:
         return None
     rewritten = str(data.get("rewritten_query") or "").strip()
+
     if not rewritten:
         return None
     options = data.get("clarify_options") or []
+
     if not isinstance(options, list):
         options = []
     options = [str(o).strip() for o in options if str(o).strip()][:4]
+
     clarify = data.get("clarify_question")
     clarify_q = str(clarify).strip() if clarify else None
+
     return IntakeResult(
         intent=intent,  # type: ignore[arg-type]
         rewritten_query=rewritten,
@@ -75,7 +81,7 @@ def _parse_intake(raw: str) -> IntakeResult | None:
     )
 
 
-async def intake_node(state: AgentState, config: RunnableConfig) -> dict:
+async def intake_node(state: AgentState, config: RunnableConfig, flag_rewritten: int = 0) -> dict:
     """
     Phân loại ý định + rewrite có điều kiện.
     Parse lỗi 2 lần → intent=unclear.
@@ -83,27 +89,19 @@ async def intake_node(state: AgentState, config: RunnableConfig) -> dict:
     user_query = (state.get("user_query") or "").strip()
     messages = state.get("messages") or []
     history = _summarize_recent_messages(messages, CHAT_HISTORY_WINDOW)
+    trace.banner("NODE 1 · INTAKE", user_query=user_query, messages=messages, history=history)
 
-    trace.banner("NODE 1 · INTAKE", user_query=user_query)
-
-    prompt = build_intake_prompt(user_query=user_query, chat_history=history)
+    prompt = build_intake_prompt_rule(user_query=user_query, chat_history=history, flag_rewritten=flag_rewritten)
     llm = config["configurable"]["llm"]
+    structured_llm = llm.with_structured_output(IntakeResult)
     result: IntakeResult | None = None
 
     for attempt in range(1, MAX_STRUCTURED_PARSE_RETRIES + 1):
         try:
             trace.step("Intake LLM attempt %d/%d", attempt, MAX_STRUCTURED_PARSE_RETRIES)
-            response = await llm.ainvoke([HumanMessage(content=prompt)])
-            raw = extract_text_from_response(response)
-            result = _parse_intake(raw)
-            if result:
-                break
-            trace.warn("Intake parse thất bại (attempt %d): %s", attempt, raw[:200])
-            prompt = (
-                build_intake_prompt(user_query=user_query, chat_history=history)
-                + "\n\n[RETRY] Output trước không đúng JSON schema. "
-                "Chỉ trả đúng một object JSON theo schema, không markdown."
-            )
+            result = await structured_llm.ainvoke([HumanMessage(content=prompt)])
+            logger.debug("Intake result:\n%s", result.model_dump())
+            break
         except Exception:
             logger.exception("[Node:Intake] LLM lỗi attempt %d", attempt)
             trace.warn("Intake LLM lỗi attempt %d", attempt)
@@ -125,9 +123,10 @@ async def intake_node(state: AgentState, config: RunnableConfig) -> dict:
     # Đồng bộ bridge field cho nhánh task cũ
     out = {
         "intent": result.intent,
+        "user_query": result.user_query,
         "rewritten_query": result.rewritten_query,
-        "current_query": result.rewritten_query,
-        "query_history": [result.rewritten_query],
+        "current_query": result.current_query,
+        "query_history": [result.current_query],
         "clarify_question": result.clarify_question,
         "clarify_options": result.clarify_options,
         "retrieval_iteration": 0,
@@ -136,9 +135,5 @@ async def intake_node(state: AgentState, config: RunnableConfig) -> dict:
         "final_message": None,
         "final_answer": None,
     }
-    trace.step(
-        "intent=%s rewritten=%s",
-        result.intent,
-        result.rewritten_query[:120],
-    )
+    logger.info("Result Node 1:\n%s", out)
     return out

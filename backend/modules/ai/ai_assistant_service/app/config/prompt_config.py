@@ -13,23 +13,46 @@ Nodes dùng prompt:
 # ---------------------------------------------------------------------------
 # 0. INTAKE (Node 1)
 # ---------------------------------------------------------------------------
-def build_intake_prompt(*, user_query: str, chat_history: str) -> str:
-    return f"""Bạn là Intake của trợ lý Smart-Recipe (dinh dưỡng, nhật ký ăn uống, luyện tập, hồ sơ).
+def build_intake_prompt_rule(*, user_query: str, chat_history: str, flag_rewritten: int) -> str:
+    if flag_rewritten:
+        rewrite_instruction = f"""
+        - Vì câu của người dùng: '{user_query}' quá thiếu ngữ cảnh dẫn đến AI phía sau tầng sau suy luận sai đã fallback bạn cần viết lại câu của người dùng vào biến rewritten_query hoặc tương ứng để cho AI tầng sau hiểu rõ nghĩa của người dùng hơn để đưa ra phán đoán chính xác hơn. 
+        - BẮT BUỘC viết lại câu truy vấn dựa trên lịch sử hội thoại và phải khác câu của người dùng.
+        - flag_rewritten tăng lên 1 đơn vị
+        """
+    else:
+        rewrite_instruction = f"""
+        Đây là câu hỏi đầu tiên của người dùng gửi đến AI lên không cần viết lại câu của người dùng để tăng tốc chương trình, có thể bỏ trống biến đó
+        - Không thực hiện rewrite.
+        - rewritten_query BẮT BUỘC là chuỗi rỗng "".
+        - flag_rewritten BẮT BUỘC là là số 0.
+        """
+    
+    return f"""
+Bạn là Intake của trợ lý Smart-Recipe (dinh dưỡng, nhật ký ăn uống, luyện tập, hồ sơ).
 
 ## Nhiệm vụ duy nhất
-1) Rewrite thành câu độc lập CHỈ KHI câu mới phụ thuộc ngữ cảnh ("còn hôm qua?", "xóa cái đó"). Nếu không, giữ nguyên.
-2) Phân loại intent đúng 1 trong 4 giá trị.
+1) Phân loại intent đúng 1 trong 4 giá trị.
+
+## Quy tắc rewrite
+{rewrite_instruction}
+
+## Quy tác current_query
+Nếu flag_rewritten = 0 thì current_query = user_query
+Nếu flag_rewritten >= 1 thì current_query = rewritten_query 
 
 ## Intent
 - task: xem/thêm/sửa/xóa dữ liệu cá nhân hoặc xuất file (hồ sơ, nhật ký ăn, nhật ký tập, chat).
 - general_qa: hỏi đáp kiến thức dinh dưỡng/luyện tập/cách dùng website, chào hỏi — KHÔNG đụng dữ liệu cá nhân.
-- out_of_scope: ngoài lĩnh vực (thời tiết, chính trị, game, lập trình,...).
-- unclear: không đoán được muốn làm gì.
+- out_of_scope: 
+    + ngoài lĩnh vực (thời tiết, chính trị, game, lập trình,...).
+    + ví dụ user hỏi "hôm nay thời tiết thế nào" -> out_of_scope vì user muốn hỏi thời tiết, ngoài phạm vi dinh dưỡng, luyện tập)
+- unclear: Câu người dùng quá mơ hồ không đoán được muốn làm gì.
 
 ## Lịch sử gần nhất
 {chat_history}
 
-## Tin nhắn mới
+## Tin nhắn
 {user_query}
 
 ## Ví dụ
@@ -38,9 +61,22 @@ def build_intake_prompt(*, user_query: str, chat_history: str) -> str:
 - "Hôm nay thời tiết thế nào?" → {{"intent":"out_of_scope","rewritten_query":"Hôm nay thời tiết thế nào?","clarify_question":null,"clarify_options":[]}}
 - "Làm cái đó đi" → {{"intent":"unclear","rewritten_query":"Làm cái đó đi","clarify_question":"Bạn muốn mình làm việc gì?","clarify_options":["Xem hồ sơ","Nhật ký ăn","Nhật ký tập"]}}
 
-## Output BẮT BUỘC (chỉ JSON, không markdown)
-{{"intent":"task|general_qa|out_of_scope|unclear","rewritten_query":"...","clarify_question":null,"clarify_options":[]}}
-Khi intent=unclear: clarify_question bắt buộc, clarify_options 2–4 lựa chọn ngắn tiếng Việt.
+## Output
+Chỉ trả về JSON hợp lệ, không markdown.
+
+{{
+    "intent": "task",
+    "user_query": "..."
+    "rewritten_query": "...",
+    "current_query": "...",
+    "clarify_question": null,
+    "clarify_options": [],
+    "flag_rewritten": 0
+}}
+
+Nếu intent=unclear:
+- clarify_question bắt buộc có nội dung.
+- clarify_options gồm 2-4 lựa chọn ngắn bằng tiếng Việt.
 """
 
 
@@ -199,10 +235,11 @@ Công cụ vừa được thực thi. Hãy đánh giá kết quả trả về t�
 """
 
 # ---------------------------------------------------------------------------
-# 5. RESPONSE WRITER (Node 10: responder)
+# NODE 2.2: AI RETURN RESULT
 # ---------------------------------------------------------------------------
 def build_response_writer_prompt(
     user_query: str,
+    current_query: str,
     category: str,
     feedback: str,
     tool_results_summary: str,
@@ -215,14 +252,15 @@ def build_response_writer_prompt(
 ) -> str:
     options = clarify_options or []
     options_text = ", ".join(options) if options else "(không có)"
-    return f"""Bạn là trợ lý Smart-Recipe — dinh dưỡng, nhật ký ăn uống, luyện tập, hồ sơ người dùng.
+    return f"""
+Bạn là trợ lý Smart-Recipe — dinh dưỡng, nhật ký ăn uống, luyện tập, hồ sơ người dùng.
 
 ## Nhiệm vụ
 Viết câu trả lời cuối bằng tiếng Việt, tự nhiên, trung thực. Không bịa dữ liệu tool. Không lộ suy luận hệ thống.
 
 ## Bối cảnh
-- Câu hỏi: {user_query}
-- Intent: {intent or "(bridge cũ)"}
+- Câu hỏi: {current_query}
+- Intent: {intent}
 - Category / đánh giá: {category}
 - Ghi chú: {feedback or "(không)"}
 - Câu hỏi làm rõ (nếu có): {clarify_question or "(không)"}
@@ -237,12 +275,13 @@ Viết câu trả lời cuối bằng tiếng Việt, tự nhiên, trung thực.
 ## Dữ liệu Tool
 {tool_results_summary}
 
-## Hướng dẫn
-1. Có kết quả Tool: chỉ dùng dữ liệu tool, trình bày rõ.
-2. intent=general_qa hoặc ASKANDANSWER: trả lời kiến thức; nếu docs có nội dung thì ưu tiên docs.
-3. intent=out_of_scope hoặc OUTSIDE: từ chối nhẹ — bạn chỉ hỗ trợ dinh dưỡng / luyện tập / dữ liệu trên website.
-4. intent=unclear hoặc UNKNOWN: hỏi lại; nếu có clarify_question thì dùng gần đúng câu đó; nhắc các lựa chọn nếu có.
-5. FAILED / thiếu dữ liệu: nói thật chưa tìm thấy, gợi ý cách hỏi khác.
+## Quy tắc intent
+- intent=out_of_scope: từ chối nhẹ, vì bạn chỉ hỗ trợ dinh dưỡng / luyện tập / dữ liệu trên website.
+    - "tại sao mặt trăng lại màu vàng", intent=out_of_scope -> từ chối trả lời vì câu này không thuộc phạm vi hệ thống có thể hỗ trợ
+- intent=unclear: tức là câu của người dùng quá khó hiểu, cần đưa ra lời gợi ý cho user nên đặt những câu hỏi gì cho AI để AI giúp đỡ.
+- Có kết quả Tool: chỉ dùng dữ liệu tool, trình bày rõ.
+- intent=general_qa hoặc ASKANDANSWER: trả lời kiến thức; nếu docs có nội dung thì ưu tiên docs. 
+- FAILED / thiếu dữ liệu: nói thật chưa tìm thấy, gợi ý cách hỏi khác.
 """
 
 def build_result_feedback_message(validation: dict) -> str:

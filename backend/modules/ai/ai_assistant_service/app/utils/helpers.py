@@ -40,7 +40,7 @@ def extract_text_from_response(response: Any) -> str:
       - Ollama / đa số provider: content = str
       - Gemini: content có thể là list[{text: ...}] hoặc parts
     
-    Output=str: khi AI trả fuwx liệu nó sẽ có nhiều định dạng, hàm này sẽ cố format lại thành str
+    Output=str: khi AI trả dữ liệu nó sẽ có nhiều định dạng, hàm này sẽ cố format lại thành str
     """
     if response is None:
         return ""

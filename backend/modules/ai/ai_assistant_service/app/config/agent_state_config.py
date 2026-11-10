@@ -24,6 +24,7 @@ class AgentState(TypedDict, total=False):
     # ---- Hội thoại ----
     messages: Annotated[list[AnyMessage], add_messages]
     user_query: str
+    current_query: str
     rewritten_query: str
     intent: str  # task | general_qa | out_of_scope | unclear
     clarify_question: Optional[str]
@@ -44,7 +45,7 @@ class AgentState(TypedDict, total=False):
     files: List[Dict[str, Any]]
 
     # ---- Bridge: tool RAG / router cũ (Phase 1–2) ----
-    current_query: str
+
     query_history: List[str]
     retrieved_tools: List[Any]
     active_tools: List[Any]

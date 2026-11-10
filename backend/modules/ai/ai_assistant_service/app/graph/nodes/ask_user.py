@@ -22,6 +22,7 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.runnables.config import RunnableConfig, var_child_runnable_config
 from langgraph.types import interrupt
 
 from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
@@ -29,7 +30,7 @@ from backend.modules.ai.ai_assistant_service.app.config.design_decisions import 
 from backend.modules.ai.ai_assistant_service.app.utils import trace
 
 
-async def ask_user_node(state: AgentState) -> dict:
+async def ask_user_node(state: AgentState, config: RunnableConfig) -> dict:
     """
     Dừng graph, gửi câu hỏi làm rõ xuống user, chờ user trả lời.
 
@@ -43,12 +44,14 @@ async def ask_user_node(state: AgentState) -> dict:
     Sau interrupt(), LangGraph resume với giá trị user nhập → state["user_reply"].
     Node sẽ ghi user_reply vào messages và reset clarify_question.
     """
+    var_child_runnable_config.set(config)
+
     ask_count = int(state.get("ask_count") or 0)
     clarify_question = state.get("clarify_question") or "Bạn có thể cho mình biết thêm thông tin không?"
     clarify_options = list(state.get("clarify_options") or [])
 
     trace.banner(
-        "NODE · ASK_USER",
+        "NODE 2,3 · ASK_USER",
         ask_count=f"{ask_count}/{MAX_ASK}",
         question=clarify_question[:80],
         n_options=len(clarify_options),
@@ -77,7 +80,7 @@ async def ask_user_node(state: AgentState) -> dict:
     # Ghi câu trả lời của user vào messages để context tiếp theo biết
     updated_messages = [HumanMessage(content=str(user_reply))]
 
-    return {
+    out = {
         "ask_count": ask_count + 1,
         "user_query": str(user_reply),                    # override query cho vòng tiếp
         "rewritten_query": str(user_reply),
@@ -89,3 +92,6 @@ async def ask_user_node(state: AgentState) -> dict:
         "final_message": None,
         "progress": "Đã nhận thông tin — đang xử lý...",
     }
+    logger.info("Result ask user: \n%s", out)
+
+    return out

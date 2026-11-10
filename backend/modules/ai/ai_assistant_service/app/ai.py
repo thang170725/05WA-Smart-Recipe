@@ -107,14 +107,8 @@ class AIAssistantService:
 
     def _graph_config(self) -> dict:
         """
-        Config cho mỗi lần astream().
-
-        db / llm / current_user là object runtime (AsyncSession, LLM client, ORM user)
-        → KHÔNG serialize được nên tuyệt đối không để trong state (checkpointer sẽ
-        msgpack toàn bộ state). Node đọc chúng qua config["configurable"].
-
-        Hàm này được gọi lại ở mỗi lần stream/resume nên luôn có db + llm mới nhất
-        (kể cả sau khi fallback sang Gemini hoặc khi resume bằng session mới).
+        Config trả lời câu hỏi: Trong lần chạy này, Agent được cấp những tài nguyên nào để thực hiện công việc?
+            State trả lời câu hỏi: Agent đang xử lý đến đâu và đang có dữ liệu gì?
         """
         return {
             "configurable": {
@@ -314,17 +308,6 @@ class AIAssistantService:
             # ── Graph kết thúc bình thường ──
             response = self._extract_final_response(final_state)
 
-            if (
-                response.get("status") == "ERROR"
-                and not _fallback_tried
-                and can_fallback_to_gemini(self.option)
-            ):
-                yield build_workflow_event("intake", "running", message="Ollama lỗi — đang chuyển sang Gemini...")
-                self._switch_to_gemini()
-                async for ev in self.stream_pipeline(text, _fallback_tried=True):
-                    yield ev
-                return
-
             yield build_workflow_event("done", "completed")
 
             answer_event: dict[str, Any] = {
@@ -340,12 +323,6 @@ class AIAssistantService:
 
         except Exception as exc:
             logger.exception("[AIAssistant] Graph stream lỗi.")
-            if not _fallback_tried and can_fallback_to_gemini(self.option):
-                yield build_workflow_event("intake", "running", message="Ollama lỗi — đang chuyển sang Gemini...")
-                self._switch_to_gemini()
-                async for ev in self.stream_pipeline(text, _fallback_tried=True):
-                    yield ev
-                return
 
             yield build_workflow_event("done", "error")
             yield {
@@ -481,7 +458,7 @@ class AIAssistantService:
 async def main():
     assistant = AIAssistantService()
 
-    input_text = "Tôi muốn hỏi về tình trạng hồ sơ bồi thường."
+    input_text = "agdsfagretg"
 
     async for event in assistant.stream_pipeline(input_text):
         print(json.dumps(event, ensure_ascii=False, indent=2))

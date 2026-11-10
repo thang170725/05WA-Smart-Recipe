@@ -67,6 +67,7 @@ async def response_writer_node(state: AgentState, config: RunnableConfig) -> dic
         return {"progress": "Hoàn tất với thông báo lỗi."}
 
     user_query = state.get("rewritten_query") or state.get("user_query") or ""
+    current_query = state.get("current_query") or ""
     intent = (state.get("intent") or "").strip().lower()
     tool_results = state.get("tool_results") or []
     docs = state.get("docs") or []
@@ -76,7 +77,7 @@ async def response_writer_node(state: AgentState, config: RunnableConfig) -> dic
     category, feedback = _map_category(state)
 
     trace.banner(
-        "NODE 10 · RESPONDER",
+        "NODE 2.2 · AI RETURN RESULT",
         intent=intent or "-",
         category=category,
         n_tools=len(tool_results),
@@ -116,6 +117,7 @@ async def response_writer_node(state: AgentState, config: RunnableConfig) -> dic
 
     prompt = build_response_writer_prompt(
         user_query=user_query,
+        current_query=current_query,
         category=category,
         feedback=feedback,
         tool_results_summary=tool_results_summary,
@@ -154,10 +156,13 @@ async def response_writer_node(state: AgentState, config: RunnableConfig) -> dic
 
     trace.step("Responder xong (%d ký tự) status=%s", len(final_text), status)
 
-    return {
+    out = {
         "messages": [AIMessage(content=final_text)],
         "final_status": status,
         "final_message": final_text,
         "final_answer": final_text,
         "progress": "Đã hoàn thành câu trả lời.",
     }
+    logger.info("Result end: \n%s", out)
+
+    return out

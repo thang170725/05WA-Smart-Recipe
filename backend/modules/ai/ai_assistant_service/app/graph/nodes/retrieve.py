@@ -60,7 +60,7 @@ async def retrieve_tools_node(state: AgentState, config: RunnableConfig) -> dict
     db = config["configurable"]["db"]
     history = list(state.get("retrieval_history") or [])
 
-    trace.banner("NODE 2 · RETRIEVE (Tool RAG)", query=current_query)
+    trace.banner("NODE 2.4 · RETRIEVE (Tool RAG)", query=current_query)
 
     try:
         tools = await retrieve_tools(
@@ -88,9 +88,12 @@ async def retrieve_tools_node(state: AgentState, config: RunnableConfig) -> dict
             "Agent sẽ quyết định FINAL_ANSWER hoặc NEED_RETRIEVAL."
         )
 
-    return {
+    out = {
         "active_tools": names,
         "retrieved_tools": names,
         "retrieval_history": history,
         "progress": "Đang xác định phương án xử lý...",
     }
+    logger.info("Result retrieval:\n%s", out)
+
+    return out

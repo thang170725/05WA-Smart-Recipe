@@ -10,12 +10,24 @@ from pydantic import BaseModel, Field
 
 
 class IntakeResult(BaseModel):
-    """Node 1 Intake — phân loại ý định + rewrite khi cần."""
+    """
+    Node 1: Ép LLM trả về kết quả phân tích yêu cầu của người dùng theo một dạng JSON chuẩn xác.
+        giúp hệ thống biết chính xác bước tiếp theo nên làm gì
+    """
 
-    intent: Literal["task", "general_qa", "out_of_scope", "unclear"]
-    rewritten_query: str
-    clarify_question: Optional[str] = None
-    clarify_options: list[str] = Field(default_factory=list)
+    intent: Literal["task", "general_qa", "out_of_scope", "unclear"] # phân loại ý định cốt lõi của người dùng vào đúng 1 trong 4 nhóm
+    # task: Yêu cầu thực thi một hành động can thiệp dữ liệu hoặc cần workflow phức tạp (ví dụ: "lưu cân nặng hôm nay 65kg", "lên thực đơn 7 ngày").
+    # general_qa: Câu hỏi kiến thức chung, tư vấn dinh dưỡng cơ bản không cần gọi tool ghi dữ liệu (ví dụ: "1 quả trứng gà bao nhiêu calo?").
+    # out_of_scope: Câu hỏi lạc đề, nằm ngoài phạm vi chức năng của hệ thống (ví dụ: hỏi về sửa xe, chính trị, code web).
+    # unclear: Câu hỏi quá mơ hồ, thiếu dữ kiện quan trọng để xử lý (ví dụ: chỉ gõ mỗi chữ "tôi muốn ăn").
+
+    user_query: str
+    rewritten_query: Optional[str] # câu truy vấn khi đã được AI viết lại
+    current_query: str # câu ban đầu của người dùng
+    clarify_question: Optional[str] = None # câu hỏi làm rõ gửi ngược lại cho người dùng nếu câu của người dùng chuaw rõ ý
+    clarify_options: list[str] = Field(default_factory=list) # AI đưa ra các gợi ý nhanh
+    flag_rewritten: Optional[int] = 0 # cờ đánh dấu có bật AI viết lại câu đó hay không
+
 
 
 class Task(BaseModel):
