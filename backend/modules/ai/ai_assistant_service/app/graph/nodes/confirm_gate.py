@@ -24,7 +24,9 @@ logger = logging.getLogger(__name__)
 
 from langchain_core.messages import AIMessage
 from langgraph.types import interrupt
+# Bổ sung var_child_runnable_config để khắc phục lỗi mất ngữ cảnh của interrupt()
 from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables.config import var_child_runnable_config
 
 from backend.modules.ai.ai_assistant_service.app.config.agent_state_config import AgentState
 from backend.modules.ai.ai_assistant_service.app.utils import trace
@@ -43,6 +45,17 @@ async def confirm_gate_node(state: AgentState, config: RunnableConfig) -> dict:
       - user_reply = "confirm" → thực thi tất cả staged_actions
       - user_reply = "cancel"  → hủy, thông báo
     """
+
+    # =========================================================================
+    # BƯỚC 1: KHẮC PHỤC LỖI CONTEXT CỦA LANGGRAPH
+    # =========================================================================
+    # Ép config vào biến ContextVar của Python để khi hàm interrupt() gọi
+    # get_config(), hệ thống luôn tìm thấy thread_id và checkpointer
+    var_child_runnable_config.set(config)
+
+    # =========================================================================
+    # BƯỚC 2: ĐỌC DỮ LIỆU TỪ STATE VÀ CONFIG
+    # =========================================================================
     staged_actions = list(state.get("staged_actions") or [])
     db = config["configurable"]["db"]
     user = config["configurable"]["current_user"]
@@ -53,6 +66,7 @@ async def confirm_gate_node(state: AgentState, config: RunnableConfig) -> dict:
         n_staged=len(staged_actions),
     )
 
+    # Nếu không có hành động nào đang chờ, thoát sớm
     if not staged_actions:
         trace.warn("Không có staged_actions — bỏ qua confirm gate.")
         return {
@@ -60,7 +74,9 @@ async def confirm_gate_node(state: AgentState, config: RunnableConfig) -> dict:
             "final_message": "Không có thao tác nào cần xác nhận.",
         }
 
-    # Build preview text cho user
+    # =========================================================================
+    # BƯỚC 3: DỰNG NỘI DUNG XEM TRƯỚC (PREVIEW) ĐỂ HỎI NGƯỜI DÙNG
+    # =========================================================================
     preview_lines = []
     for action in staged_actions:
         tool_name = action.get("tool", "?")
@@ -75,7 +91,11 @@ async def confirm_gate_node(state: AgentState, config: RunnableConfig) -> dict:
         "Bạn có chắc muốn tiếp tục không?"
     )
 
-    # ── INTERRUPT: chờ user xác nhận ──
+    # =========================================================================
+    # BƯỚC 4: TẠM DỪNG ĐỒ THỊ (INTERRUPT) ĐỂ CHỜ PHẢN HỒI TỪ CLIENT
+    # =========================================================================
+    # LangGraph dừng luồng tại đây và trả payload này về cho client qua stream SSE.
+    # Khi user gửi API resume, giá trị user trả lời sẽ gán trực tiếp vào user_reply.
     user_reply: str = interrupt({
         "type": "confirm",
         "question": confirm_question,
@@ -86,7 +106,9 @@ async def confirm_gate_node(state: AgentState, config: RunnableConfig) -> dict:
     user_reply_str = str(user_reply).strip().lower()
     trace.step("User reply confirm_gate: %s", user_reply_str[:60])
 
-    # Hủy
+    # =========================================================================
+    # BƯỚC 5: XỬ LÝ KHI NGƯỜI DÙNG CHỌN "HỦY"
+    # =========================================================================
     if user_reply_str in {"cancel", "hủy", "huy", "no", "không", "khong", "n"}:
         trace.step("User hủy thao tác.")
         return {
@@ -96,7 +118,9 @@ async def confirm_gate_node(state: AgentState, config: RunnableConfig) -> dict:
             "progress": "Đã hủy.",
         }
 
-    # Xác nhận → thực thi
+    # =========================================================================
+    # BƯỚC 6: XỬ LÝ KHI NGƯỜI DÙNG "XÁC NHẬN" -> THỰC THI WRITE TOOLS VÀO DB
+    # =========================================================================
     trace.step("User xác nhận — đang thực thi %d staged_actions...", len(staged_actions))
     results = []
     errors = []
@@ -111,6 +135,7 @@ async def confirm_gate_node(state: AgentState, config: RunnableConfig) -> dict:
             continue
 
         try:
+            # Thực thi hàm tool ghi dữ liệu với session DB hiện tại
             result = await executor(db=db, user_id=user_id, **args)
             if isinstance(result, dict) and result.get("status") == "success":
                 results.append(result.get("message") or f"✅ {tool_name} thành công.")
@@ -121,6 +146,9 @@ async def confirm_gate_node(state: AgentState, config: RunnableConfig) -> dict:
             logger.exception("[ConfirmGate] Tool '%s' lỗi.", tool_name)
             errors.append(f"Lỗi khi chạy {tool_name}: {exc}")
 
+    # =========================================================================
+    # BƯỚC 7: TỔNG HỢP KẾT QUẢ VÀ TRẢ VỀ STATE HOÀN TẤT
+    # =========================================================================
     if errors and not results:
         final_msg = "Thực thi thất bại:\n" + "\n".join(f"- {e}" for e in errors)
         status = "ERROR"

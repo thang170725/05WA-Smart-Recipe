@@ -43,16 +43,16 @@ def build_agent_graph(checkpointer=None):
     # 1. khởi tạo các node
     workflow.add_node("intake", intake_node)
     workflow.add_node("docs_retrieval", docs_retrieval_node)
-    # workflow.add_node("rewrite", rewrite_query_node)
+    workflow.add_node("rewrite", rewrite_query_node)
     workflow.add_node("retrieve", retrieve_tools_node)
-    # workflow.add_node("agent_choose_branch", router_agent_node)
-    # workflow.add_node("execute_tool", execute_tools_node)
-    # workflow.add_node("eval_tool", result_evaluator_node)
-    # workflow.add_node("eval_no_tool", no_tool_evaluator_node)
+    workflow.add_node("agent_choose_branch", router_agent_node)
+    workflow.add_node("execute_tool", execute_tools_node)
+    workflow.add_node("eval_tool", result_evaluator_node)
+    workflow.add_node("eval_no_tool", no_tool_evaluator_node)
     workflow.add_node("agent_return_result", response_writer_node)
     # # Phase 3/4 nodes
     workflow.add_node("ask_user", ask_user_node)
-    # workflow.add_node("confirm_gate", confirm_gate_node)
+    workflow.add_node("confirm_gate", confirm_gate_node)
 
     # 2. Edges
     workflow.add_edge(START, "intake")
@@ -67,71 +67,71 @@ def build_agent_graph(checkpointer=None):
             "agent_return_result": "agent_return_result",
         },
     )
-    # workflow.add_edge("docs_retrieval", "agent_return_result")
+    workflow.add_edge("docs_retrieval", "agent_return_result")
 
-    # # Ask User interrupt → resume → retrieve
-    # workflow.add_conditional_edges(
-    #     "ask_user",
-    #     route_after_ask_user,
-    #     {
-    #         "retrieve": "retrieve",
-    #         "agent_return_result": "agent_return_result",
-    #     },
-    # )
+    # Ask User interrupt → resume → retrieve
+    workflow.add_conditional_edges(
+        "ask_user",
+        route_after_ask_user,
+        {
+            "retrieve": "retrieve",
+            "agent_return_result": "agent_return_result",
+        },
+    )
 
-    # # Task bridge + retry
-    # workflow.add_edge("rewrite", "retrieve")
-    # workflow.add_edge("retrieve", "agent_choose_branch")
+    # Task bridge + retry
+    workflow.add_edge("rewrite", "retrieve")
+    workflow.add_edge("retrieve", "agent_choose_branch")
 
-    # workflow.add_conditional_edges(
-    #     "agent_choose_branch",
-    #     route_after_router_agent,
-    #     {
-    #         "execute_tool": "execute_tool",
-    #         "eval_no_tool": "eval_no_tool",
-    #         "ask_user": "ask_user",
-    #     },
-    # )
+    workflow.add_conditional_edges(
+        "agent_choose_branch",
+        route_after_router_agent,
+        {
+            "execute_tool": "execute_tool",
+            "eval_no_tool": "eval_no_tool",
+            "ask_user": "ask_user",
+        },
+    )
 
-    # # Execute → eval_tool (READ) or confirm_gate (WRITE)
-    # workflow.add_conditional_edges(
-    #     "execute_tool",
-    #     route_after_execute,
-    #     {
-    #         "eval_tool": "eval_tool",
-    #         "confirm_gate": "confirm_gate",
-    #     },
-    # )
+    # Execute → eval_tool (READ) or confirm_gate (WRITE)
+    workflow.add_conditional_edges(
+        "execute_tool",
+        route_after_execute,
+        {
+            "eval_tool": "eval_tool",
+            "confirm_gate": "confirm_gate",
+        },
+    )
 
-    # # Confirm gate interrupt → agent_return_result
-    # workflow.add_conditional_edges(
-    #     "confirm_gate",
-    #     route_after_confirm_gate,
-    #     {
-    #         "agent_return_result": "agent_return_result",
-    #     },
-    # )
+    # Confirm gate interrupt → agent_return_result
+    workflow.add_conditional_edges(
+        "confirm_gate",
+        route_after_confirm_gate,
+        {
+            "agent_return_result": "agent_return_result",
+        },
+    )
 
-    # workflow.add_conditional_edges(
-    #     "eval_tool",
-    #     route_after_tool_eval,
-    #     {
-    #         "agent_return_result": "agent_return_result",
-    #         "agent_choose_branch": "agent_choose_branch",
-    #         "rewrite": "rewrite",
-    #     },
-    # )
+    workflow.add_conditional_edges(
+        "eval_tool",
+        route_after_tool_eval,
+        {
+            "agent_return_result": "agent_return_result",
+            "agent_choose_branch": "agent_choose_branch",
+            "rewrite": "rewrite",
+        },
+    )
 
-    # workflow.add_conditional_edges(
-    #     "eval_no_tool",
-    #     route_after_no_tool_eval,
-    #     {
-    #         "ask_user": "ask_user",
-    #         "agent_return_result": "agent_return_result",
-    #         "rewrite": "rewrite",
-    #     },
-    # )
+    workflow.add_conditional_edges(
+        "eval_no_tool",
+        route_after_no_tool_eval,
+        {
+            "ask_user": "ask_user",
+            "agent_return_result": "agent_return_result",
+            "rewrite": "rewrite",
+        },
+    )
 
-    # workflow.add_edge("agent_return_result", END)
+    workflow.add_edge("agent_return_result", END)
 
     return workflow.compile(checkpointer=checkpointer)

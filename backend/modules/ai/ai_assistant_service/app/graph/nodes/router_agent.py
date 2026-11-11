@@ -31,10 +31,16 @@ from backend.modules.ai.ai_assistant_service.app.graph.nodes.retrieve import res
 
 async def router_agent_node(state: AgentState, config: RunnableConfig) -> dict:
     """
-    Router Agent: phân loại intent thành TOOL hoặc NO_TOOL.
+    Router Agent giống như người điều phối công việc.
+    Phân tích công việc và ra quyết định hướng xử lý 
+        - TOOL: gọi công cụ
+        - NO_TOOL: llm tự trả lời (công việc liên quan đến lưu file)
+        - NEED_INFO: cần hỏi thêm người dùng
+
     Output state:
         decision = {"action": "TOOL" | "NO_TOOL", "tool_calls": [...]}
     """
+    # 1. lấy llm, tool và dữ liệu từ state
     llm = config["configurable"]["llm"]
     tools = resolve_tools(state.get("active_tools") or [])
     messages = list(state.get("messages") or [])
@@ -42,7 +48,9 @@ async def router_agent_node(state: AgentState, config: RunnableConfig) -> dict:
     max_iterations = int(state.get("max_iterations") or 6)
     execution_iteration = int(state.get("execution_iteration") or 0)
     max_execution = int(state.get("max_execution_steps") or 4)
+    res = None
 
+    # 2. kiểm tra giới hạn vòng lặp (mục đích kiểm tra xem Agent đặt đến giới hạn xử lý hay chưa)
     force_no_tool = (iteration >= max_iterations or execution_iteration >= max_execution)
 
     trace.banner(
@@ -56,7 +64,7 @@ async def router_agent_node(state: AgentState, config: RunnableConfig) -> dict:
 
     if force_no_tool:
         trace.warn("Đã đạt giới hạn vòng lặp — ép nhánh NO_TOOL.")
-        return {
+        res = {
             "iteration": iteration,
             "decision": {
                 "action": "NO_TOOL",
@@ -65,7 +73,7 @@ async def router_agent_node(state: AgentState, config: RunnableConfig) -> dict:
             "progress": "Đang tổng hợp kết quả...",
         }
 
-    # Bind tools vào LLM nếu có tools khả dụng
+    # 4. Bind tool vào LLM (mục đích cho phép llm biết những tool nào có thể sử dụng)
     if tools:
         runnable = llm.bind_tools(tools)
         trace.step("Đã bind %d tools vào Router LLM", len(tools))
@@ -73,6 +81,7 @@ async def router_agent_node(state: AgentState, config: RunnableConfig) -> dict:
         runnable = llm
         trace.step("Không có tools khả dụng — Router LLM chạy thuần text")
 
+    # 5. chuẩn bị system message và feedback (mục đích chuẩn bị những chỉ dẫn cho LLM)
     system_parts = [ROUTER_AGENT_SYSTEM_PROMPT]
     feedback_msgs: list[SystemMessage] = []
 
@@ -89,12 +98,14 @@ async def router_agent_node(state: AgentState, config: RunnableConfig) -> dict:
             )
         )
 
+    # 6. ghép toàn bộ message để gửi cho LLM (mục đích để ghép các tin nhắn thành một danh sách hoàn chỉnh để gửi cho LLM)
     invoke_messages = (
         [SystemMessage(content="\n\n".join(system_parts))]
         + feedback_msgs
         + messages
     )
 
+    # 7. gọi LLM và xử lý lỗi
     trace.step("Đang gọi LLM phân nhánh...")
     try:
         ai_msg = await runnable.ainvoke(invoke_messages)
@@ -102,7 +113,7 @@ async def router_agent_node(state: AgentState, config: RunnableConfig) -> dict:
         logger.exception("[Node:RouterAgent] LLM lỗi: %s", exc)
         err_text = format_llm_error(exc)
         trace.error("Router Agent LLM fail: %s", err_text)
-        return {
+        res = {
             "iteration": iteration,
             "decision": {
                 "action": "NO_TOOL",
@@ -113,13 +124,16 @@ async def router_agent_node(state: AgentState, config: RunnableConfig) -> dict:
             "progress": "Gặp sự cố khi gọi mô hình...",
         }
 
+    # 8. kiểm tra LLM có yêu cầu gọi tool không
     tool_calls = getattr(ai_msg, "tool_calls", None) or []
+    ai_text = (getattr(ai_msg, "content", "") or "").upper()
+
     if tool_calls:
         trace.step("Router Agent quyết định: TOOL (%d calls)", len(tool_calls))
         for tc in tool_calls:
             trace.step("  -> Tool call: %s args=%s", tc.get("name"), tc.get("args"))
 
-        return {
+        res = {
             "messages": [ai_msg],
             "iteration": iteration,
             "decision": {
@@ -132,13 +146,10 @@ async def router_agent_node(state: AgentState, config: RunnableConfig) -> dict:
             "progress": "Đang thực hiện truy vấn công cụ...",
         }
 
-    # Kiểm tra nội dung text có chứa signal NEED_INFO không
-    ai_text = (getattr(ai_msg, "content", "") or "").upper()
-    if "NEED_INFO" in ai_text:
-        # Parse clarify_question từ text nếu có
-        raw_text = getattr(ai_msg, "content", "") or ""
+    # 9. Kiểm tra LLM có yêu cầu thêm thông tin không
+    elif "NEED_INFO" in ai_text:
         trace.step("Router Agent quyết định: NEED_INFO")
-        return {
+        res = {
             "messages": [ai_msg],
             "iteration": iteration,
             "decision": {"action": "NEED_INFO", "tool_calls": []},
@@ -147,13 +158,18 @@ async def router_agent_node(state: AgentState, config: RunnableConfig) -> dict:
             "progress": "Cần thêm thông tin...",
         }
 
-    trace.step("Router Agent quyết định: NO_TOOL")
-    return {
-        "messages": [ai_msg],
-        "iteration": iteration,
-        "decision": {
-            "action": "NO_TOOL",
-            "tool_calls": [],
-        },
-        "progress": "Đang kiểm tra yêu cầu...",
-    }
+    # 10. nếu không cần hỏi thêm và không có tool thì mới là NO_TOOL
+    else:
+        trace.step("Router Agent quyết định: NO_TOOL")
+        res = {
+            "messages": [ai_msg],
+            "iteration": iteration,
+            "decision": {
+                "action": "NO_TOOL",
+                "tool_calls": [],
+            },
+            "progress": "Đang kiểm tra yêu cầu...",
+        }
+
+    logger.debug("Kết quả Node 3.1: %s", res)
+    return res

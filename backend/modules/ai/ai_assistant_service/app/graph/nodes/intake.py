@@ -89,9 +89,10 @@ async def intake_node(state: AgentState, config: RunnableConfig, flag_rewritten:
     user_query = (state.get("user_query") or "").strip()
     messages = state.get("messages") or []
     history = _summarize_recent_messages(messages, CHAT_HISTORY_WINDOW)
+    has_history = history != "(chưa có lịch sử)"
     trace.banner("NODE 1 · INTAKE", user_query=user_query, messages=messages, history=history)
 
-    prompt = build_intake_prompt_rule(user_query=user_query, chat_history=history, flag_rewritten=flag_rewritten)
+    prompt = build_intake_prompt_rule(user_query=user_query, chat_history=history, has_history=has_history)
     llm = config["configurable"]["llm"]
     structured_llm = llm.with_structured_output(IntakeResult)
     result: IntakeResult | None = None
@@ -109,7 +110,6 @@ async def intake_node(state: AgentState, config: RunnableConfig, flag_rewritten:
     if not result:
         result = IntakeResult(
             intent="unclear",
-            rewritten_query=user_query or "?",
             clarify_question="Bạn muốn mình hỗ trợ việc gì liên quan đến dinh dưỡng, nhật ký ăn uống, luyện tập hay hồ sơ cá nhân?",
             clarify_options=[
                 "Xem / cập nhật hồ sơ",
@@ -119,14 +119,19 @@ async def intake_node(state: AgentState, config: RunnableConfig, flag_rewritten:
             ],
         )
         trace.warn("Intake fallback → unclear")
+        
+    rewritten = (result.rewritten_query or "").strip()
+    if not has_history or rewritten.lower() == user_query.lower():
+        rewritten = ""                         
+    current_query = rewritten or user_query    # code tự tính, không bắt LLM chép
 
     # Đồng bộ bridge field cho nhánh task cũ
     out = {
         "intent": result.intent,
-        "user_query": result.user_query,
+        "user_query": user_query,
         "rewritten_query": result.rewritten_query,
-        "current_query": result.current_query,
-        "query_history": [result.current_query],
+        "current_query": current_query,
+        "query_history": [current_query],
         "clarify_question": result.clarify_question,
         "clarify_options": result.clarify_options,
         "retrieval_iteration": 0,

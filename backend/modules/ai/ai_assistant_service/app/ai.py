@@ -458,7 +458,7 @@ class AIAssistantService:
 async def main():
     assistant = AIAssistantService()
 
-    input_text = "agdsfagretg"
+    input_text = "tôi muốn xem thông tin tài khoản của tôi"
 
     async for event in assistant.stream_pipeline(input_text):
         print(json.dumps(event, ensure_ascii=False, indent=2))

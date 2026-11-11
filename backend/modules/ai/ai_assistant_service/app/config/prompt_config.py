@@ -13,41 +13,31 @@ Nodes dùng prompt:
 # ---------------------------------------------------------------------------
 # 0. INTAKE (Node 1)
 # ---------------------------------------------------------------------------
-def build_intake_prompt_rule(*, user_query: str, chat_history: str, flag_rewritten: int) -> str:
-    if flag_rewritten:
-        rewrite_instruction = f"""
-        - Vì câu của người dùng: '{user_query}' quá thiếu ngữ cảnh dẫn đến AI phía sau tầng sau suy luận sai đã fallback bạn cần viết lại câu của người dùng vào biến rewritten_query hoặc tương ứng để cho AI tầng sau hiểu rõ nghĩa của người dùng hơn để đưa ra phán đoán chính xác hơn. 
-        - BẮT BUỘC viết lại câu truy vấn dựa trên lịch sử hội thoại và phải khác câu của người dùng.
-        - flag_rewritten tăng lên 1 đơn vị
-        """
+def build_intake_prompt_rule(*, user_query: str, chat_history: str, has_history: bool) -> str:
+    if has_history:
+        rewrite_rule = """
+- Nếu tin nhắn phụ thuộc lịch sử (có "cái đó", "nó", "còn ... thì sao", "như trên"...): viết lại
+  thành MỘT câu đầy đủ, tự hiểu được, đặt vào rewritten_query.
+- Nếu tin nhắn đã tự hiểu được: rewritten_query = null (không chép lại câu gốc).
+"""
     else:
-        rewrite_instruction = f"""
-        Đây là câu hỏi đầu tiên của người dùng gửi đến AI lên không cần viết lại câu của người dùng để tăng tốc chương trình, có thể bỏ trống biến đó
-        - Không thực hiện rewrite.
-        - rewritten_query BẮT BUỘC là chuỗi rỗng "".
-        - flag_rewritten BẮT BUỘC là là số 0.
-        """
-    
+        rewrite_rule = "- Chưa có lịch sử: rewritten_query = null."
+
     return f"""
 Bạn là Intake của trợ lý Smart-Recipe (dinh dưỡng, nhật ký ăn uống, luyện tập, hồ sơ).
 
-## Nhiệm vụ duy nhất
+## Nhiệm vụ
 1) Phân loại intent đúng 1 trong 4 giá trị.
+2) Viết lại câu nếu cần (xem quy tắc).
 
 ## Quy tắc rewrite
-{rewrite_instruction}
-
-## Quy tác current_query
-Nếu flag_rewritten = 0 thì current_query = user_query
-Nếu flag_rewritten >= 1 thì current_query = rewritten_query 
+{rewrite_rule}
 
 ## Intent
 - task: xem/thêm/sửa/xóa dữ liệu cá nhân hoặc xuất file (hồ sơ, nhật ký ăn, nhật ký tập, chat).
-- general_qa: hỏi đáp kiến thức dinh dưỡng/luyện tập/cách dùng website, chào hỏi — KHÔNG đụng dữ liệu cá nhân.
-- out_of_scope: 
-    + ngoài lĩnh vực (thời tiết, chính trị, game, lập trình,...).
-    + ví dụ user hỏi "hôm nay thời tiết thế nào" -> out_of_scope vì user muốn hỏi thời tiết, ngoài phạm vi dinh dưỡng, luyện tập)
-- unclear: Câu người dùng quá mơ hồ không đoán được muốn làm gì.
+- general_qa: hỏi đáp kiến thức dinh dưỡng/luyện tập/cách dùng website, chào hỏi, KHÔNG đụng dữ liệu cá nhân.
+- out_of_scope: ngoài lĩnh vực (thời tiết, chính trị, game, lập trình...).
+- unclear: quá mơ hồ, không đoán được muốn làm gì.
 
 ## Lịch sử gần nhất
 {chat_history}
@@ -56,27 +46,15 @@ Nếu flag_rewritten >= 1 thì current_query = rewritten_query
 {user_query}
 
 ## Ví dụ
-- "Protein là gì?" → {{"intent":"general_qa","rewritten_query":"Protein là gì?","clarify_question":null,"clarify_options":[]}}
-- "Email của tôi là gì?" → {{"intent":"task","rewritten_query":"Email của tôi là gì?","clarify_question":null,"clarify_options":[]}}
-- "Hôm nay thời tiết thế nào?" → {{"intent":"out_of_scope","rewritten_query":"Hôm nay thời tiết thế nào?","clarify_question":null,"clarify_options":[]}}
-- "Làm cái đó đi" → {{"intent":"unclear","rewritten_query":"Làm cái đó đi","clarify_question":"Bạn muốn mình làm việc gì?","clarify_options":["Xem hồ sơ","Nhật ký ăn","Nhật ký tập"]}}
+- "Protein là gì?" → {{"intent":"general_qa","rewritten_query":null,"clarify_question":null,"clarify_options":[]}}
+- "Email của tôi là gì?" → {{"intent":"task","rewritten_query":null,"clarify_question":null,"clarify_options":[]}}
+- "Hôm nay thời tiết thế nào?" → {{"intent":"out_of_scope","rewritten_query":null,"clarify_question":null,"clarify_options":[]}}
+- (lịch sử: "Hôm nay tôi ăn gì?") "Còn hôm qua thì sao?" → {{"intent":"task","rewritten_query":"Hôm qua tôi ăn gì?","clarify_question":null,"clarify_options":[]}}
+- "Làm cái đó đi" → {{"intent":"unclear","rewritten_query":null,"clarify_question":"Bạn muốn mình làm việc gì?","clarify_options":["Xem hồ sơ","Nhật ký ăn","Nhật ký tập"]}}
 
 ## Output
 Chỉ trả về JSON hợp lệ, không markdown.
-
-{{
-    "intent": "task",
-    "user_query": "..."
-    "rewritten_query": "...",
-    "current_query": "...",
-    "clarify_question": null,
-    "clarify_options": [],
-    "flag_rewritten": 0
-}}
-
-Nếu intent=unclear:
-- clarify_question bắt buộc có nội dung.
-- clarify_options gồm 2-4 lựa chọn ngắn bằng tiếng Việt.
+Nếu intent=unclear: clarify_question bắt buộc có nội dung, clarify_options gồm 2-4 lựa chọn ngắn bằng tiếng Việt.
 """
 
 
@@ -87,7 +65,7 @@ ROUTER_AGENT_SYSTEM_PROMPT = """
 Bạn là Router Agent trong hệ thống Smart-Recipe (chuyên về sức khỏe, dinh dưỡng, món ăn và luyện tập).
 
 ## Nhiệm vụ duy nhất
-Quyết định xem yêu cầu của người dùng có cần gọi TOOL hay KHÔNG CẦN GỌI TOOL (NO_TOOL).
+Quyết định xem yêu cầu của người dùng có cần gọi TOOL, KHÔNG CẦN GỌI TOOL (NO_TOOL), hỏi lại người dùng vì chưa rõ người dùng muốn làm gì (NEED_INFO).
 
 ## Quy tắc phân loại:
 1. GỌI TOOL (TOOL):
@@ -102,6 +80,8 @@ Quyết định xem yêu cầu của người dùng có cần gọi TOOL hay KH�
    - Yêu cầu ngoài phạm vi (lập trình phần mềm, chính trị, buôn bán bất động sản, v.v.).
    - Câu hỏi không rõ ràng ý định cần hỏi lại.
    -> KHÔNG GỌI BẤT KỲ TOOL NÀO. Hãy trả lời ngắn gọn hoặc ghi nhận câu hỏi.
+
+3. CẦN NGƯỜI DÙNG CUNG CẤP THÊM THÔNG TIN VÌ CHƯA RÕ Ý ĐỊNH (NEED_TOOL)
 """
 
 FORCE_NO_TOOL_PROMPT = (
@@ -250,21 +230,42 @@ def build_response_writer_prompt(
     clarify_question: str = "",
     clarify_options: list[str] | None = None,
 ) -> str:
-    options = clarify_options or []
-    options_text = ", ".join(options) if options else "(không có)"
-    return f"""
-Bạn là trợ lý Smart-Recipe — dinh dưỡng, nhật ký ăn uống, luyện tập, hồ sơ người dùng.
+    
+    # 🔴 1. NẾU LÀ OUT_OF_SCOPE
+    if intent == "out_of_scope":
+        return f"""Bạn là trợ lý AI Smart-Recipe chuyên về dinh dưỡng, sức khỏe và luyện tập.
+Người dùng vừa hỏi một câu nằm ngoài phạm vi hỗ trợ: "{current_query}"
+
+NHIỆM VỤ BẮT BUỘC: 
+1. TRẢ LỜI 100% BẰNG TIẾNG VIỆT (VIETNAMESE). TUYỆT ĐỐI KHÔNG DÙNG NGÔN NGỮ KHÁC.
+2. Viết MỘT câu từ chối lịch sự. Tuyệt đối KHÔNG trả lời nội dung câu hỏi của người dùng.
+3. Nhắc khéo rằng bạn chỉ có thể hỗ trợ các vấn đề liên quan đến dinh dưỡng, thực đơn, và luyện tập.
+"""
+
+    # 🟡 2. NẾU LÀ UNCLEAR
+    if intent == "unclear":
+        options = clarify_options or []
+        options_text = ", ".join(options) if options else "(không có)"
+        return f"""Bạn là trợ lý AI Smart-Recipe.
+Câu hỏi của người dùng quá mơ hồ hoặc thiếu ngữ cảnh: "{current_query}"
+Hệ thống đã đề xuất câu hỏi làm rõ: "{clarify_question}" và các lựa chọn: [{options_text}].
+
+NHIỆM VỤ BẮT BUỘC:
+1. TRẢ LỜI 100% BẰNG TIẾNG VIỆT (VIETNAMESE).
+2. Dựa vào đề xuất trên, hãy giao tiếp thật tự nhiên và thân thiện để hỏi lại người dùng, giúp họ định hướng cách đặt câu hỏi.
+"""
+
+    # 🟢 3. CÁC TRƯỜNG HỢP CÒN LẠI (TASK / GENERAL_QA)
+    return f"""Bạn là trợ lý Smart-Recipe — dinh dưỡng, nhật ký ăn uống, luyện tập, hồ sơ người dùng.
 
 ## Nhiệm vụ
-Viết câu trả lời cuối bằng tiếng Việt, tự nhiên, trung thực. Không bịa dữ liệu tool. Không lộ suy luận hệ thống.
+Viết câu trả lời cuối bằng 100% TIẾNG VIỆT. Phải tự nhiên, trung thực. Không bịa dữ liệu tool. Không lộ suy luận hệ thống.
 
 ## Bối cảnh
 - Câu hỏi: {current_query}
 - Intent: {intent}
 - Category / đánh giá: {category}
 - Ghi chú: {feedback or "(không)"}
-- Câu hỏi làm rõ (nếu có): {clarify_question or "(không)"}
-- Gợi ý lựa chọn: {options_text}
 
 ## Lịch sử gần
 {messages_summary}
@@ -275,13 +276,10 @@ Viết câu trả lời cuối bằng tiếng Việt, tự nhiên, trung thực.
 ## Dữ liệu Tool
 {tool_results_summary}
 
-## Quy tắc intent
-- intent=out_of_scope: từ chối nhẹ, vì bạn chỉ hỗ trợ dinh dưỡng / luyện tập / dữ liệu trên website.
-    - "tại sao mặt trăng lại màu vàng", intent=out_of_scope -> từ chối trả lời vì câu này không thuộc phạm vi hệ thống có thể hỗ trợ
-- intent=unclear: tức là câu của người dùng quá khó hiểu, cần đưa ra lời gợi ý cho user nên đặt những câu hỏi gì cho AI để AI giúp đỡ.
-- Có kết quả Tool: chỉ dùng dữ liệu tool, trình bày rõ.
-- intent=general_qa hoặc ASKANDANSWER: trả lời kiến thức; nếu docs có nội dung thì ưu tiên docs. 
-- FAILED / thiếu dữ liệu: nói thật chưa tìm thấy, gợi ý cách hỏi khác.
+## Quy tắc trả lời:
+- Luôn luôn dùng Tiếng Việt.
+- Trả lời đúng trọng tâm. Có kết quả Tool thì chỉ dùng dữ liệu tool, trình bày rõ ràng.
+- Nếu không có dữ liệu (FAILED), hãy thành thật nói chưa tìm thấy và gợi ý cách hỏi khác.
 """
 
 def build_result_feedback_message(validation: dict) -> str:
